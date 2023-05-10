@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "dmb"
+version = "0.1.0"
+description = ""
+authors = ["fabian <dechent.fabian@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+torch = "^2.0.1"
+numpy = "^1.24.3"
+scipy = "^1.10.1"
+matplotlib = "^3.7.1"
+worm = {git = "https://github.com/quant-sic/worm.git"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
