@@ -16,17 +16,19 @@ import shutil
 
 
 
-def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_path:Path):
+def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_path:Path, pipeout_dir:Path):
 
     script_path.parent.mkdir(exist_ok=True,parents=True)
-
+    pipeout_dir.mkdir(exist_ok=True,parents=True)
+    
     with open(script_path,"w") as script_file:
 
         # write lines
         script_file.write("#!/bin/bash -l\n")
         script_file.write("#SBATCH --job-name=worm\n")
-        script_file.write("#SBATCH --output=/u/bale/paper/worm/runs/test_non_uniform/slurm-%j.out\n")
-        script_file.write("#SBATCH --error=/u/bale/paper/worm/runs/test_non_uniform/slurm-%j.err\n")
+
+        script_file.write("#SBATCH --output="+str(pipeout_dir)+"/%j.out\n")
+        script_file.write("#SBATCH --error="+str(pipeout_dir)+"/%j.err\n")
 
         script_file.write("#SBATCH --partition=highfreq\n")
 
@@ -92,7 +94,7 @@ if __name__ == "__main__":
         # log.info("Running Simulation")
         # sim.run_until_convergence(tune=False)
 
-        write_sbatch_script(script_path=save_dir/"run.sh",worm_executable_path=Path("/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi"),parameters_path=save_dir/"parameters.ini")
+        write_sbatch_script(script_path=save_dir/"run.sh",worm_executable_path=Path("/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi"),parameters_path=save_dir/"parameters.ini",pipeout_dir=save_dir/"pipe_out")
 
         subprocess.run("sbatch "+str(save_dir/"run.sh"),check=True,shell=True,cwd=save_dir)
 
