@@ -16,7 +16,7 @@ import shutil
 
 
 
-def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_path:Path):
+def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_path:Path, pipeout_dir:Path):
 
     script_path.parent.mkdir(exist_ok=True,parents=True)
 
@@ -25,8 +25,8 @@ def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_pa
         # write lines
         script_file.write("#!/bin/bash -l\n")
         script_file.write("#SBATCH --job-name=worm\n")
-        script_file.write("#SBATCH --output=/u/bale/paper/worm/runs/test_non_uniform/slurm-%j.out\n")
-        script_file.write("#SBATCH --error=/u/bale/paper/worm/runs/test_non_uniform/slurm-%j.err\n")
+
+        
 
         script_file.write("#SBATCH --partition=highfreq\n")
 
@@ -55,7 +55,7 @@ def draw_random_config():
     V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
     mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
 
-    V_trap = get_random_trapping_potential(shape=(L,L),desired_abs_max=mu_offset/2)
+    power,V_trap = get_random_trapping_potential(shape=(L,L),desired_abs_max=mu_offset/2)
     U_on_array = np.full(shape=(L,L),fill_value=U_on)
     V_nn_array = np.expand_dims(V_nn,axis=0).repeat(2,axis=0)
     t_hop_array = np.ones((2,L,L))
