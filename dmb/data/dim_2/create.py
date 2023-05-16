@@ -16,13 +16,14 @@ from typing import List
 import itertools
 import datetime
 import json
+from dmb.data.dim_2.helpers import call_sbatch_and_wait
 
 log = create_logger(__name__)
 
 
 def draw_random_config():
 
-    L = np.random.randint(low=3,high=8)
+    L = np.random.randint(low=3,high=8)*2
     U_on = np.random.uniform(low=4.0,high=80)
     V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
     mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
@@ -45,6 +46,17 @@ def get_unfinished_samples(data_dir: Path)->List[Path]:
         try:
             sim = WormSimulation.from_dir(sample_dir,"/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
             converged, max_rel_error, n_measurements, tau_max = sim.check_convergence(sim.get_results())
+
+            # extend pars to include the new tau max and max_rel_error to json
+            with open(sim.save_dir/"pars.json","r") as f:
+                pars = json.load(f)
+                pars["tau_max"] = tau_max
+                pars["max_rel_error"] = max_rel_error
+
+            log.info("pars: "+str(pars))
+            
+            with open(sim.save_dir/"pars.json","w") as f:
+                json.dump(pars,f)
 
             if not converged:
                 unfinished_samples.append(sample_dir)
@@ -98,10 +110,10 @@ def prepare_unfinished_samples(unfinished_samples:List[Path],sweeps:int):
             current_sweeps = pars["sweeps"]
 
         print(f"Continuing sample {sample_dir} with {current_sweeps+sweeps} sweeps")
-        sim._set_extension_sweeps_in_checkpoints(extension_sweeps=current_sweeps+sweeps)
+        sim._set_extension_sweeps_in_checkpoints(extension_sweeps=current_sweeps+sweeps*int(sim.input_parameters.Nmeasure2))
 
         with open(sim.save_dir/"pars.json","w") as f:
-            json.dump({"sweeps":current_sweeps+sweeps},f)
+            json.dump({"sweeps":current_sweeps+sweeps*int(sim.input_parameters.Nmeasure2)},f)
 
         # remove output file
         #os.remove(sim.save_dir/"output.h5")
@@ -123,13 +135,15 @@ if __name__ == "__main__":
 
     unfinished_samples = get_unfinished_samples(data_dir)
 
-    for type,sim in itertools.chain(zip(itertools.repeat("continued"),prepare_unfinished_samples(unfinished_samples,sweeps=1000000)),zip(itertools.repeat("new"),new_samples(args.number_of_samples - len(unfinished_samples)))):
+    for type,sim in itertools.chain(zip(itertools.repeat("continued"),prepare_unfinished_samples(unfinished_samples,sweeps=1000)),zip(itertools.repeat("new"),new_samples(args.number_of_samples - len(unfinished_samples)))):
         
         write_sbatch_script(script_path=sim.save_dir/"run.sh",worm_executable_path=Path("/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi"),parameters_path=sim.save_dir/"parameters.ini",pipeout_dir=sim.save_dir/"pipe_out")
 
-        try:
-            log.info(f"Submitting job for {sim.save_dir}. Type: {type}. N sweeps: {sim.input_parameters.sweeps}")
-            p = subprocess.run("sbatch "+str(sim.save_dir/"run.sh"),check=True,shell=True,cwd=sim.save_dir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as e:
-            log.error(e.stderr.decode("utf-8"))
-            raise e
+        call_sbatch_and_wait(script_path=sim.save_dir/"run.sh")
+
+        # try:
+        #     log.info(f"Submitting job for {sim.save_dir}. Type: {type}. N sweeps: {sim.input_parameters.sweeps}")
+        #     p = subprocess.run("sbatch "+str(sim.save_dir/"run.sh"),check=True,shell=True,cwd=sim.save_dir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        # except subprocess.CalledProcessError as e:
+        #     log.error(e.stderr.decode("utf-8"))
+        #     raise e

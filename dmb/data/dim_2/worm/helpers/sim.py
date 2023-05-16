@@ -320,6 +320,10 @@ class WormSimulation(object):
             results=WormOutput(out_file_path=tune_parameters.outputfile)
         )
 
+        if np.isnan(tau_max):
+            log.warning("Tau_max is nan. Setting new Nmeasure2 to 10.")
+            tau_max = 0
+        
         new_measure2 = max(int(tune_parameters.Nmeasure2 * (tau_max / 2)), 10)
         log.info(f"New Nmeasure2: {new_measure2}")
 
