@@ -216,7 +216,7 @@ class WormSimulation(object):
         self.input_parameters = input_parameters
         self.save_dir = save_dir
 
-        self.record = SimulationRecord(status_dir=save_dir)
+        self.record = SimulationRecord(record_dir=save_dir)
 
 
     @classmethod
@@ -237,11 +237,14 @@ class WormSimulation(object):
     def save_parameters(self):
         self._save_parameters(save_dir=self.save_dir)
 
-    def _execute_worm(self,executable):
+    def _execute_worm(self,executable,input_file:Optional[Path]=None):
+
+        if input_file is None:
+            input_file = self.input_parameters.ini_path
 
         # determine scheduler
         if check_if_slurm_is_installed_and_running():
-            write_sbatch_script(script_path=self.save_dir / "run.sh",worm_executable_path=executable,parameters_path=self.input_parameters.ini_path,pipeout_dir=self.save_dir)
+            write_sbatch_script(script_path=self.save_dir / "run.sh",worm_executable_path=executable,parameters_path=input_file,pipeout_dir=self.save_dir)
 
             # submit job
             call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
@@ -252,7 +255,7 @@ class WormSimulation(object):
                 env["TMPDIR"] = "/tmp"
 
                 p = subprocess.run(
-                    " ".join(["mpirun","--use-hwthread-cpus",str(executable), str(self.input_parameters.ini_path)]),
+                    ["mpirun","--use-hwthread-cpus",str(executable), str(input_file)],
                     env=env,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
@@ -290,7 +293,7 @@ class WormSimulation(object):
 
         return converged, max_rel_error, n_measurements, tau_max
 
-    def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
+    def _set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
         for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
             with h5py.File(checkpoint_file, "r+") as f:
                 try:
@@ -307,12 +310,12 @@ class WormSimulation(object):
 
         self.save_parameters()
 
-        self._execute_worm(inputfile=self.input_parameters.ini_path,executable=executable)
+        self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
         pbar = tqdm(range(10**5, max_sweeps, 5 * 10**5))
         for sweeps in pbar:
             self._set_extension_sweeps_in_checkpoints(extension_sweeps=sweeps)
-            self._execute_worm(inputfile=self.input_parameters.checkpoint)
+            self._execute_worm(input_file=self.input_parameters.checkpoint,executable=executable)
 
             converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
                 self.results
@@ -345,7 +348,7 @@ class WormSimulation(object):
 
         log.info("Tuning measurement interval. Running 50000 sweeps.")
         
-        self._execute_worm(inputfile=tune_parameters.ini_path,executable=executable)
+        self._execute_worm(input_file=tune_parameters.ini_path,executable=executable)
 
         self.record["tune"]["status"] = "finished"
 
