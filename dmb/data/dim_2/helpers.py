@@ -54,7 +54,7 @@ def call_sbatch_and_wait(script_path:Path):
         raise e
 
     job_id = p.stdout.decode("utf-8").strip().split()[-1]
-    log.info(f"Submitted job {job_id}")
+    log.debug(f"Submitted job {job_id}")
 
     # wait for job to finish with added timeout
     timeout = 60*60*2 # 2 hours
@@ -67,7 +67,7 @@ def call_sbatch_and_wait(script_path:Path):
         if time.time() - start_time > timeout:
             raise TimeoutError("Job did not finish in time")
 
-    log.info(f"Job {job_id} finished")
+    log.debug(f"Job {job_id} finished")
 
 
 def check_if_slurm_is_installed_and_running():

@@ -1,4 +1,9 @@
 import logging
+from typing import Any, Optional
+
+from joblib import Parallel
+from tqdm import tqdm
+
 
 def create_logger(app_name: str, level: int = logging.INFO) -> logging.Logger:
     """Serves as a unified way to instantiate a new logger. Will create a new logging instance with the name app_name. The logging output is sent to the console via a logging.StreamHandler() instance. The output will be formatted using the logging time, the logger name, the level at which the logger was called and the logging message. As the root logger threshold is set to WARNING, the instantiation via logging.getLogger(__name__) results in a logger instance, which console handel also has the threshold set to WARNING. One needs to additionally set the console handler level to the desired level, which is done by this function.
@@ -35,3 +40,4 @@ def create_logger(app_name: str, level: int = logging.INFO) -> logging.Logger:
 
 
     return logger
+
