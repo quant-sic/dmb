@@ -205,17 +205,21 @@ class WormSimulation(object):
     def save_parameters(self):
         self._save_parameters(save_dir=self.save_dir)
 
-    def _execute_worm(self, inputfile):
+    def _execute_worm(self, inputfile,executable):
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
 
+        if executable is None:
+            executable = f"mpirun {self.worm_executable}"
+
         try:
             process = subprocess.run(
-                ["srun","--ntasks-per-node=16","mpirun","-np","16",str(self.worm_executable), str(inputfile)],
+                " ".join([str(executable), str(inputfile)]),
                 env=env,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 check=True,
+                shell=True,
             )
 
 # , "--use-hwthread-cpus"
@@ -232,6 +236,7 @@ class WormSimulation(object):
         return output
 
     def check_convergence(self, results, error_threshold: float = 0.01):
+
         rel_dens_error = (
             results.observables["Density_Distribution"]["mean"]["error"]
             / results.observables["Density_Distribution"]["mean"]["value"]
@@ -254,6 +259,18 @@ class WormSimulation(object):
                     f["parameters/extension_sweeps"][...] = extension_sweeps
                 except KeyError:
                     f["parameters/extension_sweeps"] = extension_sweeps
+
+    def _get_current_extension_sweeps(self)->int:
+
+        #try: 
+        with h5py.File(self.save_dir.glob("checkpoint.h5*").__next__(), "r") as f:
+            return f["parameters/extension_sweeps"][()]
+        # except StopIteration:
+        #     return 0
+        # except KeyError:
+        #     return 0
+        
+        
 
     def run_until_convergence(self, max_sweeps: int = 10**8, tune: bool = True):
         # tune measurement interval
@@ -282,7 +299,7 @@ class WormSimulation(object):
             if converged:
                 break
 
-    def tune(self):
+    def tune(self,executable: Path = None):
         tune_dir = self.save_dir / "tune"
         tune_dir.mkdir(parents=True, exist_ok=True)
 
@@ -295,9 +312,10 @@ class WormSimulation(object):
         tune_parameters.save(save_dir_path=tune_dir)
 
         self._save_parameters(tune_dir)
-        self._execute_worm(inputfile=tune_parameters.ini_path)
 
-        log.info(tune_parameters.outputfile)
+        log.info("Tuning measurement interval. Running 50000 sweeps.")
+        self._execute_worm(inputfile=tune_parameters.ini_path,executable=executable)
+
         converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
             results=WormOutput(out_file_path=tune_parameters.outputfile)
         )
