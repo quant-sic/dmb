@@ -328,7 +328,8 @@ class WormSimulation(object):
 
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
-        pbar = tqdm(range(self.input_parameters.Nmeasure2 * 100, self.input_parameters.Nmeasure2 * 15000, max(self.input_parameters.Nmeasure2 * 500, 100000)), disable=True)
+        pbar = tqdm(range(self.input_parameters.Nmeasure2 * 100, max(self.input_parameters.Nmeasure2 * 15000,1e6), max(self.input_parameters.Nmeasure2 * 500, 100000)), disable=True)
+        
         for sweeps in pbar:
             self._set_extension_sweeps_in_checkpoints(extension_sweeps=sweeps)
             self._execute_worm(input_file=self.input_parameters.checkpoint,executable=executable)
