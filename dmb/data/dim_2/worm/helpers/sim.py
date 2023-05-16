@@ -10,6 +10,7 @@ from copy import deepcopy
 from .io import create_logger
 from collections import defaultdict
 import json
+from dmb.data.dim_2.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
 
 log = create_logger(__name__)
 
@@ -236,30 +237,32 @@ class WormSimulation(object):
     def save_parameters(self):
         self._save_parameters(save_dir=self.save_dir)
 
-    # def _execute_worm(self, inputfile,executable):
-    #     env = os.environ.copy()
-    #     env["TMPDIR"] = "/tmp"
+    def _execute_worm(self,executable):
 
-    #     if executable is None:
-    #         executable = f"mpirun {self.worm_executable}"
+        # determine scheduler
+        if check_if_slurm_is_installed_and_running():
+            write_sbatch_script(script_path=self.save_dir / "run.sh",worm_executable_path=executable,parameters_path=self.input_parameters.ini_path,pipeout_dir=self.save_dir)
 
-    #     try:
-    #         process = subprocess.run(
-    #             " ".join([str(executable), str(inputfile)]),
-    #             env=env,
-    #             stderr=subprocess.PIPE,
-    #             stdout=subprocess.PIPE,
-    #             check=True,
-    #             shell=True,
-    #         )
+            # submit job
+            call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
 
-# , "--use-hwthread-cpus"
-        # except subprocess.CalledProcessError as e:
-        #     log.error(e.stderr.decode("utf-8"))
-        #     raise e
+        else:
+            try:
+                env = os.environ.copy()
+                env["TMPDIR"] = "/tmp"
 
-    # def run(self):
-    #     self._execute_worm(inputfile=self.input_parameters.ini_path)
+                p = subprocess.run(
+                    " ".join(["mpirun","--use-hwthread-cpus",str(executable), str(self.input_parameters.ini_path)]),
+                    env=env,
+                    stderr=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    check=True,
+                )
+
+            except subprocess.CalledProcessError as e:
+                log.error(e.stderr.decode("utf-8"))
+                raise e
+
 
     @property
     def results(self):
@@ -296,15 +299,15 @@ class WormSimulation(object):
                     f["parameters/extension_sweeps"] = extension_sweeps
         
 
-    def run_until_convergence(self, max_sweeps: int = 10**8, tune: bool = True):
+    def run_until_convergence(self,executable, max_sweeps: int = 10**8, tune: bool = True):
         # tune measurement interval
         if tune:
-            measure2 = self.tune()
+            measure2 = self.tune(executable=executable)
             self.input_parameters.Nmeasure2 = measure2
 
         self.save_parameters()
 
-        self._execute_worm(inputfile=self.input_parameters.ini_path)
+        self._execute_worm(inputfile=self.input_parameters.ini_path,executable=executable)
 
         pbar = tqdm(range(10**5, max_sweeps, 5 * 10**5))
         for sweeps in pbar:
@@ -312,7 +315,7 @@ class WormSimulation(object):
             self._execute_worm(inputfile=self.input_parameters.checkpoint)
 
             converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
-                self.get_results()
+                self.results
             )
 
             # update tqdm description
@@ -342,7 +345,7 @@ class WormSimulation(object):
 
         log.info("Tuning measurement interval. Running 50000 sweeps.")
         
-        # self._execute_worm(inputfile=tune_parameters.ini_path,executable=executable)
+        self._execute_worm(inputfile=tune_parameters.ini_path,executable=executable)
 
         self.record["tune"]["status"] = "finished"
 
@@ -360,13 +363,4 @@ class WormSimulation(object):
         return new_measure2
 
 
-def check_if_slurm_is_installed_and_running():
-
-    try:
-        subprocess.run("sinfo", check=True, stdout=subprocess.PIPE)
-    except FileNotFoundError:
-        raise Exception("Slurm is not installed.")
-    except subprocess.CalledProcessError:
-        raise Exception("Slurm is not running.")
-    
     
