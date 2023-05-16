@@ -3,49 +3,21 @@ import numpy as np
 from pathlib import Path
 from dmb.utils.io import create_logger
 import os
-from dmb.data.dim_2.mu import get_random_trapping_potential
-
-log = create_logger(__name__)
-
+from dmb.data.dim_2.potential import get_random_trapping_potential
 from dmb.utils import REPO_ROOT
 import subprocess
 from pathlib import Path
 import shutil
+import argparse
+from dmb.utils.io import create_logger
+from dmb.data.dim_2.helpers import write_sbatch_script
+from dmb.utils.paths import REPO_DATA_ROOT
+from typing import List
+import itertools
+import datetime
+import json
 
-# subprocess.run(" ".join(["export MPIRUN_OPTIONS='--bind-to core --map-by socket:PE=${SLURM_CPUS_PER_TASK} -report-bindings'","export TMPDIR=/tmp","module load gcc", "&&","module load openmpi", "&&",'srun',"--cpus-per-task=1","--nodes=1","--ntasks-per-node=4","--ntasks=4", 'mpirun','/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi', '/u/bale/paper/worm/runs/test_non_uniform/parameters.ini']),shell=True)
-
-
-
-def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_path:Path, pipeout_dir:Path):
-
-    script_path.parent.mkdir(exist_ok=True,parents=True)
-
-    with open(script_path,"w") as script_file:
-
-        # write lines
-        script_file.write("#!/bin/bash -l\n")
-        script_file.write("#SBATCH --job-name=worm\n")
-
-        
-
-        script_file.write("#SBATCH --partition=highfreq\n")
-
-        script_file.write("#SBATCH --time=00:30:00\n")
-        script_file.write("#SBATCH --nodes=1\n")
-        script_file.write("#SBATCH --ntasks-per-node=4\n")
-        script_file.write("#SBATCH --cpus-per-task=1\n")
-        script_file.write("#SBATCH --mem=2G\n")
-
-        script_file.write("module load gcc\n")
-        script_file.write("module load openmpi\n")
-        script_file.write("module load boost\n")
-
-        script_file.write("export MPIRUN_OPTIONS='--bind-to core --map-by socket:PE=${SLURM_CPUS_PER_TASK} -report-bindings'\n")
-        script_file.write("export TMPDIR=/tmp\n")
-
-        script_file.write("mpirun "+str(worm_executable_path)+" "+str(parameters_path)+"\n")
-
-    os.chmod(script_path, 0o755)
+log = create_logger(__name__)
 
 
 def draw_random_config():
@@ -57,42 +29,107 @@ def draw_random_config():
 
     power,V_trap = get_random_trapping_potential(shape=(L,L),desired_abs_max=mu_offset/2)
     U_on_array = np.full(shape=(L,L),fill_value=U_on)
-    V_nn_array = np.expand_dims(V_nn,axis=0).repeat(2,axis=0)
+    V_nn_array = np.expand_dims(np.full(shape=(L,L),fill_value=V_nn),axis=0).repeat(2,axis=0)
     t_hop_array = np.ones((2,L,L))
 
     mu = mu_offset + V_trap
 
     return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array    
 
+def get_unfinished_samples(data_dir: Path)->List[Path]:
+    # Get all unfinished samples
+    unfinished_samples = []
+
+    for sample_dir in data_dir.iterdir():
+
+        try:
+            sim = WormSimulation.from_dir(sample_dir,"/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
+            converged, max_rel_error, n_measurements, tau_max = sim.check_convergence(sim.get_results())
+
+            if not converged:
+                unfinished_samples.append(sample_dir)
+
+        except FileNotFoundError:
+            log.info(f"Sample {sample_dir} not finished")
+    
+    return unfinished_samples
 
 
-if __name__ == "__main__":
-
-    number_of_samples = 10
-
-
-    for sample_id in range(number_of_samples):
+def new_samples(number:int):
+    for sample_id in range(number):
 
         L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_random_config()
 
         thermalization = 10000
-        sweeps = 1000000
+        sweeps = 100000
+
         p = WormInputParameters(Lx=L,Ly=L,Nmeasure2=100,t_hop=t_hop_array,U_on=U_on_array,V_nn=V_nn_array,thermalization=thermalization,mu=mu,sweeps=sweeps)
 
-        save_dir=Path(REPO_ROOT/f"data/bh_2d/{sample_id}")
+        # get current time up to seconds
+
+        now = datetime.datetime.now()
+        now = now.strftime("%Y-%m-%d_%H-%M-%S")
+
+        save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
         
         shutil.rmtree(save_dir,ignore_errors=True)
 
         sim = WormSimulation(p,worm_executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi",save_dir=save_dir)
 
-        # if not "SLURM_PROCID" in os.environ or os.environ["SLURM_PROCID"] == "0":
-        #     log.info("Saving Parameters")
+        sim.input_parameters.Nmeasure2 = sim.tune(executable="module load gcc && module load openmpi && srun mpirun /zeropoint/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
+        sim.input_parameters.sweeps = sim.input_parameters.Nmeasure2 * 10000
+        sim.input_parameters.thermalization = sim.input_parameters.Nmeasure2 * 100
+
         sim.save_parameters()
 
-        # log.info("Running Simulation")
-        # sim.run_until_convergence(tune=False)
+        #save json file with number of sweeps
+        with open(sim.save_dir/"pars.json","w") as f:
+            json.dump({"sweeps":sim.input_parameters.sweeps},f)
 
-        write_sbatch_script(script_path=save_dir/"run.sh",worm_executable_path=Path("/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi"),parameters_path=save_dir/"parameters.ini")
+        yield sim
 
-        subprocess.run("sbatch "+str(save_dir/"run.sh"),check=True,shell=True,cwd=save_dir)
+def prepare_unfinished_samples(unfinished_samples:List[Path],sweeps:int):
 
+    for sample_dir in unfinished_samples:
+        sim = WormSimulation.from_dir(sample_dir,"/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
+
+        with open(sim.save_dir/"pars.json","r") as f:
+            pars = json.load(f)
+            current_sweeps = pars["sweeps"]
+
+        print(f"Continuing sample {sample_dir} with {current_sweeps+sweeps} sweeps")
+        sim._set_extension_sweeps_in_checkpoints(extension_sweeps=current_sweeps+sweeps)
+
+        with open(sim.save_dir/"pars.json","w") as f:
+            json.dump({"sweeps":current_sweeps+sweeps},f)
+
+        # remove output file
+        #os.remove(sim.save_dir/"output.h5")
+
+        yield sim
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='Run worm simulation for 2D BH model')
+    parser.add_argument('--number_of_samples', type=int, default=100,
+                        help='number of samples to run')
+    parser.add_argument('--continue_unfinished', type=bool, default=True,
+                        help='continue unfinished runs')
+    
+    args = parser.parse_args()
+
+    data_dir = REPO_DATA_ROOT/"bose_hubbard_2d"
+    data_dir.mkdir(parents=True,exist_ok=True)
+
+    unfinished_samples = get_unfinished_samples(data_dir)
+
+    for type,sim in itertools.chain(zip(itertools.repeat("continued"),prepare_unfinished_samples(unfinished_samples,sweeps=1000000)),zip(itertools.repeat("new"),new_samples(args.number_of_samples - len(unfinished_samples)))):
+        
+        write_sbatch_script(script_path=sim.save_dir/"run.sh",worm_executable_path=Path("/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi"),parameters_path=sim.save_dir/"parameters.ini",pipeout_dir=sim.save_dir/"pipe_out")
+
+        try:
+            log.info(f"Submitting job for {sim.save_dir}. Type: {type}. N sweeps: {sim.input_parameters.sweeps}")
+            p = subprocess.run("sbatch "+str(sim.save_dir/"run.sh"),check=True,shell=True,cwd=sim.save_dir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            log.error(e.stderr.decode("utf-8"))
+            raise e
