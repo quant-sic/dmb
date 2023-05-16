@@ -160,6 +160,7 @@ class WormOutput:
     def observables(self):
         h5_file = h5py.File(self.out_file_path, "r")
 
+
         observables_dict = {}
 
         observables_dict = defaultdict(dict)
