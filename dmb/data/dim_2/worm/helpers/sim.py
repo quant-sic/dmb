@@ -9,6 +9,7 @@ from tqdm import tqdm
 from copy import deepcopy
 from .io import create_logger
 from collections import defaultdict
+import json
 
 log = create_logger(__name__)
 
@@ -174,27 +175,57 @@ class WormOutput:
 
         return observables_dict
 
+class SimulationRecord(object):
 
+    def __init__(self, record_dir: Path):
+        
+        self.record_file_path = record_dir / "record.json"
+
+        if self.record_file_path.exists():
+            with open(self.record_file_path, "r") as f:
+                self.record = json.load(f)
+        else:
+            self.record = {}
+
+    def save(self):
+
+        with open(self.record_file_path, "w") as f:
+            json.dump(self.record, f)
+            
+    def update(self, record: dict):
+        self.record.update(record)
+
+        self.save()
+
+    def __getitem__(self, key: str):
+        return self.record.get(key, None)
+    
+    def __setitem__(self, key: str, value):
+        self.record[key] = value
+
+        self.save()
+
+    
 class WormSimulation(object):
     def __init__(
         self,
         input_parameters: WormInputParameters,
-        worm_executable: Path,
         save_dir: Path,
     ):
         self.input_parameters = input_parameters
-        self.worm_executable = worm_executable
         self.save_dir = save_dir
 
+        self.record = SimulationRecord(status_dir=save_dir)
+
+
     @classmethod
-    def from_dir(cls, dir_path: Path, worm_executable: Path):
+    def from_dir(cls, dir_path: Path):
         # Read in parameters
         input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
 
         # Create simulation
         return cls(
             input_parameters=input_parameters,
-            worm_executable=worm_executable,
             save_dir=dir_path,
         )
 
@@ -205,41 +236,45 @@ class WormSimulation(object):
     def save_parameters(self):
         self._save_parameters(save_dir=self.save_dir)
 
-    def _execute_worm(self, inputfile,executable):
-        env = os.environ.copy()
-        env["TMPDIR"] = "/tmp"
+    # def _execute_worm(self, inputfile,executable):
+    #     env = os.environ.copy()
+    #     env["TMPDIR"] = "/tmp"
 
-        if executable is None:
-            executable = f"mpirun {self.worm_executable}"
+    #     if executable is None:
+    #         executable = f"mpirun {self.worm_executable}"
 
-        try:
-            process = subprocess.run(
-                " ".join([str(executable), str(inputfile)]),
-                env=env,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                check=True,
-                shell=True,
-            )
+    #     try:
+    #         process = subprocess.run(
+    #             " ".join([str(executable), str(inputfile)]),
+    #             env=env,
+    #             stderr=subprocess.PIPE,
+    #             stdout=subprocess.PIPE,
+    #             check=True,
+    #             shell=True,
+    #         )
 
 # , "--use-hwthread-cpus"
-        except subprocess.CalledProcessError as e:
-            log.error(e.stderr.decode("utf-8"))
-            raise e
+        # except subprocess.CalledProcessError as e:
+        #     log.error(e.stderr.decode("utf-8"))
+        #     raise e
 
-    def run(self):
-        self._execute_worm(inputfile=self.input_parameters.ini_path)
+    # def run(self):
+    #     self._execute_worm(inputfile=self.input_parameters.ini_path)
 
-    def get_results(self):
-        output = WormOutput(out_file_path=self.input_parameters.outputfile)
+    @property
+    def results(self):
+        try:
+            output = WormOutput(out_file_path=self.input_parameters.outputfile)
+        except OSError:
+            output = None
 
         return output
 
     def check_convergence(self, results, error_threshold: float = 0.01):
 
         rel_dens_error = (
-            results.observables["Density_Distribution"]["mean"]["error"]
-            / results.observables["Density_Distribution"]["mean"]["value"]
+            self.results.observables["Density_Distribution"]["mean"]["error"]
+            / self.results.observables["Density_Distribution"]["mean"]["value"]
         )
 
         converged = (rel_dens_error < error_threshold).all()
@@ -252,24 +287,13 @@ class WormSimulation(object):
 
         return converged, max_rel_error, n_measurements, tau_max
 
-    def _set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
+    def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
         for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
             with h5py.File(checkpoint_file, "r+") as f:
                 try:
                     f["parameters/extension_sweeps"][...] = extension_sweeps
                 except KeyError:
                     f["parameters/extension_sweeps"] = extension_sweeps
-
-    def _get_current_extension_sweeps(self)->int:
-
-        #try: 
-        with h5py.File(self.save_dir.glob("checkpoint.h5*").__next__(), "r") as f:
-            return f["parameters/extension_sweeps"][()]
-        # except StopIteration:
-        #     return 0
-        # except KeyError:
-        #     return 0
-        
         
 
     def run_until_convergence(self, max_sweeps: int = 10**8, tune: bool = True):
@@ -300,6 +324,9 @@ class WormSimulation(object):
                 break
 
     def tune(self,executable: Path = None):
+
+        self.record["tune"] = {"status": "running"}
+
         tune_dir = self.save_dir / "tune"
         tune_dir.mkdir(parents=True, exist_ok=True)
 
@@ -314,7 +341,10 @@ class WormSimulation(object):
         self._save_parameters(tune_dir)
 
         log.info("Tuning measurement interval. Running 50000 sweeps.")
-        self._execute_worm(inputfile=tune_parameters.ini_path,executable=executable)
+        
+        # self._execute_worm(inputfile=tune_parameters.ini_path,executable=executable)
+
+        self.record["tune"]["status"] = "finished"
 
         converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
             results=WormOutput(out_file_path=tune_parameters.outputfile)
@@ -324,3 +354,15 @@ class WormSimulation(object):
         log.info(f"New Nmeasure2: {new_measure2}")
 
         return new_measure2
+
+
+def check_if_slurm_is_installed_and_running():
+
+    try:
+        subprocess.run("sinfo", check=True, stdout=subprocess.PIPE)
+    except FileNotFoundError:
+        raise Exception("Slurm is not installed.")
+    except subprocess.CalledProcessError:
+        raise Exception("Slurm is not running.")
+    
+    
