@@ -158,6 +158,10 @@ class WormOutput:
 
     @property
     def observables(self):
+
+        if not self.out_file_path.exists():
+            return None
+        
         h5_file = h5py.File(self.out_file_path, "r")
 
 
@@ -245,7 +249,7 @@ class WormSimulation(object):
 
         # determine scheduler
         if check_if_slurm_is_installed_and_running():
-            write_sbatch_script(script_path=self.save_dir / "run.sh",worm_executable_path=executable,parameters_path=input_file,pipeout_dir=self.save_dir)
+            write_sbatch_script(script_path=self.save_dir / "run.sh",worm_executable_path=executable,parameters_path=input_file,pipeout_dir=self.save_dir/"pipe_out")
 
             # submit job
             call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
@@ -270,29 +274,41 @@ class WormSimulation(object):
 
     @property
     def results(self):
-        try:
-            output = WormOutput(out_file_path=self.input_parameters.outputfile)
-        except OSError:
-            output = None
-
+        output = WormOutput(out_file_path=self.input_parameters.outputfile)
         return output
 
-    def check_convergence(self, results, error_threshold: float = 0.01):
+    def check_convergence(self, results, relative_error_threshold: float = 0.01,absolute_error_threshold: float = 0.01):
 
-        rel_dens_error = (
-            self.results.observables["Density_Distribution"]["mean"]["error"]
-            / self.results.observables["Density_Distribution"]["mean"]["value"]
-        )
+        if results.observables is None:
+            return False, np.nan, np.nan, np.nan
 
-        converged = (rel_dens_error < error_threshold).all()
-        max_rel_error = rel_dens_error.max()
+        # if value is zero, error is nan
+        if not (results.observables["Density_Distribution"]["mean"]["value"] == 0).any():
+            
+            rel_dens_error = (
+                self.results.observables["Density_Distribution"]["mean"]["error"]
+                / self.results.observables["Density_Distribution"]["mean"]["value"]
+            )
+
+            converged = (rel_dens_error < relative_error_threshold).all()
+            max_error = rel_dens_error.max()
+        
+        else:
+            log.debug("Density is zero, resorting to absolute error")
+            abs_dens_error = self.results.observables["Density_Distribution"]["mean"]["error"]
+            converged = (abs_dens_error < absolute_error_threshold).all()
+            max_error = abs_dens_error.max()
 
         n_measurements = results.observables["Density_Distribution"]["count"]
 
         # get max tau without nans
-        tau_max = np.nanmax(results.observables["Density_Distribution"]["tau"])
+        if np.isnan(results.observables["Density_Distribution"]["tau"]).all():
+            tau_max = np.nan
+            log.debug("All tau values are nan")
+        else:
+            tau_max = np.nanmax(results.observables["Density_Distribution"]["tau"])
 
-        return converged, max_rel_error, n_measurements, tau_max
+        return converged, max_error, n_measurements, tau_max
 
     def _set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
         for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
@@ -303,7 +319,7 @@ class WormSimulation(object):
                     f["parameters/extension_sweeps"] = extension_sweeps
         
 
-    def run_until_convergence(self,executable, max_sweeps: int = 10**8, tune: bool = True):
+    def run_until_convergence(self,executable, tune: bool = True):
         # tune measurement interval
         if tune:
             measure2 = self.tune(executable=executable)
@@ -313,7 +329,7 @@ class WormSimulation(object):
 
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
-        pbar = tqdm(range(10**5, max_sweeps, 5 * 10**5))
+        pbar = tqdm(range(self.input_parameters.Nmeasure2 * 100, self.input_parameters.Nmeasure2 * 15000, max(self.input_parameters.Nmeasure2 * 500, 100000)), disable=True)
         for sweeps in pbar:
             self._set_extension_sweeps_in_checkpoints(extension_sweeps=sweeps)
             self._execute_worm(input_file=self.input_parameters.checkpoint,executable=executable)
@@ -347,22 +363,23 @@ class WormSimulation(object):
 
         self._save_parameters(tune_dir)
 
-        log.info("Tuning measurement interval. Running 50000 sweeps.")
+        log.debug("Tuning measurement interval. Running 50000 sweeps.")
         
         self._execute_worm(input_file=tune_parameters.ini_path,executable=executable)
 
         self.record["tune"]["status"] = "finished"
+
 
         converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
             results=WormOutput(out_file_path=tune_parameters.outputfile)
         )
 
         if np.isnan(tau_max):
-            log.warning("Tau_max is nan. Setting new Nmeasure2 to 10.")
+            log.debug("Tau_max is nan. Setting new Nmeasure2 to 10.")
             tau_max = 0
         
         new_measure2 = max(int(tune_parameters.Nmeasure2 * (tau_max / 2)), 10)
-        log.info(f"New Nmeasure2: {new_measure2}")
+        log.debug(f"New Nmeasure2: {new_measure2}")
 
         return new_measure2
 
