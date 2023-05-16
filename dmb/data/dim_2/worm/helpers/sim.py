@@ -11,6 +11,7 @@ from .io import create_logger
 from collections import defaultdict
 import json
 from dmb.data.dim_2.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
+from dmb.utils import REPO_DATA_ROOT
 
 log = create_logger(__name__)
 
@@ -50,6 +51,10 @@ class WormInputParameters:
     h5_path: Optional[Path] = None
     checkpoint: Optional[Path] = None
     outputfile: Optional[Path] = None
+
+    h5_path_relative: Optional[Path] = None
+    checkpoint_relative: Optional[Path] = None
+    outputfile_relative: Optional[Path] = None
 
     @classmethod
     def from_dir(cls, save_dir_path: Path):
@@ -106,6 +111,7 @@ class WormInputParameters:
     def ini_path(self, ini_path: Path):
         self._ini_path = ini_path
 
+
     def to_ini(self, checkpoint, outputfile, save_path: Path):
         # create parent directory if it does not exist
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,12 +142,18 @@ class WormInputParameters:
         self.outputfile = (
             save_dir_path / "output.h5" if outputfile is None else outputfile
         )
+        self.outputfile_relative = Path("output.h5")
+
         self.checkpoint = (
             save_dir_path / "checkpoint.h5" if checkpoint is None else checkpoint
         )
+        self.checkpoint_relative = Path("checkpoint.h5")
 
         self.h5_path = save_dir_path / "parameters.h5"
         self.ini_path = save_dir_path / "parameters.ini"
+
+        self.h5_path_relative = Path("parameters.h5")
+        
 
         # Create ini file
         self.to_ini(
@@ -274,7 +286,15 @@ class WormSimulation(object):
 
     @property
     def results(self):
-        output = WormOutput(out_file_path=self.input_parameters.outputfile)
+
+        if self.input_parameters.outputfile_relative is None:
+            out_file_path = REPO_DATA_ROOT / self.input_parameters.outputfile.split("data/")[-1]
+            log.debug(f"Using default output file path: {out_file_path}")
+        else:
+            out_file_path = self.save_dir / self.input_parameters.outputfile_relative
+
+        output = WormOutput(out_file_path=out_file_path)
+
         return output
 
     def check_convergence(self, results, relative_error_threshold: float = 0.01,absolute_error_threshold: float = 0.01):
