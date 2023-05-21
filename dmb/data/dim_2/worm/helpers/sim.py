@@ -12,6 +12,8 @@ from collections import defaultdict
 import json
 from dmb.data.dim_2.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
 from dmb.utils import REPO_DATA_ROOT
+from dmb.utils.syjson import SyJson
+import shutil
 
 log = create_logger(__name__)
 
@@ -23,7 +25,7 @@ class WormInputParameters:
     U_on: Union[np.ndarray, float] = 4.0
     V_nn: Union[np.ndarray, float] = 0.0
     model: str = "BoseHubbard"
-    runtimelimit: int = 10000
+    runtimelimit: int = 24*60*60
     sweeps: int = 25000
     thermalization: int = 100
     Lx: int = 4
@@ -233,7 +235,7 @@ class WormSimulation(object):
         self.input_parameters = input_parameters
         self.save_dir = save_dir
 
-        self.record = SimulationRecord(record_dir=save_dir)
+        self.record = SyJson(path=save_dir/"record.json")#SimulationRecord(record_dir=save_dir)
 
 
     @classmethod
@@ -306,16 +308,15 @@ class WormSimulation(object):
         if not (results.observables["Density_Distribution"]["mean"]["value"] == 0).any():
             
             rel_dens_error = (
-                self.results.observables["Density_Distribution"]["mean"]["error"]
-                / self.results.observables["Density_Distribution"]["mean"]["value"]
+                results.observables["Density_Distribution"]["mean"]["error"]
+                / results.observables["Density_Distribution"]["mean"]["value"]
             )
 
             converged = (rel_dens_error < relative_error_threshold).all()
             max_error = rel_dens_error.max()
-        
         else:
             log.debug("Density is zero, resorting to absolute error")
-            abs_dens_error = self.results.observables["Density_Distribution"]["mean"]["error"]
+            abs_dens_error = results.observables["Density_Distribution"]["mean"]["error"]
             converged = (abs_dens_error < absolute_error_threshold).all()
             max_error = abs_dens_error.max()
 
@@ -339,18 +340,23 @@ class WormSimulation(object):
                     f["parameters/extension_sweeps"] = extension_sweeps
         
 
-    def run_until_convergence(self,executable, tune: bool = True):
+    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=False):
         # tune measurement interval
         if tune:
             measure2 = self.tune(executable=executable)
             self.input_parameters.Nmeasure2 = measure2
+            self.input_parameters.thermalization = max(int(measure2 * 20),50000)
 
         self.save_parameters()
 
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
-        pbar = tqdm(range(self.input_parameters.Nmeasure2 * 100, max(self.input_parameters.Nmeasure2 * 15000,1e6), max(self.input_parameters.Nmeasure2 * 500, 100000)), disable=True)
-        
+        if intermediate_steps:
+            steps = range(self.input_parameters.Nmeasure2 * 100, int(min(max(self.input_parameters.Nmeasure2 * 1e5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8)), int(max(self.input_parameters.Nmeasure2 * 500, 1e6)))
+        else:
+            steps = [int(min(max(self.input_parameters.Nmeasure2 * 1e5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
+
+        pbar = tqdm(steps, disable=True)
         for sweeps in pbar:
             self._set_extension_sweeps_in_checkpoints(extension_sweeps=sweeps)
             self._execute_worm(input_file=self.input_parameters.checkpoint,executable=executable)
@@ -366,34 +372,48 @@ class WormSimulation(object):
 
             if converged:
                 break
-
-    def tune(self,executable: Path = None):
-
-        self.record["tune"] = {"status": "running"}
-
-        tune_dir = self.save_dir / "tune"
-        tune_dir.mkdir(parents=True, exist_ok=True)
-
-        tune_parameters = deepcopy(self.input_parameters)
-
-        # initial thermalization and measurement sweeps
-        tune_parameters.thermalization = 10**4
-        tune_parameters.sweeps = 5 * 10**4
-        tune_parameters.Nmeasure2 = 500
-        tune_parameters.save(save_dir_path=tune_dir)
-
-        self._save_parameters(tune_dir)
-
-        log.debug("Tuning measurement interval. Running 50000 sweeps.")
-        
-        self._execute_worm(input_file=tune_parameters.ini_path,executable=executable)
-
-        self.record["tune"]["status"] = "finished"
+            
+        self.record["convergence"] = {
+            "status": "not converged" if not converged else "converged",
+            "max_rel_error": float(max_rel_error),
+            "n_measurements": float(n_measurements),
+            "tau_max": float(tau_max),
+            "sweeps": sweeps,
+            "Nmeasure2": self.input_parameters.Nmeasure2,
+            "num_steps": len(steps),
+        }
 
 
-        converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
-            results=WormOutput(out_file_path=tune_parameters.outputfile)
-        )
+    def tune(self,executable: Path = None,ntries: int = 3):
+
+        for i in range(ntries):
+            
+            tune_dir = self.save_dir / "tune"
+
+            shutil.rmtree(self.save_dir / "tune", ignore_errors=True)
+            tune_dir.mkdir(parents=True, exist_ok=True)
+
+            tune_parameters = deepcopy(self.input_parameters)
+
+            # initial thermalization and measurement sweeps
+            tune_parameters.thermalization = 5e4
+            tune_parameters.sweeps = 5e5
+            tune_parameters.Nmeasure2 = 100
+            tune_parameters.save(save_dir_path=tune_dir)
+
+            self._save_parameters(tune_dir)
+
+            log.debug("Tuning measurement interval. Running 50000 sweeps.")
+            
+            self._execute_worm(input_file=tune_parameters.ini_path,executable=executable)
+
+            converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
+                results=WormOutput(out_file_path=tune_parameters.outputfile)
+            )
+
+            if not np.isnan(tau_max):
+                break
+
 
         if np.isnan(tau_max):
             log.debug("Tau_max is nan. Setting new Nmeasure2 to 10.")
@@ -401,6 +421,17 @@ class WormSimulation(object):
         
         new_measure2 = max(int(tune_parameters.Nmeasure2 * (tau_max / 2)), 10)
         log.debug(f"New Nmeasure2: {new_measure2}")
+
+        self.record["tune"] = {
+            "status": "finished",
+            "max_rel_error": float(max_rel_error),
+            "n_measurements": float(n_measurements),
+            "tau_max": float(tau_max),
+            "new_Nmeasure2": float(new_measure2),
+            "thermalization": float(tune_parameters.thermalization),
+            "sweeps": float(tune_parameters.sweeps),
+            "tries": i + 1,
+        }
 
         return new_measure2
 
