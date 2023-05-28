@@ -30,9 +30,29 @@ def draw_random_config():
 
     return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array  
 
+def draw_uniform_config():
 
-def simulate_random(sample_id):
-    L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_random_config()
+    L = np.random.randint(low=3,high=8)*2
+    U_on = np.random.uniform(low=4.0,high=80)
+    V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
+    mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
+
+    U_on_array = np.full(shape=(L,L),fill_value=U_on)
+    V_nn_array = np.expand_dims(np.full(shape=(L,L),fill_value=V_nn),axis=0).repeat(2,axis=0)
+    t_hop_array = np.ones((2,L,L))
+
+    mu = mu_offset
+
+    return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array  
+
+def simulate(sample_id,type="random"):
+
+    if type == "random":
+        L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_random_config()
+    elif type == "uniform":
+        L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_uniform_config()
+    else:
+        raise ValueError(f"Unknown type {type}")
 
     thermalization = 10000
     sweeps = 100000
@@ -48,10 +68,11 @@ def simulate_random(sample_id):
     sim = WormSimulation(p,save_dir=save_dir)
 
     sim.save_parameters()
-    # sim.run_until_convergence(executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
-    sim.run_until_convergence(executable="/Users/fabian/paper/worm/build_non_uniform/qmc_worm_mpi")
+    sim.run_until_convergence(executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
+    #sim.run_until_convergence(executable="/Users/fabian/paper/worm/build_non_uniform/qmc_worm_mpi")
 
     gc.collect()
+
 
     
 
@@ -63,6 +84,7 @@ if __name__ == "__main__":
                         help='number of samples to run')
     parser.add_argument('--number_of_jobs', type=int, default=1,
                         help='number of jobs to run in parallel')
+    parser.add_argument("--type",type=str,default="random",choices=["random","uniform"])
     
     args = parser.parse_args()
 

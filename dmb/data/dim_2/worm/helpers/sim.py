@@ -14,6 +14,7 @@ from dmb.data.dim_2.helpers import check_if_slurm_is_installed_and_running,write
 from dmb.utils import REPO_DATA_ROOT
 from dmb.utils.syjson import SyJson
 import shutil
+import time
 
 log = create_logger(__name__)
 
@@ -249,12 +250,13 @@ class WormSimulation(object):
             save_dir=dir_path,
         )
 
-    def _save_parameters(self, save_dir: Path):
-        self.input_parameters.save(save_dir_path=save_dir)
-        self.input_parameters.save_h5()
+    @staticmethod
+    def _save_parameters(input_parameters:WormInputParameters,save_dir: Path):
+        input_parameters.save(save_dir_path=save_dir)
+        input_parameters.save_h5()
 
     def save_parameters(self):
-        self._save_parameters(save_dir=self.save_dir)
+        self._save_parameters(input_parameters=self.input_parameters,save_dir=self.save_dir)
 
     def _execute_worm(self,executable,input_file:Optional[Path]=None):
 
@@ -392,10 +394,22 @@ class WormSimulation(object):
         }
 
 
-    def tune(self,executable: Path = None,ntries: int = 5):
+    def tune(self,executable: Path = None,ntries: int = 100):
 
-        for i in range(ntries):
-            
+        sweeps = [1000000000,12500000,1000000000,500000000,5000000]
+        Nmeasure2 = [50,500,50000]
+        Nmeasure = [10,100,1000]
+
+        #length 100 array with exponentially increasing sweep numbers from 0.01*min(sweeps) to max(sweeps)*0.01
+        sweep_steps = np.logspace(np.log10(min(sweeps)*0.1),np.log10(max(sweeps)*0.1),num=ntries)
+        nmeasure2_steps = np.logspace(np.log10(min(Nmeasure2)),np.log10(max(Nmeasure2)),num=ntries)
+        nmeasure_steps = np.logspace(np.log10(min(Nmeasure)),np.log10(max(Nmeasure)),num=ntries)
+
+        pbar = tqdm(range(ntries), disable=False)
+        _try = 0
+        while _try < ntries:
+            _try += 1
+
             tune_dir = self.save_dir / "tune"
 
             shutil.rmtree(self.save_dir / "tune", ignore_errors=True)
@@ -404,24 +418,48 @@ class WormSimulation(object):
             tune_parameters = deepcopy(self.input_parameters)
 
             # initial thermalization and measurement sweeps
-            tune_parameters.sweeps = 10**(i+5)
-            tune_parameters.thermalization = 0.2 * tune_parameters.sweeps
-            tune_parameters.Nmeasure2 = 10**i
+            tune_parameters.sweeps = int(sweep_steps[_try])
+            tune_parameters.thermalization = int(0.2 * tune_parameters.sweeps)
+            tune_parameters.Nmeasure2 = int(nmeasure2_steps[_try])
+            tune_parameters.Nmeasure = int(nmeasure_steps[_try])
             tune_parameters.save(save_dir_path=tune_dir)
 
-            self._save_parameters(tune_dir)
+            self._save_parameters(tune_parameters,tune_dir)
 
             log.debug("Tuning measurement interval. Running 50000 sweeps.")
             
-            self._execute_worm(input_file=tune_parameters.ini_path,executable=executable)
+            # time execution
+            start_time = time.time()
+
+            try:
+                self._execute_worm(input_file=tune_parameters.ini_path,executable=executable)
+            except subprocess.CalledProcessError as e:
+                log.error(e.stderr.decode("utf-8"))
+                log.error(e.stdout.decode("utf-8"))
+                continue
+
+
+            time_interval = time.time() - start_time
+
+            if time_interval < 10:
+                _try += 10
+        
 
             converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
                 results=WormOutput(out_file_path=tune_parameters.outputfile)
             )
 
-            if not np.isnan(tau_max) and tau_max>1e-3:
+            pbar.set_description(
+                f"Running {tune_parameters.sweeps} sweeps. Nmeasure2: {tune_parameters.Nmeasure2}. Nmeasure: {tune_parameters.Nmeasure}. Time: {time_interval:.2f}. Max rel error: {max_rel_error:.2e}. Measurements: {n_measurements}. Tau_max: {tau_max:.2e}. Converged: {converged}"
+            )
+
+            if np.isnan(tau_max) or tau_max<1e-3:
+                _try += 5
+
+            if not np.isnan(tau_max) and tau_max>1 and tau_max<5:
                 break                
                 
+
 
 
         if np.isnan(tau_max):
@@ -439,7 +477,7 @@ class WormSimulation(object):
             "new_Nmeasure2": float(new_measure2),
             "thermalization": float(tune_parameters.thermalization),
             "sweeps": float(tune_parameters.sweeps),
-            "tries": i + 1,
+            "tries": _try + 1,
         }
 
         return new_measure2
