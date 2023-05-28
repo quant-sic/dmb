@@ -30,6 +30,31 @@ def draw_random_config():
 
     return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array  
 
+
+def simulate_random(sample_id):
+    L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_random_config()
+
+    thermalization = 10000
+    sweeps = 100000
+
+    p = WormInputParameters(Lx=L,Ly=L,Nmeasure2=100,t_hop=t_hop_array,U_on=U_on_array,V_nn=V_nn_array,thermalization=thermalization,mu=mu,sweeps=sweeps)
+
+    now = datetime.datetime.now()
+    now = now.strftime("%Y-%m-%d_%H-%M-%S")
+
+    save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
+    shutil.rmtree(save_dir,ignore_errors=True)
+
+    sim = WormSimulation(p,save_dir=save_dir)
+
+    sim.save_parameters()
+    # sim.run_until_convergence(executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
+    sim.run_until_convergence(executable="/Users/fabian/paper/worm/build_non_uniform/qmc_worm_mpi")
+
+    gc.collect()
+
+    
+
 if __name__ == "__main__":
 
 
@@ -41,29 +66,5 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-
-    def simulate_random(sample_id):
-        L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_random_config()
-
-        thermalization = 10000
-        sweeps = 100000
-
-        p = WormInputParameters(Lx=L,Ly=L,Nmeasure2=100,t_hop=t_hop_array,U_on=U_on_array,V_nn=V_nn_array,thermalization=thermalization,mu=mu,sweeps=sweeps)
-
-        now = datetime.datetime.now()
-        now = now.strftime("%Y-%m-%d_%H-%M-%S")
-
-        save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
-        shutil.rmtree(save_dir,ignore_errors=True)
-
-        sim = WormSimulation(p,save_dir=save_dir)
-
-        sim.save_parameters()
-        # sim.run_until_convergence(executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
-        sim.run_until_convergence(executable="/Users/fabian/paper/worm/build_non_uniform/qmc_worm_mpi")
-
-        gc.collect()
-
-    
     # run jobs in parallel
     ProgressParallel(n_jobs=args.number_of_jobs,total=args.number_of_samples,desc="Running Simulations")(joblib.delayed(simulate_random)(sample_id) for sample_id in range(args.number_of_samples))

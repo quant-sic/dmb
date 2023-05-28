@@ -283,6 +283,7 @@ class WormSimulation(object):
 
             except subprocess.CalledProcessError as e:
                 log.error(e.stderr.decode("utf-8"))
+                log.error(e.stdout.decode("utf-8"))
                 raise e
 
 
@@ -305,20 +306,21 @@ class WormSimulation(object):
             return False, np.nan, np.nan, np.nan
 
         # if value is zero, error is nan
-        if not (results.observables["Density_Distribution"]["mean"]["value"] == 0).any():
+        # if not (results.observables["Density_Distribution"]["mean"]["value"] == 0).any():
             
-            rel_dens_error = (
-                results.observables["Density_Distribution"]["mean"]["error"]
-                / results.observables["Density_Distribution"]["mean"]["value"]
-            )
+        #     rel_dens_error = (
+        #         results.observables["Density_Distribution"]["mean"]["error"]
+        #         / results.observables["Density_Distribution"]["mean"]["value"]
+        #     )
 
-            converged = (rel_dens_error < relative_error_threshold).all()
-            max_error = rel_dens_error.max()
-        else:
-            log.debug("Density is zero, resorting to absolute error")
-            abs_dens_error = results.observables["Density_Distribution"]["mean"]["error"]
-            converged = (abs_dens_error < absolute_error_threshold).all()
-            max_error = abs_dens_error.max()
+        #     converged = (rel_dens_error < relative_error_threshold).all()
+        #     max_error = rel_dens_error.max()
+        # else:
+
+        log.debug("Density is zero, resorting to absolute error")
+        abs_dens_error = results.observables["Density_Distribution"]["mean"]["error"]
+        converged = (abs_dens_error < absolute_error_threshold).all()
+        max_error = abs_dens_error.max()
 
         n_measurements = results.observables["Density_Distribution"]["count"]
 
@@ -340,6 +342,11 @@ class WormSimulation(object):
                     f["parameters/extension_sweeps"] = extension_sweeps
         
 
+    def run(self,executable):
+        self.save_parameters()
+        self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
+        
+
     def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=False):
         # tune measurement interval
         if tune:
@@ -352,9 +359,9 @@ class WormSimulation(object):
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
         if intermediate_steps:
-            steps = range(self.input_parameters.Nmeasure2 * 100, int(min(max(self.input_parameters.Nmeasure2 * 1e5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8)), int(max(self.input_parameters.Nmeasure2 * 500, 1e6)))
+            steps = range(self.input_parameters.Nmeasure2 * 100, int(min(max(self.input_parameters.Nmeasure2 * 2.5e5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8)), int(max(self.input_parameters.Nmeasure2 * 500, 1e6)))
         else:
-            steps = [int(min(max(self.input_parameters.Nmeasure2 * 1e5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
+            steps = [int(min(max(self.input_parameters.Nmeasure2 * 2.5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
 
         pbar = tqdm(steps, disable=True)
         for sweeps in pbar:
