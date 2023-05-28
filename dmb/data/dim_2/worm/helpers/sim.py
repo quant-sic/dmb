@@ -352,8 +352,10 @@ class WormSimulation(object):
     def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=False):
         # tune measurement interval
         if tune:
-            measure2 = self.tune(executable=executable)
+            measure2,thermalization,sweeps = self.tune(executable=executable)
             self.input_parameters.Nmeasure2 = measure2
+            self.input_parameters.thermalization = thermalization
+            self.input_parameters.sweeps = sweeps
             self.input_parameters.thermalization = max(int(measure2 * 20),50000)
 
         self.save_parameters()
@@ -480,7 +482,7 @@ class WormSimulation(object):
             "tries": _try + 1,
         }
 
-        return new_measure2
+        return new_measure2, tune_parameters.thermalization, tune_parameters.sweeps
 
 
     
