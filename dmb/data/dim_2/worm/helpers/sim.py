@@ -340,7 +340,7 @@ class WormSimulation(object):
                     f["parameters/extension_sweeps"] = extension_sweeps
         
 
-    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=False):
+    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=True):
         # tune measurement interval
         if tune:
             measure2 = self.tune(executable=executable)
@@ -351,10 +351,11 @@ class WormSimulation(object):
 
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
+        max_multiplier = 250e3
         if intermediate_steps:
-            steps = range(self.input_parameters.Nmeasure2 * 100, int(min(max(self.input_parameters.Nmeasure2 * 1e5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8)), int(max(self.input_parameters.Nmeasure2 * 500, 1e6)))
+            steps = range(self.input_parameters.Nmeasure2 * 100, int(min(max(self.input_parameters.Nmeasure2 * max_multiplier,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8)), int(max(self.input_parameters.Nmeasure2 * 500, 1e6)))
         else:
-            steps = [int(min(max(self.input_parameters.Nmeasure2 * 1e5,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
+            steps = [int(min(max(self.input_parameters.Nmeasure2 * max_multiplier,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
 
         pbar = tqdm(steps, disable=True)
         for sweeps in pbar:
@@ -384,7 +385,7 @@ class WormSimulation(object):
         }
 
 
-    def tune(self,executable: Path = None,ntries: int = 3):
+    def tune(self,executable: Path = None,ntries: int = 5):
 
         for i in range(ntries):
             
@@ -396,9 +397,9 @@ class WormSimulation(object):
             tune_parameters = deepcopy(self.input_parameters)
 
             # initial thermalization and measurement sweeps
-            tune_parameters.thermalization = 5e4
-            tune_parameters.sweeps = 5e5
-            tune_parameters.Nmeasure2 = 100
+            tune_parameters.sweeps = 10**(i+5)
+            tune_parameters.thermalization = 0.2 * tune_parameters.sweeps
+            tune_parameters.Nmeasure2 = 10**i
             tune_parameters.save(save_dir_path=tune_dir)
 
             self._save_parameters(tune_dir)
@@ -411,8 +412,9 @@ class WormSimulation(object):
                 results=WormOutput(out_file_path=tune_parameters.outputfile)
             )
 
-            if not np.isnan(tau_max):
-                break
+            if not np.isnan(tau_max) and tau_max>1e-3:
+                break                
+                
 
 
         if np.isnan(tau_max):
