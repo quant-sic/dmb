@@ -13,6 +13,7 @@ import joblib
 import shutil
 from dmb.utils.io import ProgressParallel
 import gc
+from functools import partial
 
 def draw_random_config():
 
@@ -21,7 +22,7 @@ def draw_random_config():
     V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
     mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
 
-    power,V_trap = get_random_trapping_potential(shape=(L,L),desired_abs_max=mu_offset/2)
+    power,V_trap = get_random_trapping_potential(shape=(L,L),desired_abs_max=abs(mu_offset)/2)
     U_on_array = np.full(shape=(L,L),fill_value=U_on)
     V_nn_array = np.expand_dims(np.full(shape=(L,L),fill_value=V_nn),axis=0).repeat(2,axis=0)
     t_hop_array = np.ones((2,L,L))
@@ -41,7 +42,7 @@ def draw_uniform_config():
     V_nn_array = np.expand_dims(np.full(shape=(L,L),fill_value=V_nn),axis=0).repeat(2,axis=0)
     t_hop_array = np.ones((2,L,L))
 
-    mu = mu_offset
+    mu = mu_offset*np.ones(shape=(L,L)) 
 
     return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array  
 
@@ -89,4 +90,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # run jobs in parallel
-    ProgressParallel(n_jobs=args.number_of_jobs,total=args.number_of_samples,desc="Running Simulations")(joblib.delayed(simulate_random)(sample_id) for sample_id in range(args.number_of_samples))
+    ProgressParallel(n_jobs=args.number_of_jobs,total=args.number_of_samples,desc="Running Simulations")(joblib.delayed(partial(simulate,type=args.type))(sample_id) for sample_id in range(args.number_of_samples))

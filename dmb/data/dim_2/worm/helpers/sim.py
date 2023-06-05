@@ -349,7 +349,7 @@ class WormSimulation(object):
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
         
 
-    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=False):
+    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=True):
         # tune measurement interval
         if tune:
             measure2,thermalization,sweeps = self.tune(executable=executable)
@@ -362,9 +362,11 @@ class WormSimulation(object):
 
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
-        max_multiplier = 250e3
+        max_multiplier = 50000
+        minimum_sweeps = int(min(self.input_parameters.Nmeasure2 * 100,1250000))
+        max_sweeps = int(max(self.input_parameters.Nmeasure2 * max_multiplier,minimum_sweeps*10))
         if intermediate_steps:
-            steps = range(self.input_parameters.Nmeasure2 * 100, int(min(max(self.input_parameters.Nmeasure2 * max_multiplier,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8)), int(max(self.input_parameters.Nmeasure2 * 500, 1e6)))
+            steps = np.logspace(np.log10(minimum_sweeps),np.log10(max_sweeps),num=10,dtype=int)
         else:
             steps = [int(min(max(self.input_parameters.Nmeasure2 * max_multiplier,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
 
@@ -407,7 +409,7 @@ class WormSimulation(object):
         nmeasure2_steps = np.logspace(np.log10(min(Nmeasure2)),np.log10(max(Nmeasure2)),num=ntries)
         nmeasure_steps = np.logspace(np.log10(min(Nmeasure)),np.log10(max(Nmeasure)),num=ntries)
 
-        pbar = tqdm(range(ntries), disable=False)
+        pbar = tqdm(range(ntries), disable=True)
         _try = 0
         while _try < ntries:
             _try += 1
@@ -465,10 +467,10 @@ class WormSimulation(object):
 
 
         if np.isnan(tau_max):
-            log.debug("Tau_max is nan. Setting new Nmeasure2 to 10.")
-            tau_max = 0
+            log.debug("Tau_max is nan. Setting new Nmeasure2 to max.")
+            tau_max = 1
         
-        new_measure2 = max(int(tune_parameters.Nmeasure2 * (tau_max / 2)), 10)
+        new_measure2 = max(int(tune_parameters.Nmeasure2 * tau_max), 10)
         log.debug(f"New Nmeasure2: {new_measure2}")
 
         self.record["tune"] = {
