@@ -13,12 +13,16 @@ import joblib
 import shutil
 from dmb.utils.io import ProgressParallel
 import gc
+from dmb.utils import create_logger
+
 from functools import partial
+
+log = create_logger(__name__)
 
 def draw_random_config():
 
-    L = np.random.randint(low=3,high=8)*2
-    U_on = np.random.uniform(low=4.0,high=80)
+    L = np.random.randint(low=4,high=10)*2
+    U_on = (np.random.uniform(low=0.05,high=1)**(-1)) * 4
     V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
     mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
 
@@ -29,12 +33,12 @@ def draw_random_config():
 
     mu = mu_offset + V_trap
 
-    return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array  
+    return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,power,mu_offset  
 
 def draw_uniform_config():
 
-    L = np.random.randint(low=3,high=8)*2
-    U_on = np.random.uniform(low=4.0,high=80)
+    L = np.random.randint(low=4,high=10)*2
+    U_on = (np.random.uniform(low=0.05,high=1)**(-1)) * 4
     V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
     mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
 
@@ -44,38 +48,44 @@ def draw_uniform_config():
 
     mu = mu_offset*np.ones(shape=(L,L)) 
 
-    return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array  
+    return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,None, mu_offset
 
 def simulate(sample_id,type="random"):
 
     if type == "random":
-        L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_random_config()
+        L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,power,mu_offset = draw_random_config()
     elif type == "uniform":
-        L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array = draw_uniform_config()
+        L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,power,mu_offset = draw_uniform_config()
     else:
         raise ValueError(f"Unknown type {type}")
 
     thermalization = 10000
     sweeps = 100000
 
-    p = WormInputParameters(Lx=L,Ly=L,Nmeasure2=100,t_hop=t_hop_array,U_on=U_on_array,V_nn=V_nn_array,thermalization=thermalization,mu=mu,sweeps=sweeps)
+    p = WormInputParameters(Lx=L,Ly=L,Nmeasure2=100,t_hop=t_hop_array,U_on=U_on_array,V_nn=V_nn_array,thermalization=thermalization,mu=mu,sweeps=sweeps,mu_power=power,mu_offset=mu_offset)
 
     now = datetime.datetime.now()
     now = now.strftime("%Y-%m-%d_%H-%M-%S")
 
-    save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
+    # save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
+    save_dir=Path(f"/ptmp/bale/data/bose_hubbard_2d/{now}_sample_{sample_id}")
+
     shutil.rmtree(save_dir,ignore_errors=True)
 
     sim = WormSimulation(p,save_dir=save_dir)
 
     sim.save_parameters()
-    sim.run_until_convergence(executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
+    try:
+        sim.run_until_convergence(executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
+        sim.plot_result()
+    except:
+        log.error("Simulation failed")
+        return
     #sim.run_until_convergence(executable="/Users/fabian/paper/worm/build_non_uniform/qmc_worm_mpi")
 
-    gc.collect()
+    finally:
+        gc.collect()
 
-
-    
 
 if __name__ == "__main__":
 
@@ -90,4 +100,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # run jobs in parallel
-    ProgressParallel(n_jobs=args.number_of_jobs,total=args.number_of_samples,desc="Running Simulations")(joblib.delayed(partial(simulate,type=args.type))(sample_id) for sample_id in range(args.number_of_samples))
+    ProgressParallel(n_jobs=args.number_of_jobs,total=args.number_of_samples,desc="Running Simulations",timeout=99999)(joblib.delayed(partial(simulate,type=args.type))(sample_id) for sample_id in range(args.number_of_samples))

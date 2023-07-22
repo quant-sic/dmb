@@ -10,14 +10,16 @@ from copy import deepcopy
 from .io import create_logger
 from collections import defaultdict
 import json
-from dmb.data.dim_2.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
+from dmb.data.dim_2d.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
 from dmb.utils import REPO_DATA_ROOT
 from dmb.utils.syjson import SyJson
 import shutil
 import time
+import matplotlib.pyplot as plt
+import datetime
+import warnings
 
 log = create_logger(__name__)
-
 
 @dataclass
 class WormInputParameters:
@@ -58,6 +60,9 @@ class WormInputParameters:
     h5_path_relative: Optional[Path] = None
     checkpoint_relative: Optional[Path] = None
     outputfile_relative: Optional[Path] = None
+
+    mu_power: Optional[float] = None
+    mu_offset: Optional[float] = None
 
     @classmethod
     def from_dir(cls, save_dir_path: Path):
@@ -304,7 +309,10 @@ class WormSimulation(object):
 
     def check_convergence(self, results, relative_error_threshold: float = 0.01,absolute_error_threshold: float = 0.01):
 
-        if results.observables is None:
+        try:
+            if results.observables is None:
+                return False, np.nan, np.nan, np.nan
+        except KeyError:
             return False, np.nan, np.nan, np.nan
 
         # if value is zero, error is nan
@@ -356,35 +364,38 @@ class WormSimulation(object):
             self.input_parameters.Nmeasure2 = measure2
             self.input_parameters.thermalization = thermalization
             self.input_parameters.sweeps = sweeps
-            self.input_parameters.thermalization = max(int(measure2 * 20),50000)
+            self.input_parameters.thermalization = max(int(measure2 * 100),50000)
 
         self.save_parameters()
 
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
 
-        max_multiplier = 50000
+        max_multiplier = 75000
         minimum_sweeps = int(min(self.input_parameters.Nmeasure2 * 100,1250000))
         max_sweeps = int(max(self.input_parameters.Nmeasure2 * max_multiplier,minimum_sweeps*10))
         if intermediate_steps:
-            steps = np.logspace(np.log10(minimum_sweeps),np.log10(max_sweeps),num=10,dtype=int)
+            steps = np.logspace(np.log10(minimum_sweeps),np.log10(max_sweeps),num=15,dtype=int)
         else:
             steps = [int(min(max(self.input_parameters.Nmeasure2 * max_multiplier,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
 
         pbar = tqdm(steps, disable=True)
+        steps_counter = 0
         for sweeps in pbar:
+            steps_counter += 1
             self._set_extension_sweeps_in_checkpoints(extension_sweeps=sweeps)
             self._execute_worm(input_file=self.input_parameters.checkpoint,executable=executable)
 
             converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
                 self.results
             )
+            self.plot_result()
 
             # update tqdm description
             pbar.set_description(
                 f"Running {sweeps} sweeps. Max rel error: {max_rel_error:.2e}. Measurements: {n_measurements}. Tau_max: {tau_max:.2e}"
             )
 
-            if converged:
+            if converged and sweeps/self.input_parameters.Nmeasure2 > 25000:
                 break
             
         self.record["convergence"] = {
@@ -392,9 +403,9 @@ class WormSimulation(object):
             "max_rel_error": float(max_rel_error),
             "n_measurements": float(n_measurements),
             "tau_max": float(tau_max),
-            "sweeps": sweeps,
-            "Nmeasure2": self.input_parameters.Nmeasure2,
-            "num_steps": len(steps),
+            "sweeps": int(sweeps),
+            "Nmeasure2": int(self.input_parameters.Nmeasure2),
+            "num_steps": int(steps_counter),
         }
 
 
@@ -448,10 +459,13 @@ class WormSimulation(object):
             if time_interval < 10:
                 _try += 10
         
-
-            converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
-                results=WormOutput(out_file_path=tune_parameters.outputfile)
-            )
+            try:
+                converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
+                    results=WormOutput(out_file_path=tune_parameters.outputfile)
+                )
+            except KeyError as e:
+                log.error(e)
+                continue
 
             pbar.set_description(
                 f"Running {tune_parameters.sweeps} sweeps. Nmeasure2: {tune_parameters.Nmeasure2}. Nmeasure: {tune_parameters.Nmeasure}. Time: {time_interval:.2f}. Max rel error: {max_rel_error:.2e}. Measurements: {n_measurements}. Tau_max: {tau_max:.2e}. Converged: {converged}"
@@ -470,7 +484,7 @@ class WormSimulation(object):
             log.debug("Tau_max is nan. Setting new Nmeasure2 to max.")
             tau_max = 1
         
-        new_measure2 = max(int(tune_parameters.Nmeasure2 * tau_max), 10)
+        new_measure2 = 2 * max(int(tune_parameters.Nmeasure2 * tau_max), 10)
         log.debug(f"New Nmeasure2: {new_measure2}")
 
         self.record["tune"] = {
@@ -487,4 +501,62 @@ class WormSimulation(object):
         return new_measure2, tune_parameters.thermalization, tune_parameters.sweeps
 
 
-    
+
+    def plot_result(self):
+
+        """
+        Plot the results of the worm calculation.
+        """
+
+
+
+        fig, ax = plt.subplots(1, 4, figsize=(12, 4))
+        plt.subplots_adjust(wspace=0.5)
+
+        try:
+
+            inputs = self.input_parameters.mu
+            outputs = self.results.observables
+            
+            ax[0].imshow(outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1))
+            ax[0].set_title("Density Distribution")
+
+            ax[1].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1))
+            ax[1].set_title("Density Distribution Error")
+
+            ax[2].imshow(inputs.reshape(self.input_parameters.Lx,self.input_parameters.Ly))
+            ax[2].set_title("Chemical Potential")
+
+            # relative error
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                ax[3].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1)/outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1))
+                ax[3].set_title("Relative Error")
+
+            for a in ax:
+                a.set_xticks([])
+                a.set_yticks([])
+
+            # add colorbars
+            fig.colorbar(ax[0].imshow(outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1)),ax=ax[0])
+            fig.colorbar(ax[1].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1)),ax=ax[1])
+            fig.colorbar(ax[2].imshow(inputs.reshape(self.input_parameters.Lx,self.input_parameters.Ly)),ax=ax[2])
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                fig.colorbar(ax[3].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1)/outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1)),ax=ax[3])
+
+        except TypeError as e:
+            log.warning("Could not plot density distribution. Skipping. Error: {}".format(e))
+        except KeyError as e:
+            log.warning("Could not plot density distribution. Skipping. Error: {}".format(e))
+        finally:
+            # save figure. append current time formatted to avoid overwriting
+            # plots dir
+            plots_dir = self.save_dir / "plots"
+            plots_dir.mkdir(parents=True, exist_ok=True)
+
+            now = datetime.datetime.now()
+            now = now.strftime("%Y-%m-%d_%H-%M-%S")
+            fig.savefig(plots_dir/ f"density_distribution_{now}.png", dpi=300)
+            plt.close()

@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, Tuple,Optional
 import numpy as np
 import FyeldGenerator
 import numpy as np
@@ -128,8 +128,13 @@ def get_offset_rescaled_trapping_potential(
 
 
 def get_random_trapping_potential(
-    shape: Tuple[int, int], desired_abs_max: float
+    shape: Tuple[int, int], desired_abs_max: float, power: Optional[float] = None
 ) -> Tuple[float, np.ndarray]:
-    power = stats.loguniform.rvs(0.01, 10, size=1)
+
+    if power is None:
+        power = stats.loguniform.rvs(0.1, 10, size=1)
+
+    scale = float(np.random.uniform(.3, 1, size=1)) * desired_abs_max
+
     potential = periodic_grf(shape, power)
-    return power, get_offset_rescaled_trapping_potential(potential, desired_abs_max)
+    return float(power), get_offset_rescaled_trapping_potential(potential, scale)

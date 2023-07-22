@@ -5,7 +5,7 @@ import os
 import subprocess
 from dmb.utils.io import create_logger
 import time
-
+import numpy as np
 import subprocess
 from dmb.utils.io import create_logger
 
@@ -25,11 +25,15 @@ def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_pa
         script_file.write("#SBATCH --output="+str(pipeout_dir)+"/%j.out\n")
         script_file.write("#SBATCH --error="+str(pipeout_dir)+"/%j.err\n")
 
+        # randomly choose partition in (standard,highfreq)
+        # if np.random.rand() < 0.5:
+        #     script_file.write("#SBATCH --partition=highfreq\n")
+        # else:
         script_file.write("#SBATCH --partition=highfreq\n")
 
-        script_file.write("#SBATCH --time=00:30:00\n")
+        script_file.write("#SBATCH --time=04:00:00\n")
         script_file.write("#SBATCH --nodes=1\n")
-        script_file.write("#SBATCH --ntasks-per-node=4\n")
+        script_file.write("#SBATCH --ntasks-per-node=2\n")
         script_file.write("#SBATCH --cpus-per-task=1\n")
         script_file.write("#SBATCH --mem=2G\n")
 
@@ -45,7 +49,7 @@ def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_pa
     os.chmod(script_path, 0o755)
 
 
-def call_sbatch_and_wait(script_path:Path):
+def call_sbatch_and_wait(script_path:Path,timeout=60*60*6):
 
     try:
         p = subprocess.run("sbatch "+str(script_path),check=True,shell=True,cwd=script_path.parent,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -57,7 +61,6 @@ def call_sbatch_and_wait(script_path:Path):
     log.debug(f"Submitted job {job_id}")
 
     # wait for job to finish with added timeout
-    timeout = 60*60*2 # 2 hours
     start_time = time.time()
     while True:
         p = subprocess.run("squeue -j "+job_id,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -83,3 +86,4 @@ def check_if_slurm_is_installed_and_running():
         return False
     
     return True
+
