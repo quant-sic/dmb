@@ -1,9 +1,8 @@
-from dmb.data.dim_2.worm.helpers.sim import WormInputParameters, WormSimulation
+from dmb.data.bose_hubbard_2d.worm.sim import WormInputParameters, WormSimulation
 import numpy as np
 from pathlib import Path
 
-from dmb.data.dim_2.potential import get_random_trapping_potential
-from dmb.utils import REPO_ROOT
+from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from pathlib import Path
 import shutil
 import argparse
@@ -16,42 +15,15 @@ import gc
 from dmb.utils import create_logger
 
 from functools import partial
+from dmb.data.bose_hubbard_2d.phase_diagram import phase_diagram_uniform_inputs
 
 log = create_logger(__name__)
 
-def draw_random_config():
-
-    L = np.random.randint(low=4,high=10)*2
-    U_on = (np.random.uniform(low=0.05,high=1)**(-1)) * 4
-    V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
-    mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
-
-    power,V_trap = get_random_trapping_potential(shape=(L,L),desired_abs_max=abs(mu_offset)/2)
-    U_on_array = np.full(shape=(L,L),fill_value=U_on)
-    V_nn_array = np.expand_dims(np.full(shape=(L,L),fill_value=V_nn),axis=0).repeat(2,axis=0)
-    t_hop_array = np.ones((2,L,L))
-
-    mu = mu_offset + V_trap
-
-    return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,power,mu_offset  
-
-def draw_uniform_config():
-
-    L = np.random.randint(low=4,high=10)*2
-    U_on = (np.random.uniform(low=0.05,high=1)**(-1)) * 4
-    V_nn = np.random.uniform(low=0.75/4,high=1.75/4) * U_on
-    mu_offset = np.random.uniform(low=-0.5,high=3.0) * U_on
-
-    U_on_array = np.full(shape=(L,L),fill_value=U_on)
-    V_nn_array = np.expand_dims(np.full(shape=(L,L),fill_value=V_nn),axis=0).repeat(2,axis=0)
-    t_hop_array = np.ones((2,L,L))
-
-    mu = mu_offset*np.ones(shape=(L,L)) 
-
-    return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,None, mu_offset
 
 def simulate(sample_id,type="random"):
 
+    zVU = 1.0
+    
     if type == "random":
         L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,power,mu_offset = draw_random_config()
     elif type == "uniform":
@@ -68,7 +40,7 @@ def simulate(sample_id,type="random"):
     now = now.strftime("%Y-%m-%d_%H-%M-%S")
 
     # save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
-    save_dir=Path(f"/ptmp/bale/data/bose_hubbard_2d/{now}_sample_{sample_id}")
+    save_dir=Path(f"/ptmp/bale/data/bose_hubbard_2d_phase_diagram/")
 
     shutil.rmtree(save_dir,ignore_errors=True)
 
@@ -91,11 +63,10 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser(description='Run worm simulation for 2D BH model')
-    parser.add_argument('--number_of_samples', type=int, default=1,
+    parser.add_argument('--number_of_samples_per_dim', type=int, default=1,
                         help='number of samples to run')
     parser.add_argument('--number_of_jobs', type=int, default=1,
                         help='number of jobs to run in parallel')
-    parser.add_argument("--type",type=str,default="random",choices=["random","uniform"])
     
     args = parser.parse_args()
 

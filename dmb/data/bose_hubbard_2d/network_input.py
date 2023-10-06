@@ -1,0 +1,124 @@
+import torch 
+import math
+from typing import Union
+import numpy as np
+
+def get_ckeckerboard_projection(mu_input):
+    """
+        Determines and returns the checkerboard version (out of two possible) that has the largest correlation with the input mu.
+    """
+
+    if len(mu_input.shape) == 1:
+        mu_input = mu_input.view(int(math.sqrt(mu_input.shape[0])),int(math.sqrt(mu_input.shape[0])))
+    elif len(mu_input.shape) == 2:
+        if not mu_input.shape[0] == mu_input.shape[1]:
+            raise ValueError("Input mu has to be square")
+    else:
+        raise ValueError("Input mu has to be either 1D or 2D")
+
+    cb_1 = torch.ones_like(mu_input)
+    cb_1[::2,::2]=0
+    cb_1[1::2,1::2]=0
+
+    cb_2 = torch.ones_like(mu_input)
+    cb_2[1::2,::2]=0
+    cb_2[::2,1::2]=0
+
+    corr_1 = torch.sum(mu_input*cb_1)
+    corr_2 = torch.sum(mu_input*cb_2)
+
+    if corr_1 > corr_2:
+        return cb_1
+    else:
+        return cb_2
+
+
+def net_input(mu:Union[torch.Tensor,np.ndarray],U_on:Union[torch.Tensor,np.ndarray],V_nn:Union[torch.Tensor,np.ndarray],cb_projection:bool=True):
+
+    # convert to torch.Tensor if necessary
+    if isinstance(mu,np.ndarray):
+        mu = torch.from_numpy(mu).float()
+    if isinstance(U_on,np.ndarray):
+        U_on = torch.from_numpy(U_on).float()
+    if isinstance(V_nn,np.ndarray):
+        V_nn = torch.from_numpy(V_nn).float()
+    
+    # convert to 2D if necessary
+    if len(mu.shape) == 1:
+        mu = mu.view(int(math.sqrt(mu.shape[0])),int(math.sqrt(mu.shape[0])))
+    elif len(mu.shape) == 2:
+        if not mu.shape[0] == mu.shape[1]:
+            raise ValueError("Input mu has to be square")
+    else:
+        raise ValueError("Input mu has to be either 1D or 2D")
+    
+    # convert to 2D if necessary
+    if len(U_on.shape) == 1:
+        U_on = U_on.view(int(math.sqrt(U_on.shape[0])),int(math.sqrt(U_on.shape[0])))
+    elif len(U_on.shape) == 2:
+        if not U_on.shape[0] == U_on.shape[1]:
+            raise ValueError("Input U_on has to be square")
+    else:
+        raise ValueError("Input U_on has to be either 1D or 2D")
+
+    # convert to 2D if necessary
+    if len(V_nn.shape) == 1:
+        V_nn = V_nn.view(2,int(math.sqrt(V_nn.shape[0]/2)),int(math.sqrt(V_nn.shape[0]/2)))
+    elif len(V_nn.shape) == 3:
+        if not V_nn.shape[1] == V_nn.shape[2]:
+            raise ValueError("Input V_nn has to be square")
+    else:
+        raise ValueError("Input V_nn has to be either 1D or 3D")    
+
+    # get checkerboard projection
+    if cb_projection:
+        cb_proj = get_ckeckerboard_projection(mu)
+    else:
+        cb_proj = torch.ones_like(mu)
+    
+    # get network input
+    inputs = torch.concat([
+        mu[None,:],
+        cb_proj[None,:],
+        U_on[None,:],
+        V_nn[[0]]],
+        dim=0)
+
+    return inputs
+
+
+def net_input_dimless_const_parameters(muU:Union[torch.Tensor,np.ndarray],ztU:float,zVU:float,cb_projection:bool=True):
+
+    # convert to torch.Tensor if necessary
+    if isinstance(muU,np.ndarray):
+        muU = torch.from_numpy(muU).float()
+    
+    # convert to 2D if necessary
+    if len(muU.shape) == 1:
+        muU = muU.view(int(math.sqrt(muU.shape[0])),int(math.sqrt(muU.shape[0])))
+    elif len(muU.shape) == 2:
+        if not muU.shape[0] == muU.shape[1]:
+            raise ValueError("Input muU has to be square")
+    else:
+        raise ValueError("Input muU has to be either 1D or 2D")
+    
+    # get checkerboard projection
+    if cb_projection:
+        cb_proj = get_ckeckerboard_projection(muU)
+    else:
+        cb_proj = torch.ones_like(muU)
+    
+    # conversion
+    U_on = torch.full(size=muU.shape,fill_value= 4 / ztU)
+    V_nn = zVU / 4 * U_on
+    mu = muU * U_on
+
+    # get network input
+    inputs = torch.concat([
+        mu[None,:],
+        cb_proj[None,:],
+        U_on[None,:],
+        V_nn[None,:]],
+        dim=0)
+
+    return inputs

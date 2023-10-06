@@ -7,10 +7,10 @@ from typing import Optional, Union
 import os
 from tqdm import tqdm
 from copy import deepcopy
-from .io import create_logger
+from dmb.utils import create_logger
 from collections import defaultdict
 import json
-from dmb.data.dim_2d.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
+from dmb.data.bose_hubbard_2d.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
 from dmb.utils import REPO_DATA_ROOT
 from dmb.utils.syjson import SyJson
 import shutil
@@ -357,8 +357,9 @@ class WormSimulation(object):
         self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
         
 
-    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=True):
+    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=True, continue_from_checkpoint: bool = True):
         # tune measurement interval
+        # if continue_from_checkpoint, tune only if no entry in record
         if tune:
             measure2,thermalization,sweeps = self.tune(executable=executable)
             self.input_parameters.Nmeasure2 = measure2

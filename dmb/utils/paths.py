@@ -29,7 +29,15 @@ REPO_ROOT = get_repo_root()
 # global variable for the root path of the data directory in current git repository
 REPO_DATA_ROOT = get_repo_data_path()
 
+REPO_LOGS_ROOT = REPO_ROOT / "logs"
+# create logs directory if it does not exist
+REPO_LOGS_ROOT.mkdir(parents=True, exist_ok=True)
+# resolve path
+REPO_LOGS_ROOT = REPO_LOGS_ROOT.resolve()
+
+
 
 # set environment variables
 os.environ["REPO_ROOT"] = str(REPO_ROOT)
 os.environ["REPO_DATA_ROOT"] = str(REPO_DATA_ROOT)
+os.environ["REPO_LOGS_ROOT"] = str(REPO_LOGS_ROOT)

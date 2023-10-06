@@ -29,11 +29,11 @@ def write_sbatch_script(script_path:Path,worm_executable_path:Path,parameters_pa
         # if np.random.rand() < 0.5:
         #     script_file.write("#SBATCH --partition=highfreq\n")
         # else:
-        script_file.write("#SBATCH --partition=highfreq\n")
+        script_file.write("#SBATCH --partition=standard\n")
 
-        script_file.write("#SBATCH --time=04:00:00\n")
+        script_file.write("#SBATCH --time=10:00:00\n")
         script_file.write("#SBATCH --nodes=1\n")
-        script_file.write("#SBATCH --ntasks-per-node=2\n")
+        script_file.write("#SBATCH --ntasks-per-node=4\n")
         script_file.write("#SBATCH --cpus-per-task=1\n")
         script_file.write("#SBATCH --mem=2G\n")
 

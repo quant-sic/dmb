@@ -13,7 +13,7 @@ log = create_logger(__name__)
 
 class DMBLitModel(LitModelMixin):
 
-    def __init__(self, model:Dict[str, Any], optimizer: Dict[str, Any], scheduler: Dict[str, Any],loss: Dict[str, Any],**kwargs: Any):
+    def __init__(self, model:Dict[str, Any], optimizer: Dict[str, Any], scheduler: Dict[str, Any],loss: Dict[str, Any],observables: List[str],**kwargs: Any):
         
         super().__init__()
         self.save_hyperparameters()
@@ -21,8 +21,6 @@ class DMBLitModel(LitModelMixin):
         # instantiate the decoder
         self.model = self.load_model(model)
 
-
-        log.info(self.hparams["model"])
         #serves as a dummy input for the model to get the output shape with lightning
         self.example_input_array = torch.zeros(
             1,
@@ -33,8 +31,12 @@ class DMBLitModel(LitModelMixin):
     
     @staticmethod
     def load_model(model_dict):
-        return hydra.utils.instantiate(model_dict)
+        return hydra.utils.instantiate(model_dict, _recursive_=False, _convert_="all")
     
+    @property
+    def observables(self):
+        return self.hparams["observables"]
+        
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass.
 
@@ -91,6 +93,14 @@ class DMBLitModel(LitModelMixin):
 
         return loss
     
+    def on_train_epoch_end(self) -> None:
+        """Reset metrics at the end of the epoch."""
+        self.train_metrics.reset()
+
+    def on_validation_epoch_end(self) -> None:
+        """Reset metrics at the end of the epoch."""
+        self.val_metrics.reset()
+
     def reset_metrics(self, stage: Literal["train", "val", "test"]) -> None:
         """Reset metrics."""
         # get metrics for the current stage

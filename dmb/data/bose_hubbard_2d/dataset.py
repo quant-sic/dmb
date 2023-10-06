@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from dmb.data.dim_2d.worm.helpers.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.worm.sim import WormSimulation
 from pathlib import Path
 from functools import cached_property
 from pathlib import Path
@@ -14,6 +14,7 @@ from dmb.utils.io import ProgressParallel
 import itertools
 import math
 import numpy as np
+from dmb.data.bose_hubbard_2d.network_input import net_input
 
 log = create_logger(__name__)
 
@@ -25,7 +26,9 @@ class BoseHubbardDataset(Dataset):
                  observables:List[str] = ["Density_Distribution","Density_Matrix","DensDens_CorrFun","DensDens_CorrFun_local_0","DensDens_CorrFun_local_1","DensDens_CorrFun_local_2","DensDens_CorrFun_local_3","DensDens_Diff_0","DensDens_Diff_1","DensDens_Diff_2","DensDens_Diff_3","DensDens_Diff_Diag_0","DensDens_Diff_Diag_1","DensDens_Diff_Diag_2","DensDens_Diff_Diag_3","DensDens_CorrFun_local_2_step_0","DensDens_CorrFun_local_2_step_1","DensDens_CorrFun_local_2_step_2","DensDens_CorrFun_local_2_step_3","DensDens_CorrFun_local_diag_0","DensDens_CorrFun_local_diag_1","DensDens_CorrFun_local_diag_2","DensDens_CorrFun_local_diag_3","DensDens_CorrFun_sq_0","DensDens_CorrFun_sq_1","DensDens_CorrFun_sq_2","DensDens_CorrFun_sq_3","DensDens_CorrFun_sq_0_","DensDens_CorrFun_sq_1_","DensDens_CorrFun_sq_2_","DensDens_CorrFun_sq_3_","DensDens_CorrFun_sq_diag_0","DensDens_CorrFun_sq_diag_1","DensDens_CorrFun_sq_diag_2","DensDens_CorrFun_sq_diag_3","DensDens_CorrFun_sq_diag_0_","DensDens_CorrFun_sq_diag_1_","DensDens_CorrFun_sq_diag_2_","DensDens_CorrFun_sq_diag_3_","DensDens_CorrFun_sq_0","Density_Distribution_squared"], 
                  base_transforms=None, 
                  train_transforms=None,
-                 clean=True):
+                 clean=True,
+                 reload=False,
+                 verbose=False):
 
         self.data_dir = Path(data_dir).resolve()
         self.observables = observables
@@ -36,18 +39,20 @@ class BoseHubbardDataset(Dataset):
         self.train_transforms = train_transforms
 
         self.clean = clean
+        self.reload = reload
+        self.verbose = verbose
 
     @cached_property
     def sim_dirs(self):
         sim_dirs = sorted(self.data_dir.glob("*"))
 
         if self.clean:
-            sim_dirs = self._clean_sim_dirs(self.observables,sim_dirs)
+            sim_dirs = self._clean_sim_dirs(self.observables,sim_dirs,redo=self.reload,verbose=self.verbose)
 
         return sim_dirs
 
     @staticmethod
-    def _clean_sim_dirs(observables,sim_dirs):
+    def _clean_sim_dirs(observables,sim_dirs,redo=False,verbose=False):
 
         def filter_fn(sim_dir):
 
@@ -56,9 +61,9 @@ class BoseHubbardDataset(Dataset):
             except:
                 return False
 
-            if "clean" in sim.record and sim.record["clean"] == False:
+            if "clean" in sim.record and sim.record["clean"] == False and not redo:
                 return False
-            elif "clean" in sim.record and sim.record["clean"] == True:
+            elif "clean" in sim.record and sim.record["clean"] == True and not redo:
                 valid = True
             else:
                 try:
@@ -89,7 +94,7 @@ class BoseHubbardDataset(Dataset):
             return valid
         
         
-        sim_dirs = list(itertools.compress(sim_dirs,ProgressParallel(n_jobs=10, total=len(sim_dirs), desc="Filtering Dataset",use_tqdm=False)(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs)))
+        sim_dirs = list(itertools.compress(sim_dirs,ProgressParallel(n_jobs=10, total=len(sim_dirs), desc="Filtering Dataset",use_tqdm=verbose)(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs)))
 
         return sim_dirs
 
@@ -102,36 +107,6 @@ class BoseHubbardDataset(Dataset):
         if not hasattr(self,"_loaded_samples"):
             self._loaded_samples = {}
         return self._loaded_samples
-
-    @staticmethod
-    def get_ckeckerboard_projection(mu_input):
-        """
-            Determines and returns the checkerboard version (out of two possible) that has the largest correlation with the input mu.
-        """
-
-        if len(mu_input.shape) == 1:
-            mu_input = mu_input.view(int(math.sqrt(mu_input.shape[0])),int(math.sqrt(mu_input.shape[0])))
-        elif len(mu_input.shape) == 2:
-            if not mu_input.shape[0] == mu_input.shape[1]:
-                raise ValueError("Input mu has to be square")
-        else:
-            raise ValueError("Input mu has to be either 1D or 2D")
-
-        cb_1 = torch.ones_like(mu_input)
-        cb_1[::2,::2]=0
-        cb_1[1::2,1::2]=0
-
-        cb_2 = torch.ones_like(mu_input)
-        cb_2[1::2,::2]=0
-        cb_2[::2,1::2]=0
-
-        corr_1 = torch.abs(torch.sum(mu_input*cb_1))
-        corr_2 = torch.abs(torch.sum(mu_input*cb_2))
-
-        if corr_1 > corr_2:
-            return cb_1
-        else:
-            return cb_2
         
 
     def load_sample(self,idx,reload=False):
@@ -142,34 +117,70 @@ class BoseHubbardDataset(Dataset):
             inputs_path = sim_dir / "inputs.pt"
             outputs_path = sim_dir / "outputs.pt"
 
+            try:
+                sim = WormSimulation.from_dir(sim_dir)
+                saved_observables = sim.record["saved_observables"]
+            except:
+                reload = True
+
             if not inputs_path.exists() or not outputs_path.exists() or reload:
 
                 sim = WormSimulation.from_dir(sim_dir)
-                
-                inputs = torch.concat([
-                    torch.from_numpy(sim.input_parameters.mu).float()[None,:],
-                    self.get_ckeckerboard_projection(torch.from_numpy(sim.input_parameters.mu).float()).flatten()[None,:],
-                    torch.from_numpy(sim.input_parameters.U_on).float()[None,:],
-                    torch.from_numpy(sim.input_parameters.V_nn).float().view(2, -1)[[0]]],dim=0)
-                
-                # stack observables
-                outputs = torch.stack([torch.from_numpy(sim.results.observables[obs]["mean"]["value"]).float() for obs in self.observables],dim=0)
+                                
+                inputs = net_input(sim.input_parameters.mu,sim.input_parameters.U_on,sim.input_parameters.V_nn,cb_projection=True)
 
+                # filter function for observables. Only keep the ones that have shape (L**2). also check if isinstance(...,np.ndarray)
+                obs_filter_fn = lambda obs: isinstance(sim.results.observables[obs]["mean"]["value"],np.ndarray) and len(sim.results.observables[obs]["mean"]["value"]) == int(sim.input_parameters.Lx)*int(sim.input_parameters.Ly)
+
+                saved_observables = list(filter(obs_filter_fn,sorted(sim.results.observables.keys())))
+                # stack observables
+                outputs = torch.stack(
+                            [torch.from_numpy(sim.results.observables[obs]["mean"]["value"]).float() for obs in saved_observables],dim=0
+                )
                 # reshape
                 outputs = outputs.view(outputs.shape[0],int(math.sqrt(outputs.shape[1])),int(math.sqrt(outputs.shape[1])))
-                inputs = inputs.view(inputs.shape[0],int(math.sqrt(inputs.shape[1])),int(math.sqrt(inputs.shape[1])))
-
+                
                 #save to .npy files
                 torch.save(inputs,inputs_path)
                 torch.save(outputs,outputs_path)
+
+                #save saved_observables
+                sim.record["saved_observables"] = saved_observables
             
             else:
                 inputs = torch.load(inputs_path)
                 outputs = torch.load(outputs_path)
 
+                # load saved_observables
+                sim = WormSimulation.from_dir(sim_dir)
+                saved_observables = sim.record["saved_observables"]
+
+            # filter observables
+            outputs = outputs[[saved_observables.index(obs) for obs in self.observables]]
+
             self.loaded_samples[idx] = (inputs,outputs)
 
+        # apply transforms
+        if self.base_transforms is not None:
+            inputs,outputs = self.base_transforms((inputs,outputs))
+
+        if self.train_transforms is not None and self.apply_train_transforms:
+            inputs,outputs = self.train_transforms((inputs,outputs))
+
         return self.loaded_samples[idx]
+
+
+    @property
+    def apply_train_transforms(self) -> bool:
+        if hasattr(self, "_apply_train_transforms"):
+            return self._apply_train_transforms
+        else:
+            raise AttributeError("apply_transforms is not set. Please set it first.")
+
+    @apply_train_transforms.setter
+    def apply_train_transforms(self, value: bool) -> None:
+        self._apply_train_transforms = value
+
 
     def __getitem__(self, idx,reload=False):
 
@@ -201,8 +212,6 @@ class BoseHubbardDataset(Dataset):
 
         # return mu,U_on,J
         return 4*V_nn[0]/U_on[0],mu/U_on[0],4*J[0]/U_on[0]
-
-    
 
     def get_dataset_ids_from_indices(self,indices:Union[int,List[int]]) -> Union[str,List[str]]:
 
