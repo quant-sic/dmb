@@ -1,0 +1,9 @@
+_target_: dmb.data.bose_hubbard_2d.datamodule.BoseHubbardDataModule
+
+data_dir: ${paths.data_dir}/bose_hubbard_2d
+batch_size: 512
+num_workers: 4
+clean: True
+base_transforms: null
+train_transforms: null
+

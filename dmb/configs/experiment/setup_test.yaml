@@ -1,0 +1,38 @@
+# @package _global_
+
+# Test the Lucas dataset with all columns
+
+defaults:
+  - override /datamodule: bose_hubbard_2d
+  - override /model: dmb_lit_model
+  - override /callbacks: default
+  - override /trainer: default
+  - _self_
+
+tags: ["test", "bose_hubbard_2d", "resnet"]
+
+seed: 12345
+
+trainer:
+  max_epochs: 10
+  gradient_clip_val: 1
+  accumulate_grad_batches: 2
+
+exp_name: "setup_test/bose_hubbard_2d_resnet"
+
+test: True
+
+datamodule:
+  clean: True
+  observables: ["Density_Distribution","Density_Matrix","DensDens_CorrFun","DensDens_CorrFun_local_0","DensDens_CorrFun_local_1","DensDens_CorrFun_local_2","DensDens_CorrFun_local_3","DensDens_Diff_0","DensDens_Diff_1","DensDens_Diff_2","DensDens_Diff_3","DensDens_Diff_Diag_0","DensDens_Diff_Diag_1","DensDens_Diff_Diag_2","DensDens_Diff_Diag_3","DensDens_CorrFun_local_2_step_0","DensDens_CorrFun_local_2_step_1","DensDens_CorrFun_local_2_step_2","DensDens_CorrFun_local_2_step_3","DensDens_CorrFun_local_diag_0","DensDens_CorrFun_local_diag_1","DensDens_CorrFun_local_diag_2","DensDens_CorrFun_local_diag_3","DensDens_CorrFun_sq_0","DensDens_CorrFun_sq_1","DensDens_CorrFun_sq_2","DensDens_CorrFun_sq_3","DensDens_CorrFun_sq_0_","DensDens_CorrFun_sq_1_","DensDens_CorrFun_sq_2_","DensDens_CorrFun_sq_3_","DensDens_CorrFun_sq_diag_0","DensDens_CorrFun_sq_diag_1","DensDens_CorrFun_sq_diag_2","DensDens_CorrFun_sq_diag_3","DensDens_CorrFun_sq_diag_0_","DensDens_CorrFun_sq_diag_1_","DensDens_CorrFun_sq_diag_2_","DensDens_CorrFun_sq_diag_3_","DensDens_CorrFun_sq_0","Density_Distribution_squared"]
+
+  train_transforms: 
+      _target_: torchvision.transforms.transforms.Compose
+      transforms: [
+                  _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
+                  ]
+
+model:
+  model:
+    out_channels: 41
+    in_channels: 4
