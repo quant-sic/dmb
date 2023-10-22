@@ -50,8 +50,8 @@ model:
         _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
         in_channels: 4,
         out_channels: 1,
-        kernel_sizes: [5,3,3,3,3,3,3,3],
-        n_channels: [16,32,64,128,128,256,256,256],
+        kernel_sizes: [5,3,3,3,3,3],
+        n_channels: [16,32,64,128,128,128],
         dropout: 0.1
       },
     ]
@@ -59,7 +59,7 @@ model:
     output_modification: [
         _target_: dmb.model.dmb_model.Exponential
     ]
-    
+
   optimizer:
     lr: 0.0001
 

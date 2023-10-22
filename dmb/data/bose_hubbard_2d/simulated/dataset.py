@@ -314,3 +314,7 @@ class SimulatedBoseHubbard2dDataset(Dataset):
 
     def get_dataset_ids_from_indices(self, idx: int):
         return idx
+
+    @property
+    def observables(self):
+        return self.sampler.ldam.observables
