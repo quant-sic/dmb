@@ -1,4 +1,4 @@
-import lightning
+import lightning.pytorch as pl
 from dmb.data.utils import random_seeded_split
 from torch.utils.data import Dataset, DataLoader
 from typing import Dict, Optional, Any, cast, Sized, List, Callable
@@ -15,7 +15,7 @@ import hydra
 log = create_logger(__name__)
 
 
-class DataModuleMixin(lightning.LightningDataModule, ABC):
+class DataModuleMixin(pl.LightningDataModule, ABC):
     """Mixin class for data modules.
 
     It is used to define the interface for data modules.
@@ -158,6 +158,7 @@ class DataModuleMixin(lightning.LightningDataModule, ABC):
             pin_memory=self.hparams["pin_memory"],
             shuffle=True,
             collate_fn=self.get_collate_fn(),
+            persistent_workers=True,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -173,6 +174,7 @@ class DataModuleMixin(lightning.LightningDataModule, ABC):
             pin_memory=self.hparams["pin_memory"],
             shuffle=False,
             collate_fn=self.get_collate_fn(),
+            persistent_workers=True,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -188,6 +190,7 @@ class DataModuleMixin(lightning.LightningDataModule, ABC):
             pin_memory=self.hparams["pin_memory"],
             shuffle=False,
             collate_fn=self.get_collate_fn(),
+            persistent_workers=True,
         )
 
     def teardown(self, stage: Optional[str] = None) -> None:

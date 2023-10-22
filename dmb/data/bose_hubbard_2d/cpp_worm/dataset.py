@@ -6,8 +6,7 @@ from pathlib import Path
 from typing import List, Union
 from torch.utils.data import Dataset
 from dmb.utils import create_logger
-from tqdm.auto import tqdm
-import os
+
 import torch
 from joblib import delayed
 from dmb.utils.io import ProgressParallel

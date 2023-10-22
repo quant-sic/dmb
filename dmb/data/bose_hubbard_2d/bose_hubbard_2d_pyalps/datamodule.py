@@ -1,5 +1,5 @@
 from typing import Optional
-import lightning
+import lightning.pytorch as pl
 from torch.utils.data import DataLoader, Subset, ConcatDataset
 from dmb.data.utils import collate_sizes
 import numpy as np
@@ -10,7 +10,7 @@ import hydra
 log = create_logger(__name__)
 
 
-class DataModule2d(lightning.LightningDataModule):
+class DataModule2d(pl.LightningDataModule):
     def __init__(
         self,
         dataset,

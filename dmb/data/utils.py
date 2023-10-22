@@ -159,7 +159,7 @@ class SquareSymmetryGroupAugmentations(object):
     def __call__(
         self, xy: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        if isinstance(x, tuple):
+        if isinstance(xy, tuple):
             x = xy[0]
             y = xy[1]
 
@@ -181,35 +181,35 @@ class SquareSymmetryGroupAugmentations(object):
         if rnd < 1 / 8:  # unity
             pass
         elif rnd < 2 / 8:  # rotate 90 left
-            x, y = map_if_not_none(
+            x, y = map(
                 lambda xy: map_if_not_none(lambda x: torch.rot90(x, 1, [-2, -1]), xy),
                 (x, y),
             )
         elif rnd < 3 / 8:  # rotate 180 left
-            x, y = map_if_not_none(
+            x, y = map(
                 lambda xy: map_if_not_none(lambda x: torch.rot90(x, 2, [-2, -1]), xy),
                 (x, y),
             )
         elif rnd < 4 / 8:  # rotate 270 left
-            x, y = map_if_not_none(
+            x, y = map(
                 lambda xy: map_if_not_none(lambda x: torch.rot90(x, 3, [-2, -1]), xy),
                 (x, y),
             )
         elif rnd < 5 / 8:  # flip x
-            x, y = map_if_not_none(
+            x, y = map(
                 lambda xy: map_if_not_none(lambda x: torch.flip(x, [-2]), xy), (x, y)
             )
         elif rnd < 6 / 8:  # flip y
-            x, y = map_if_not_none(
+            x, y = map(
                 lambda xy: map_if_not_none(lambda x: torch.flip(x, [-1]), xy), (x, y)
             )
         elif rnd < 7 / 8:  # reflection x=y
-            x, y = map_if_not_none(
+            x, y = map(
                 lambda xy: map_if_not_none(lambda x: torch.transpose(x, -2, -1), xy),
                 (x, y),
             )
         else:  # reflection x=-y
-            x, y = map_if_not_none(
+            x, y = map(
                 lambda xy: map_if_not_none(
                     lambda x: torch.flip(torch.transpose(x, -2, -1), [-2, -1]), xy
                 ),

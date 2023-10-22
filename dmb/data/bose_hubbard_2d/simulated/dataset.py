@@ -10,57 +10,19 @@ from typing import Any, Tuple, List
 from torch import nn
 import numpy as np
 from torch import nn
-import lightning
+import lightning.pytorch as pl
+
+from dmb.data.bose_hubbard_2d.simulated.fake_phase_diagram_objects import (
+    BOSE_HUBBARD_FAKE_ELLIPSOIDS,
+    BOSE_HUBBARD_FAKE_GRADIENTS,
+    Ellipsoid,
+    Gradient,
+)
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
-class Ellipsoid(lightning.LightningModule):
-    def __init__(
-        self,
-        center: torch.Tensor,
-        params: torch.Tensor,
-        min_value: float,
-        max_value: float,
-        separation_exponent: int = 1,
-    ):
-        super().__init__()
-
-        self.register_parameter("center", nn.Parameter(center))
-        self.register_parameter("params", nn.Parameter(params))
-        self.min_value = min_value
-        self.max_value = max_value
-        self.separation_exponent = separation_exponent
-
-    def contains(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.sum(((x - self.center) / self.params) ** 2, dim=-1) < 1
-
-    def reparametrized_distance_to_center(self, x: torch.Tensor) -> float:
-        return torch.sqrt((((x - self.center) / self.params) ** 2).sum(dim=-1))
-
-
-class Gradient(lightning.LightningModule):
-    def __init__(
-        self,
-        anchor: torch.Tensor,
-        anchor_value: float,
-        direction: torch.Tensor,
-        direction_value: float,
-    ) -> None:
-        super().__init__()
-
-        self.register_parameter("anchor", nn.Parameter(anchor))
-        self.register_parameter("direction", nn.Parameter(direction))
-        self.anchor_value = anchor_value
-        self.direction_value = direction_value
-
-    def get_value_at_x(self, x: torch.tensor) -> float:
-        # print datatypes of tensors
-        return abs(
-            self.anchor_value
-            + self.direction_value * ((x - self.anchor) @ self.direction)
-        )
-
-
-class PhaseDiagram3d(lightning.LightningModule):
+class PhaseDiagram3d(pl.LightningModule):
     def __init__(
         self,
         ellipsoids: List[Ellipsoid],
@@ -89,6 +51,7 @@ class PhaseDiagram3d(lightning.LightningModule):
 
         self.size = [muU_range, ztU_range, zVU_range]
 
+    @property
     def volume(self):
         return np.prod([max - min for min, max in self.size])
 
@@ -152,7 +115,7 @@ class PhaseDiagram3d(lightning.LightningModule):
         return total_min_value, total_max_value
 
 
-class LocalDensityApproximationModel(lightning.LightningModule):
+class LocalDensityApproximationModel(pl.LightningModule):
     def __init__(self, phase_diagram: PhaseDiagram3d):
         super().__init__()
         self.register_module("phase_diagram", phase_diagram)
@@ -217,6 +180,7 @@ class RandomLDAMSampler:
         self.zVU_range = zVU_range
         self.L_range = L_range
 
+    @torch.no_grad()
     def sample(self):
         L = np.random.randint(low=self.L_range[0] / 2, high=self.L_range[1] / 2) * 2
 
@@ -236,10 +200,117 @@ class RandomLDAMSampler:
         inputs = net_input(mu=mu, U_on=U_on, V_nn=V_nn, cb_projection=True).unsqueeze(0)
         label = self.ldam(inputs)
 
-        return inputs, label
+        return {
+            "mu_offset": mu_offset,
+            "U_on": U_on,
+            "V_nn": V_nn,
+            "L": L,
+            "ztU": ztU,
+            "zVU": zVU,
+            "muU": muU,
+            "inputs": inputs.squeeze(0),
+            "label": label.squeeze(0),
+        }
 
 
-class SimulatedDataset(Dataset):
-    def __init__(self, num_samples, transforms=None):
+class SimulatedBoseHubbard2dDataset(Dataset):
+    def __init__(
+        self,
+        num_samples,
+        muU_range: Tuple[float, float] = (-0.5, 3.0),
+        ztU_range: Tuple[float, float] = (0.05, 1.0),
+        zVU_range: Tuple[float, float] = (0.75, 1.75),
+        L_range: Tuple[int, int] = (8, 20),
+        z=4,
+        base_transforms=None,
+        train_transforms=None,
+    ):
+        super().__init__()
+
         self.num_samples = num_samples
-        self.transforms = transforms
+
+        self.muU_range = muU_range
+        self.ztU_range = ztU_range
+        self.zVU_range = zVU_range
+        self.L_range = L_range
+        self.z = z
+
+        self.sampler = RandomLDAMSampler(
+            ellipsoids=BOSE_HUBBARD_FAKE_ELLIPSOIDS,
+            gradients=BOSE_HUBBARD_FAKE_GRADIENTS,
+            muU_range=muU_range,
+            ztU_range=ztU_range,
+            zVU_range=zVU_range,
+            L_range=L_range,
+            z=z,
+        )
+
+        # transforms
+        self.base_transforms = base_transforms
+        self.train_transforms = train_transforms
+
+        self.samples = [
+            self.sampler.sample() for _ in tqdm(range(num_samples), "Sampling")
+        ]
+
+    def __len__(self):
+        return self.num_samples
+
+    def __getitem__(self, idx):
+        inputs, outputs = self.samples[idx]["inputs"], self.samples[idx]["label"]
+
+        # apply transforms
+        if self.base_transforms is not None:
+            inputs, outputs = self.base_transforms((inputs, outputs))
+
+        if self.train_transforms is not None and self.apply_train_transforms:
+            inputs, outputs = self.train_transforms((inputs, outputs))
+
+        return inputs, outputs
+
+    @property
+    def apply_train_transforms(self) -> bool:
+        if hasattr(self, "_apply_train_transforms"):
+            return self._apply_train_transforms
+        else:
+            raise AttributeError("apply_transforms is not set. Please set it first.")
+
+    @apply_train_transforms.setter
+    def apply_train_transforms(self, value: bool):
+        self._apply_train_transforms = value
+
+    @property
+    def sample_density(self) -> float:
+        return self.num_samples / self.sampler.phase_diagram.volume
+
+    def plot_samples(self):
+        figures = []
+        linspace = np.linspace(self.zVU_range[0], self.zVU_range[1], 10)
+
+        muU = [sample["muU"] for sample in self.samples]
+        ztU = [sample["ztU"] for sample in self.samples]
+        zVU = [sample["zVU"] for sample in self.samples]
+
+        for start, end in zip(linspace[:-1], linspace[1:]):
+            fig, ax = plt.subplots()
+
+            ax.set_title(f"zVU in [{start:.2f}, {end:.2f}]")
+            ax.set_xlabel("muU")
+            ax.set_ylabel("ztU")
+
+            ax.set_ylim(self.muU_range)
+            ax.set_xlim(self.ztU_range)
+
+            zVU_in_range = [(zVU_i > start and zVU_i < end) for zVU_i in zVU]
+
+            ax.scatter(
+                np.array(ztU)[zVU_in_range],
+                np.array(muU)[zVU_in_range],
+            )
+
+            figures.append(fig)
+
+        return figures
+
+    def get_dataset_ids_from_indices(self, idx: int):
+        return idx

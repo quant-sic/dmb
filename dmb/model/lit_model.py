@@ -1,4 +1,3 @@
-import lightning
 import torch
 from typing import Any, Dict, Literal, List
 import hydra
@@ -7,11 +6,13 @@ import torch
 
 from dmb.utils import create_logger
 from dmb.model.mixins import LitModelMixin
+import lightning.pytorch as pl
+from functools import cached_property
 
 log = create_logger(__name__)
 
 
-class DMBLitModel(LitModelMixin):
+class DMBLitModel(pl.LightningModule, LitModelMixin):
     def __init__(
         self,
         model: Dict[str, Any],
@@ -107,3 +108,36 @@ class DMBLitModel(LitModelMixin):
         metrics_dict = getattr(self, f"{stage}_metrics")
         for metric_name, (metric, lit_module_attribute) in metrics_dict.items():
             metric.reset()
+
+    @cached_property
+    def loss(self) -> torch.nn.Module:
+        _loss: torch.nn.Module = hydra.utils.instantiate(self.hparams["loss"])
+
+        log.info("Using {} as loss".format(_loss.__class__.__name__))
+
+        return _loss
+
+    def configure_optimizers(self) -> Any:
+        """Configure the optimizer and scheduler."""
+        # filter required for fine-tuning
+        _optimizer: torch.optim.Optimizer = hydra.utils.instantiate(
+            self.hparams["optimizer"],
+            params=filter(lambda p: p.requires_grad, self.model.parameters()),
+        )
+
+        if self.hparams["scheduler"] is None:
+            return {"optimizer": _optimizer}
+        else:
+            _scheduler: torch.optim.lr_scheduler._LRScheduler = hydra.utils.instantiate(
+                self.hparams["scheduler"], optimizer=_optimizer
+            )
+
+            return {
+                "optimizer": _optimizer,
+                "lr_scheduler": {
+                    "scheduler": _scheduler,
+                    "monitor": "val/loss",
+                    "interval": "epoch",
+                    "frequency": 1,
+                },
+            }

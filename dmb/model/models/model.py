@@ -1,7 +1,7 @@
 from venv import create
 import torch
 from torch import nn
-import lightning
+import lightning.pytorch as pl
 from dmb.model.torch.loss import WeightedMAE, IndexMSELoss
 from .simple_resnet1d import ResNet1d
 from .simple_resnet2d import ResNet2d
@@ -109,7 +109,7 @@ class Model1d(nn.Module):
                 p.data = torch.from_numpy(keras_weight).transpose(2, 0)
 
 
-class LitModel1d(lightning.LightningModule):
+class LitModel1d(pl.LightningModule):
     def __init__(
         self,
         number_of_filters,
@@ -345,7 +345,7 @@ class Model2d(nn.Module):
                 p.data = torch.from_numpy(keras_weight).permute(3, 2, 1, 0)
 
 
-class LitModel2d(lightning.LightningModule):
+class LitModel2d(pl.LightningModule):
     def __init__(
         self,
         number_of_filters,

@@ -26,7 +26,7 @@ job_logging:
     handlers: [console, file]
 
   loggers:
-    pytorch_lightning.callbacks.model_summary:
+    lightning.pytorch.callbacks.model_summary:
       level: INFO
       handlers: [file]
 

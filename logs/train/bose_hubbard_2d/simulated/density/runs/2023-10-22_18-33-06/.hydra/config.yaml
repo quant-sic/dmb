@@ -1,0 +1,125 @@
+task_name: train
+exp_name: bose_hubbard_2d/simulated/density
+tags:
+- simulated
+- bose_hubbard_2d
+- resnet
+- density
+train: true
+test: true
+ckpt_path: null
+seed: 12345
+paths:
+  root_dir: ${oc.env:REPO_ROOT}
+  data_dir: ${oc.env:REPO_DATA_ROOT}
+  log_dir: ${oc.env:REPO_LOGS_ROOT}
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+logger:
+  tensorboard:
+    _target_: lightning.pytorch.loggers.tensorboard.TensorBoardLogger
+    save_dir: ${paths.output_dir}/tensorboard/
+    name: null
+    log_graph: false
+    default_hp_metric: true
+    prefix: ''
+trainer:
+  _target_: lightning.pytorch.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 1000
+  accelerator: auto
+  devices: 1
+  check_val_every_n_epoch: 1
+  deterministic: true
+  log_every_n_steps: 25
+  fast_dev_run: false
+  gradient_clip_val: 1
+  accumulate_grad_batches: 4
+extras:
+  ignore_warnings: false
+  enforce_tags: true
+  print_config: true
+callbacks:
+  model_checkpoint_best:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints/best
+    filename: '{epoch}-{step}'
+    monitor: val/loss
+    verbose: false
+    save_last: null
+    save_top_k: 3
+    mode: min
+    auto_insert_metric_name: true
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: null
+    save_on_train_epoch_end: null
+  model_checkpoint_regular:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints/regular
+    filename: '{epoch}-{step}'
+    monitor: val/loss
+    verbose: false
+    save_last: null
+    save_top_k: -1
+    mode: min
+    auto_insert_metric_name: true
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: 10
+    save_on_train_epoch_end: null
+  model_summary:
+    _target_: lightning.pytorch.callbacks.ModelSummary
+    max_depth: -1
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
+  lr_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: null
+    log_momentum: false
+datamodule:
+  _target_: dmb.data.bose_hubbard_2d.simulated.datamodule.SiumlatedBoseHubbardDataModule
+  batch_size: 256
+  num_workers: 4
+  base_transforms: null
+  train_transforms:
+    _target_: torchvision.transforms.transforms.Compose
+    transforms:
+    - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
+  num_samples: 5000
+  observables:
+  - Density_Distribution
+model:
+  model:
+    _target_: dmb.model.dmb_model.DMBModel
+    in_channels: 4
+    out_channels: 1
+    observables:
+    - Density_Distribution
+    module_list:
+    - _target_: dmb.model.models.resnet_2d.SeResNet18
+      in_channels: 4
+      out_channels: 1
+    output_modification:
+    - _target_: torch.nn.Softplus
+  _target_: dmb.model.lit_model.DMBLitModel
+  loss:
+    _target_: dmb.model.utils.MSLELoss
+    reduction: mean
+  optimizer:
+    _target_: torch.optim.Adam
+    lr: 0.0001
+    weight_decay: 0.0
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    mode: min
+    factor: 0.5
+    patience: 200
+    min_lr: 1.0e-05
+    verbose: false
+    cooldown: 100
+    threshold: 0.1
+  observables: ${datamodule.observables}

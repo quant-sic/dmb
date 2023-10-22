@@ -1,11 +1,25 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 from torch.utils.data import Dataset, DataLoader
 from dmb.data.dim_2.worm.helpers.sim import WormSimulation
 from pathlib import Path
 from functools import cached_property
 from pathlib import Path
-from typing import  Dict, List, Optional, Sequence, Union, Tuple, Any, Callable, Iterable, Mapping, Type, cast,Sized
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Union,
+    Tuple,
+    Any,
+    Callable,
+    Iterable,
+    Mapping,
+    Type,
+    cast,
+    Sized,
+)
 
 import torch
 
@@ -13,6 +27,7 @@ from torch.utils.data import Dataset, Subset, random_split
 from dmb.utils import create_logger
 
 log = create_logger(__name__)
+
 
 def random_seeded_split(
     train_val_test_split: Sequence[float],
@@ -22,7 +37,6 @@ def random_seeded_split(
     num_split_versions: int = 1,
     resplit: Optional[List[Dict]] = None,
 ) -> List[Subset]:
-
     """Splits a dataset into train, val and test subsets with a fixed seed.
 
     Args:
@@ -42,7 +56,7 @@ def random_seeded_split(
     else:
         og_dataset = dataset
         dataset_indices = list(range(dataset_length))
-    
+
     log.info("Splitting dataset with default indices")
 
     sample_numbers = [int(f * float(dataset_length)) for f in train_val_test_split]
@@ -56,12 +70,10 @@ def random_seeded_split(
 
     split_datasets_out: List[Subset] = []
     if resplit is not None:
-
         if not len(resplit) == len(split_datasets):
             raise ValueError("resplit must have the same length as split_datasets")
 
         for idx, (split_config, _dataset) in enumerate(zip(resplit, split_datasets)):
-
             if split_config is None:
                 split_datasets_out.append(_dataset)
             else:
@@ -134,10 +146,9 @@ def random_seeded_split(
 
     return split_datasets_out
 
+
 class BoseHubbardDataset(Dataset):
-
-    def __init__(self, data_dir:Path, data_transform=None,clean=True):
-
+    def __init__(self, data_dir: Path, data_transform=None, clean=True):
         self.data_dir = data_dir
         self.data_transform = data_transform
 
@@ -154,7 +165,6 @@ class BoseHubbardDataset(Dataset):
 
     @staticmethod
     def _clean_sim_dirs(sim_dirs):
-
         def filter_fn(sim_dir):
             sim = WormSimulation.from_dir(sim_dir)
 
@@ -165,19 +175,18 @@ class BoseHubbardDataset(Dataset):
                 valid = False
 
             return valid
-        
-        sim_dirs = list(filter(filter_fn,sim_dirs))
+
+        sim_dirs = list(filter(filter_fn, sim_dirs))
 
         return sim_dirs
 
     def __len__(self):
         return len(self.sim_dirs)
-    
-    def __getitem__(self, idx):
 
+    def __getitem__(self, idx):
         sim_dir = self.sim_dirs[idx]
         sim = WormSimulation.from_dir(sim_dir)
-        
+
         inputs = sim.input_parameters.mu
         outputs = sim.results.observables
 
@@ -185,24 +194,29 @@ class BoseHubbardDataset(Dataset):
         corr_1 = outputs["DensDens_CorrFun"]["mean"]["value"]
         return inputs, outputs
 
-    def get_sim(self,idx):
-        
+    def get_sim(self, idx):
         sim_dir = self.sim_dirs[idx]
         sim = WormSimulation.from_dir(sim_dir)
 
         return sim
 
-    def get_parameters(self,idx):
-
+    def get_parameters(self, idx):
         sim_dir = self.sim_dirs[idx]
         sim = WormSimulation.from_dir(sim_dir)
 
         return sim.input_parameters
-    
+
 
 class BoseHubbardDataModule(pl.LightningDataModule):
-
-    def __init__(self, data_dir:Path, batch_size:int, num_workers:int=0, clean=True,base_transforms=None,train_transforms=None):
+    def __init__(
+        self,
+        data_dir: Path,
+        batch_size: int,
+        num_workers: int = 0,
+        clean=True,
+        base_transforms=None,
+        train_transforms=None,
+    ):
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
@@ -210,10 +224,8 @@ class BoseHubbardDataModule(pl.LightningDataModule):
         self.clean = clean
 
     def setup(self, stage=None):
-
         # load and split datasets only if not loaded already
         if not len(self.split_datasets) == len(self.hparams["train_val_test_split"]):
-
             self.dataset: Dataset = self.get_dataset()
 
             split_datasets = random_seeded_split(
@@ -376,7 +388,6 @@ class BoseHubbardDataModule(pl.LightningDataModule):
             self._previous_split_ids = state_dict["split_ids"]
 
     def check_loaded_consistency(self):
-
         if (
             hasattr(self, "_previous_split_indices")
             and self._previous_split_indices is not None

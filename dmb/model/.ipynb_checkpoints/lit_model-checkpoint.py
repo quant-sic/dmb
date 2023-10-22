@@ -1,31 +1,30 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
-from typing import Any, Dict, Optional, Literal, cast,List
+from typing import Any, Dict, Optional, Literal, cast, List
 import hydra
 import hydra
 import numpy as np
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import torchmetrics
 from torchmetrics import MetricCollection
 
 from dmb.utils import create_logger
-from dmb.model.utils import MaskedMSE,MaskedMSELoss
+from dmb.model.utils import MaskedMSE, MaskedMSELoss
 from functools import cached_property
 
 log = create_logger(__name__)
 
-class LitModelMixin:
 
+class LitModelMixin:
     @property
     def metrics(self) -> MetricCollection:
-
         metric_collection = MetricCollection(
-                        {
-                            "mse": MaskedMSE(),
-                        }
-                    )
-        
+            {
+                "mse": MaskedMSE(),
+            }
+        )
+
         module_device: torch.device = (
             self.model.parameters().__next__().device
         )  # self.device does not work due to mypy error
@@ -47,14 +46,9 @@ class LitModelMixin:
 
     @cached_property
     def loss(self) -> torch.nn.Module:
-
         _loss: torch.nn.Module = hydra.utils.instantiate(self.hparams["loss"])
 
-        log.info(
-            "Using {} for {} task.".format(
-                _loss.__class__.__name__
-            )
-        )
+        log.info("Using {} for {} task.".format(_loss.__class__.__name__))
 
         return _loss
 
@@ -110,7 +104,6 @@ class LitModelMixin:
         # get metrics for the current stage
         metrics_collection = getattr(self, f"{stage}_metrics")
         for metric_name, metric in metrics_collection.items():
-
             # if metric update takes mask
             metric.update(model_out, _label, mask=mask)
 
@@ -126,7 +119,7 @@ class LitModelMixin:
             )
 
             # log on step only for training
-            log_on_step = (stage == "train")
+            log_on_step = stage == "train"
 
             self.log_dict(
                 log_dict,
@@ -136,9 +129,14 @@ class LitModelMixin:
 
 
 class DMBLitModel(pl.LightningModule, LitModelMixin):
-
-    def __init__(self, model:Dict[str, Any], optimizer: Dict[str, Any], scheduler: Dict[str, Any],loss: Dict[str, Any],**kwargs: Any):
-        
+    def __init__(
+        self,
+        model: Dict[str, Any],
+        optimizer: Dict[str, Any],
+        scheduler: Dict[str, Any],
+        loss: Dict[str, Any],
+        **kwargs: Any,
+    ):
         super().__init__()
         self.save_hyperparameters()
 
@@ -152,10 +150,10 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         #     getattr(_encoder, "window_size", 1),
         #     _encoder.input_dim,
         # )
-    
+
     def load_model(model_dict):
         return hydra.utils.instantiate(model_dict)
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass.
 
@@ -166,9 +164,8 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
             torch.Tensor: Output tensor.
         """
         return self.model(x)
-    
-    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
 
+    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         batch_in, batch_label, batch_mask = batch
 
         # forward pass
@@ -178,12 +175,13 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         loss = self.loss(model_out, batch_label, mask=batch_mask)
 
         # log metrics
-        self.compute_and_log_metrics(model_out, batch_in, "train",loss, mask=batch_mask)
+        self.compute_and_log_metrics(
+            model_out, batch_in, "train", loss, mask=batch_mask
+        )
 
         return loss
 
     def validation_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-
         batch_in, batch_label, batch_mask = batch
 
         # forward pass
@@ -193,12 +191,13 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         loss = self.loss(model_out, batch_label, mask=batch_mask)
 
         # log metrics
-        self.compute_and_log_metrics(model_out, batch_label, "val", loss, mask=batch_mask)
+        self.compute_and_log_metrics(
+            model_out, batch_label, "val", loss, mask=batch_mask
+        )
 
         return loss
-    
+
     def test_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-
         batch_in, batch_label, batch_mask = batch
 
         # forward pass
@@ -208,10 +207,12 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         loss = self.loss(model_out, batch_label, mask=batch_mask)
 
         # log metrics
-        self.compute_and_log_metrics(model_out, batch_label, "test",loss, mask=batch_mask)
+        self.compute_and_log_metrics(
+            model_out, batch_label, "test", loss, mask=batch_mask
+        )
 
         return loss
-    
+
     def reset_metrics(self, stage: Literal["train", "val", "test"]) -> None:
         """Reset metrics."""
         # get metrics for the current stage

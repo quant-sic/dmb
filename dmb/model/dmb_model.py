@@ -11,11 +11,17 @@ class Exponential(torch.nn.Module):
 
     def forward(self, x):
         return torch.exp(x) + self.eps
-    
+
 
 class DMBModel(nn.Module):
-
-    def __init__(self, in_channels:int, out_channels:int,observables: List[str],module_list: List[Dict[str, Any]], output_modification: List[Dict[str, Any]] = []):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        observables: List[str],
+        module_list: List[Dict[str, Any]],
+        output_modification: List[Dict[str, Any]] = [],
+    ):
         super().__init__()
 
         self.modules_list = torch.nn.ModuleList()
@@ -38,29 +44,30 @@ class DMBModel(nn.Module):
 
         self.sanity_check()
 
-
     def sanity_check(self):
-
         if not self._in_channels == self.modules_list[0].in_channels:
-            raise ValueError("in_channels of first module must match in_channels of model")
-        
+            raise ValueError(
+                "in_channels of first module must match in_channels of model"
+            )
+
         if not self._out_channels == self.modules_list[-1].out_channels:
-            raise ValueError("out_channels of last module must match out_channels of model")
+            raise ValueError(
+                "out_channels of last module must match out_channels of model"
+            )
 
     @property
     def observables(self):
         return self._observables
-    
+
     @property
     def in_channels(self):
         return self._in_channels
-    
+
     @property
     def out_channels(self):
         return self._out_channels
 
     def forward_single_size(self, x):
-
         for module in self.modules_list:
             x = module(x)
 
@@ -68,12 +75,11 @@ class DMBModel(nn.Module):
             x = module(x)
 
         return x
-    
-    def forward(self, x):
 
-        if isinstance(x,(tuple,list)):
+    def forward(self, x):
+        if isinstance(x, (tuple, list)):
             out = tuple(self.forward_single_size(_x) for _x in x)
         else:
             out = self.forward_single_size(x)
-        
+
         return out

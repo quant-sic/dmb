@@ -19,5 +19,5 @@ def test_phasediagram() -> None:
     )
 
     for _ in range(10000):
-        _, label = sampler.sample()
-        assert torch.all(label >= 0)
+        sample = sampler.sample()
+        assert torch.all(sample["label"] >= 0)
