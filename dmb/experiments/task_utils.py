@@ -13,8 +13,8 @@ import rich.tree
 import torch.multiprocessing
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf, open_dict
-from pytorch_lightning import Callback
-from pytorch_lightning.utilities import rank_zero_only
+from lightning import Callback
+
 from rich.prompt import Prompt
 from torch import Tensor
 
@@ -24,7 +24,6 @@ from dmb.utils import REPO_ROOT, create_logger
 log = create_logger(__name__)
 
 
-@rank_zero_only
 def print_config_tree(
     cfg: DictConfig,
     print_order: Sequence[str] = (
@@ -85,7 +84,6 @@ def print_config_tree(
             rich.print(tree, file=file)
 
 
-@rank_zero_only
 def enforce_tags(cfg: DictConfig, save_to_file: bool = False) -> None:
     """Prompts user to input tags from command line if no tags are provided in config."""
     if not cfg.get("tags"):
@@ -182,7 +180,6 @@ def extras(cfg: DictConfig) -> None:
         print_config_tree(cfg, resolve=True, save_to_file=True)
 
 
-@rank_zero_only
 def save_file(path: str, content: str) -> None:
     """Save file in rank zero mode (only on one process in multi-GPU setup)."""
     with open(path, "w+") as file:
@@ -210,7 +207,7 @@ def instantiate_callbacks(callbacks_cfg: DictConfig) -> List[Callback]:
 
 def instantiate_loggers(logger_cfg: DictConfig) -> List[Any]:
     """Instantiates loggers from config."""
-    logger =[]
+    logger = []
 
     if not logger_cfg:
         log.warning("Logger config is empty.")
@@ -227,7 +224,6 @@ def instantiate_loggers(logger_cfg: DictConfig) -> List[Any]:
     return logger
 
 
-@rank_zero_only
 def log_hyperparameters(object_dict: dict) -> None:
     """Controls which config parts are saved by lightning loggers.
 

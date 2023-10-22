@@ -1,31 +1,29 @@
-import pytorch_lightning as pl
+import lightning
 import torch
-from typing import Any, Dict, Optional, Literal, cast,List
+from typing import Any, Dict, Optional, Literal, cast, List
 import hydra
 import hydra
 import numpy as np
-import pytorch_lightning as pl
 import torch
 import torchmetrics
 from torchmetrics import MetricCollection
 
 from dmb.utils import create_logger
-from dmb.model.utils import MaskedMSE,MaskedMSELoss
+from dmb.model.utils import MaskedMSE, MaskedMSELoss
 from functools import cached_property
 
 log = create_logger(__name__)
 
-class LitModelMixin(pl.LightningModule):
 
+class LitModelMixin(lightning.LightningModule):
     @property
     def metrics(self) -> MetricCollection:
-
         metric_collection = MetricCollection(
-                        {
-                            "mse": MaskedMSE(),
-                        }
-                    )
-        
+            {
+                "mse": MaskedMSE(),
+            }
+        )
+
         module_device: torch.device = (
             self.model.parameters().__next__().device
         )  # self.device does not work due to mypy error
@@ -47,14 +45,9 @@ class LitModelMixin(pl.LightningModule):
 
     @cached_property
     def loss(self) -> torch.nn.Module:
-
         _loss: torch.nn.Module = hydra.utils.instantiate(self.hparams["loss"])
 
-        log.info(
-            "Using {} as loss".format(
-                _loss.__class__.__name__
-            )
-        )
+        log.info("Using {} as loss".format(_loss.__class__.__name__))
 
         return _loss
 
@@ -99,7 +92,7 @@ class LitModelMixin(pl.LightningModule):
             stage (Literal["train", "val", "test"]): Current stage.
         """
 
-        if isinstance(model_out, (list,tuple)):
+        if isinstance(model_out, (list, tuple)):
             batch_size = sum([x.shape[0] for x in model_out])
         else:
             batch_size = model_out.shape[0]
@@ -116,7 +109,6 @@ class LitModelMixin(pl.LightningModule):
         # get metrics for the current stage
         metrics_collection = getattr(self, f"{stage}_metrics")
         for metric_name, metric in metrics_collection.items():
-
             # if metric update takes mask
             metric.update(model_out, _label, mask=mask)
 
@@ -132,7 +124,7 @@ class LitModelMixin(pl.LightningModule):
             )
 
             # log on step only for training
-            log_on_step = (stage == "train")
+            log_on_step = stage == "train"
 
             self.log_dict(
                 log_dict,

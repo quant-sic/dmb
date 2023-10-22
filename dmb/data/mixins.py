@@ -1,21 +1,21 @@
-import pytorch_lightning as pl
+import lightning
 from dmb.data.utils import random_seeded_split
-import pytorch_lightning as pl
 from torch.utils.data import Dataset, DataLoader
-from typing import  Dict, Optional, Any, cast,Sized,List,Callable
+from typing import Dict, Optional, Any, cast, Sized, List, Callable
 
 from dmb.utils import create_logger
 import numpy as np
 from abc import ABC, abstractmethod
 from torch.utils.data import Dataset, Subset
-from typing import  Dict, Optional,List
+from typing import Dict, Optional, List
 from dmb.utils import create_logger
 from torchvision.transforms.transforms import Compose
 import hydra
 
 log = create_logger(__name__)
 
-class DataModuleMixin(pl.LightningDataModule, ABC):
+
+class DataModuleMixin(lightning.LightningDataModule, ABC):
     """Mixin class for data modules.
 
     It is used to define the interface for data modules.
@@ -62,7 +62,7 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
     @property
     def num_classes(self) -> int:
         return len(self.observables)
-    
+
     @property
     def classes(self) -> List[str]:
         return self.observables
@@ -77,7 +77,6 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
 
         # load and split datasets only if not loaded already
         if not len(self.split_datasets) == len(self.hparams["train_val_test_split"]):
-
             self.dataset: Dataset = self.get_dataset()
 
             split_datasets = random_seeded_split(
@@ -231,7 +230,6 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
             self._previous_split_ids = state_dict["split_ids"]
 
     def check_loaded_consistency(self):
-
         if (
             hasattr(self, "_previous_split_indices")
             and self._previous_split_indices is not None

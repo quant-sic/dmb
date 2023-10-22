@@ -1,4 +1,4 @@
-from typing import Callable, Tuple,Optional
+from typing import Callable, Tuple, Optional
 import numpy as np
 import FyeldGenerator
 import numpy as np
@@ -59,49 +59,6 @@ def grf(shape: Tuple[int, int], cov_func: Callable[[int, int], float]) -> np.nda
     return np.real(F)
 
 
-# def coloured_noise():
-
-#     import matplotlib.pyplot as plt
-
-#     sz = 24
-#     dim = 2
-#     exponent = -2
-
-#     import numpy as np
-
-#     # white noise signal
-#     white_noise_signal = np.random.normal(0, 1, size=(sz,) * dim)
-
-#     # create Fourier filter
-#     # first create a line with squared distances from mid-point
-#     # np.ones(sz)
-#     # for i in range(sz):
-#     #     dist[i] = np.linalg.norm(i - sz/2 - 1)**2
-
-#     distance_to_center = (np.arange(sz) - sz/2 - 1)**2
-#     squared_distances_added = np.meshgrid(distance_to_center,distance_to_center)
-#     dist_tot = np.sqrt(sum(squared_distances_added))
-
-#     dist_tot[dist_tot==0] = 1
-#     filt = dist_tot**(exponent*dim/2)
-
-#     # # Fourier transform white noise, then fftshift to shift 0-frequency
-#     # # to the center of the array, to align with filter whose
-#     # # 0-frequency is also at the center. Otherwise multiplying
-#     # # them together will not multiply corresponding elements.
-#     wnf = np.fft.fftshift(np.fft.fftn(white_noise_signal))
-
-#     # # multiply with frequency filter
-#     wnf_filt = wnf * filt
-
-#     # # ifftshift to first shift back the Fourier transform
-#     # # to have 0-frequency at the start again. This lets
-#     # # ifftn do inverse Fourier transform correctly
-#     colored_noise_signal = np.real(np.fft.ifftn(np.fft.ifftshift(wnf_filt)))
-
-#     plt.imshow(colored_noise_signal)
-
-
 def periodic_grf(shape: Tuple[int, int], power: float) -> np.ndarray:
     def Pkgen(n):
         def Pk(k):
@@ -130,11 +87,10 @@ def get_offset_rescaled_trapping_potential(
 def get_random_trapping_potential(
     shape: Tuple[int, int], desired_abs_max: float, power: Optional[float] = None
 ) -> Tuple[float, np.ndarray]:
-
     if power is None:
-        power = stats.loguniform.rvs(0.1, 10, size=1)
+        power = stats.loguniform.rvs(0.1, 10)
 
-    scale = float(np.random.uniform(.3, 1, size=1)) * desired_abs_max
+    scale = float(np.random.uniform(0.3, 1)) * desired_abs_max
 
     potential = periodic_grf(shape, power)
     return float(power), get_offset_rescaled_trapping_potential(potential, scale)

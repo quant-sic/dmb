@@ -2,9 +2,9 @@
 from typing import List, Optional, Tuple
 
 import hydra
-import pytorch_lightning as pl
+import lightning
 from omegaconf import DictConfig
-from pytorch_lightning import (
+from lightning import (
     Callback,
     LightningDataModule,
     LightningModule,
@@ -40,7 +40,7 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     """
     # set seed for random number generators in pytorch, numpy and python.random
     if cfg.get("seed"):
-        pl.seed_everything(cfg.seed, workers=True)
+        lightning.seed_everything(cfg.seed, workers=True)
 
     # log.info(f"Instantiating datamodule <{cfg.datamodule._target_}>")
     # _recursive_=False, _convert_="all" are needed, because the LightningModule should be able to save the the configs as dicts. without _recursive_ all objects are instantiated. without _convert_ the configs are not given as dicts.
