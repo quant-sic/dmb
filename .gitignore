@@ -6,6 +6,7 @@
 !*.toml
 !*.md
 !*.yaml
+!*.cpp
 
 !.gitignore
 
