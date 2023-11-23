@@ -1,251 +1,225 @@
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import h5py
-from typing import Optional, Union
+from typing import Optional
 import os
 from tqdm import tqdm
 from copy import deepcopy
 from dmb.utils import create_logger
 from collections import defaultdict
-import json
-from dmb.data.bose_hubbard_2d.cpp_worm.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.helpers import (
+    check_if_slurm_is_installed_and_running,
+    write_sbatch_script,
+    call_sbatch_and_wait,
+)
 from dmb.utils import REPO_DATA_ROOT
 from dmb.utils.syjson import SyJson
-import shutil
-import time
+
 import matplotlib.pyplot as plt
 import datetime
-import warnings
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
+import matplotlib.pyplot as plt
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.ac import GammaPathologicalError
+import time
 
 log = create_logger(__name__)
 
-@dataclass
-class WormInputParameters:
-    mu: Union[np.ndarray, float]
-    t_hop: Union[np.ndarray, float] = 1.0
-    U_on: Union[np.ndarray, float] = 4.0
-    V_nn: Union[np.ndarray, float] = 0.0
-    model: str = "BoseHubbard"
-    runtimelimit: int = 24*60*60
-    sweeps: int = 25000
-    thermalization: int = 100
-    Lx: int = 4
-    Ly: int = 4
-    Lz: int = 1
-    pbcx: int = 1
-    pbcy: int = 1
-    pbcz: int = 1
-    beta: float = 20.0
-    nmax: int = 3
-    E_off: float = 1.0
-    canonical: int = -1
-    seed: int = 30
-    Ntest: int = 10000000
-    Nsave: int = 100000000
-    Nmeasure: int = 1
-    Nmeasure2: int = 10
-    C_worm: float = 2.0
-    p_insertworm: float = 1.0
-    p_moveworm: float = 0.3
-    p_insertkink: float = 0.2
-    p_deletekink: float = 0.2
-    p_glueworm: float = 0.3
 
-    h5_path: Optional[Path] = None
-    checkpoint: Optional[Path] = None
-    outputfile: Optional[Path] = None
+class SimulationExecution:
+    @property
+    def executable(self):
+        if not hasattr(self, "_executable") or self._executable is None:
+            raise RuntimeError("No executable set!")
 
-    h5_path_relative: Optional[Path] = None
-    checkpoint_relative: Optional[Path] = None
-    outputfile_relative: Optional[Path] = None
+        return self._executable
 
-    mu_power: Optional[float] = None
-    mu_offset: Optional[float] = None
+    @executable.setter
+    def executable(self, executable: Optional[str] = None) -> None:
+        if executable is None:
+            log.info("No executable set. Won't be able to execute worm calculation.")
+            return
 
-    @classmethod
-    def from_dir(cls, save_dir_path: Path):
-        # Read ini file
-        with open(save_dir_path / "parameters.ini", "r") as f:
-            lines = f.readlines()
+        if not Path(executable).is_file():
+            raise RuntimeError(f"Executable {executable} does not exist!")
 
-        # Fill dictionary for ini parameters
-        params = {}
-        for line in lines:
-            if not line.startswith("#"):
-                key, value = map(lambda s: s.strip(), line.split("="))
+        self._executable = executable
 
-                if key in cls.__dataclass_fields__.keys():
-                    params[key] = value
+    def execute_worm(
+        self,
+        input_file: Optional[Path] = None,
+        num_restarts: int = 1,
+    ):
+        for run_idx in range(num_restarts):
+            try:
+                self.execute_worm_single_try(input_file=input_file)
+            except subprocess.CalledProcessError as e:
+                log.error(f"Restarting worm calculation... run {run_idx} failed!")
 
-        # read in h5 site dependent arrays
-        with h5py.File(save_dir_path / "parameters.h5", "r") as file:
-            for name in ("mu", "t_hop", "U_on", "V_nn"):
-                params[name] = file[f"/{name}"][()]
+                if run_idx == num_restarts - 1:
+                    raise RuntimeError(
+                        f"Worm calculation failed {num_restarts} times. Aborting."
+                    )
+                continue
+            else:
+                break
 
-        # Create input parameters
-        return cls(**params)
+    def execute_worm_continue(
+        self,
+        num_restarts: int = 1,
+    ):
+        self.execute_worm(
+            input_file=self.input_parameters.checkpoint,
+            num_restarts=num_restarts,
+        )
 
-    def save_h5(self):
-        if self.h5_path is None:
-            raise RuntimeError("h5_path must be set")
+    def execute_worm_single_try(self, input_file: Optional[Path] = None):
+        if input_file is None:
+            input_file = self.input_parameters.ini_path
 
-        # create parent directory if it does not exist
-        self.h5_path.parent.mkdir(parents=True, exist_ok=True)
+        pipeout_dir = self.save_dir / "pipe_out"
+        pipeout_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create h5 file
-        with h5py.File(self.h5_path, "w") as file:
-            for name, attribute in (
-                ("mu", self.mu),
-                ("t_hop", self.t_hop),
-                ("U_on", self.U_on),
-                ("V_nn", self.V_nn),
-            ):
-                file[f"/{name}"] = (
-                    attribute if isinstance(attribute, float) else attribute.flatten()
+        # determine scheduler
+        if check_if_slurm_is_installed_and_running():
+            write_sbatch_script(
+                script_path=self.save_dir / "run.sh",
+                worm_executable_path=self.executable,
+                parameters_path=input_file,
+                pipeout_dir=pipeout_dir,
+            )
+
+            # submit job
+            call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
+
+        else:
+            env = os.environ.copy()
+            env["TMPDIR"] = "/tmp"
+
+            p = subprocess.run(
+                [
+                    "mpirun",
+                    "--use-hwthread-cpus",
+                    str(self.executable),
+                    str(input_file),
+                ],
+                env=env,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                check=False,
+            )
+
+            # write output to file
+            now = datetime.datetime.now()
+            with open(pipeout_dir / f"stdout_{now}.txt", "w") as f:
+                f.write(p.stdout.decode("utf-8"))
+            with open(pipeout_dir / f"stderr_{now}.txt", "w") as f:
+                f.write(p.stderr.decode("utf-8"))
+
+            # if job failed, raise error
+            if p.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    returncode=p.returncode,
+                    cmd=p.args,
+                    output=p.stdout,
+                    stderr=p.stderr,
                 )
 
+
+class SimulationResult:
     @property
-    def ini_path(self):
-        if self._ini_path is None:
-            raise RuntimeError(
-                "ini_path must be set. By saving the parameters to a directory, the ini_path is set automatically."
+    def results(self):
+        if self.input_parameters.outputfile_relative is None:
+            out_file_path = (
+                REPO_DATA_ROOT / self.input_parameters.outputfile.split("data/")[-1]
             )
+            log.debug(f"Using default output file path: {out_file_path}")
         else:
-            return self._ini_path
+            out_file_path = self.save_dir / self.input_parameters.outputfile_relative
 
-    @ini_path.setter
-    def ini_path(self, ini_path: Path):
-        self._ini_path = ini_path
-
-
-    def to_ini(self, checkpoint, outputfile, save_path: Path):
-        # create parent directory if it does not exist
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Create ini file
-        with open(save_path, "w") as f:
-            for key in self.__dataclass_fields__.keys():
-                if not (
-                    key in ("mu", "t_hop", "U_on", "V_nn")
-                    and isinstance(self.__getattribute__(key), np.ndarray)
-                ):
-                    f.write(f"{key} = {self.__getattribute__(key)}\n")
-
-            if self.h5_path is None:
-                raise RuntimeError("h5_path must be set")
-            else:
-                f.write(f"site_arrays = {self.h5_path}\n")
-
-    def save(
-        self,
-        save_dir_path: Path,
-        checkpoint: Optional[Path] = None,
-        outputfile: Optional[Path] = None,
-    ):
-        # create parent directory if it does not exist
-        save_dir_path.parent.mkdir(parents=True, exist_ok=True)
-
-        self.outputfile = (
-            save_dir_path / "output.h5" if outputfile is None else outputfile
+        output = WormOutput(
+            out_file_path=out_file_path, input_parameters=self.input_parameters
         )
-        self.outputfile_relative = Path("output.h5")
 
-        self.checkpoint = (
-            save_dir_path / "checkpoint.h5" if checkpoint is None else checkpoint
-        )
-        self.checkpoint_relative = Path("checkpoint.h5")
-
-        self.h5_path = save_dir_path / "parameters.h5"
-        self.ini_path = save_dir_path / "parameters.ini"
-
-        self.h5_path_relative = Path("parameters.h5")
-        
-
-        # Create ini file
-        self.to_ini(
-            save_path=self.ini_path,
-            checkpoint=self.checkpoint,
-            outputfile=self.outputfile,
-        )
-        self.save_h5()
-
-
-@dataclass
-class WormOutput:
-    out_file_path: Path
+        return output
 
     @property
-    def observables(self):
+    def convergence_stats(self):
+        RELATIVE_THRESHOLD: float = 0.01
+        ABSOLUTE_THRESHOLD: float = 0.01
+        ERROR_STD_THRESHOLD: float = 0.01
+        TAU_THRESHOLD: float = 5
 
-        if not self.out_file_path.exists():
-            return None
-        
-        h5_file = h5py.File(self.out_file_path, "r")
+        observables = self.results.vector_observables
+
+        stats_dict = defaultdict(dict)
+        converged_dict = defaultdict(dict)
+        for obs in observables:
+            converged_dict[obs]["absolute_error"] = (
+                observables[obs]["mean"]["error"] < ABSOLUTE_THRESHOLD
+            ).all()
+            stats_dict[obs]["absolute_error"] = float(
+                (observables[obs]["mean"]["error"]).max()
+            )
+
+            stats_dict[obs]["error_std"] = float(
+                (observables[obs]["mean"]["error"]).std()
+            )
+            stats_dict[obs]["num_samples"] = int(observables[obs]["count"])
+
+            # # get max tau without nans
+            if np.isnan(observables[obs]["tau"]).all():
+                tau_max = np.nan
+                log.debug("All tau values are nan")
+            else:
+                tau_max = np.nanmax(observables[obs]["tau"])
+
+            converged_dict[obs]["tau_max"] = tau_max < TAU_THRESHOLD
+            stats_dict[obs]["tau_max"] = float(tau_max)
+
+        # get tau with ulli wolff method
+        try:
+            density_errors = self.results.density_errors
+            stats_dict["uw_tau_max_density"] = float(np.max(density_errors.tau_int))
+            stats_dict["uw_dmax_density"] = float(np.max(density_errors.dvalue))
+        except GammaPathologicalError as e:
+            log.info(e)
+            stats_dict["uw_tau_max_density"] = -1
+            stats_dict["uw_dmax_density"] = -1
+
+        return stats_dict
+
+    @property
+    def max_density_error(self):
+        return float(np.max(self.results.density_errors.dvalue))
+
+    @property
+    def uncorrected_max_density_error(self):
+        return float(np.max(self.results.densities.std(axis=0)))
+
+    @property
+    def max_tau_int(self):
+        return float(np.max(self.results.density_errors.tau_int))
 
 
-        observables_dict = {}
+class WormSimulation(SimulationExecution, SimulationResult):
+    """Class to manage worm simulations."""
 
-        observables_dict = defaultdict(dict)
-
-        for obs, obs_dataset in h5_file["simulation/results"].items():
-            for measure, value in obs_dataset.items():
-                if isinstance(value, h5py.Dataset):
-                    observables_dict[obs][measure] = value[()]
-
-                elif isinstance(value, h5py.Group):
-                    observables_dict[obs][measure] = {}
-                    for sub_measure, sub_value in value.items():
-                        observables_dict[obs][measure][sub_measure] = sub_value[()]
-
-        return observables_dict
-
-class SimulationRecord(object):
-
-    def __init__(self, record_dir: Path):
-        
-        self.record_file_path = record_dir / "record.json"
-
-        if self.record_file_path.exists():
-            with open(self.record_file_path, "r") as f:
-                self.record = json.load(f)
-        else:
-            self.record = {}
-
-    def save(self):
-
-        with open(self.record_file_path, "w") as f:
-            json.dump(self.record, f)
-            
-    def update(self, record: dict):
-        self.record.update(record)
-
-        self.save()
-
-    def __getitem__(self, key: str):
-        return self.record.get(key, None)
-    
-    def __setitem__(self, key: str, value):
-        self.record[key] = value
-
-        self.save()
-
-    
-class WormSimulation(object):
     def __init__(
         self,
         input_parameters: WormInputParameters,
         save_dir: Path,
+        worm_executable: Optional[Path] = None,
     ):
         self.input_parameters = input_parameters
+        self.executable = worm_executable
         self.save_dir = save_dir
 
-        self.record = SyJson(path=save_dir/"record.json")#SimulationRecord(record_dir=save_dir)
-
+        self.record = SyJson(path=save_dir / "record.json")
 
     @classmethod
-    def from_dir(cls, dir_path: Path):
+    def from_dir(cls, dir_path: Path, worm_executable: Optional[Path] = None):
         # Read in parameters
         input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
 
@@ -253,311 +227,288 @@ class WormSimulation(object):
         return cls(
             input_parameters=input_parameters,
             save_dir=dir_path,
+            worm_executable=worm_executable,
         )
 
-    @staticmethod
-    def _save_parameters(input_parameters:WormInputParameters,save_dir: Path):
-        input_parameters.save(save_dir_path=save_dir)
-        input_parameters.save_h5()
+    def plot_observables(self):
+        """
+        Plot the results of the worm calculation.
+        """
+
+        inputs = self.input_parameters.mu
+        outputs = self.results.vector_observables
+
+        for obs_idx, (obs, obs_dict) in enumerate(outputs.items()):
+            fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+            plt.subplots_adjust(wspace=0.5)
+
+            value_plot = ax[0].imshow(
+                obs_dict["mean"]["value"].reshape(
+                    int(np.sqrt(len(obs_dict["mean"]["value"]))),
+                    -1,
+                )
+            )
+            ax[0].set_title(obs)
+            fig.colorbar(value_plot, ax=ax[0])
+
+            error_plot = ax[1].imshow(
+                obs_dict["mean"]["error"].reshape(
+                    int(np.sqrt(len(obs_dict["mean"]["error"]))),
+                    -1,
+                )
+            )
+            ax[1].set_title("Error")
+            fig.colorbar(error_plot, ax=ax[1])
+
+            chem_pot_plot = ax[2].imshow(
+                inputs.reshape(self.input_parameters.Lx, self.input_parameters.Ly)
+            )
+            ax[2].set_title("Chemical Potential")
+            fig.colorbar(chem_pot_plot, ax=ax[2])
+
+            for a in ax:
+                a.set_xticks([])
+                a.set_yticks([])
+
+            # save figure. append current time formatted to avoid overwriting
+            # plots dir
+            plots_dir = (self.save_dir / "plots") / obs
+            plots_dir.mkdir(parents=True, exist_ok=True)
+
+            now = datetime.datetime.now()
+            now = now.strftime("%Y-%m-%d_%H-%M-%S")
+            fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
+            plt.close()
 
     def save_parameters(self):
-        self._save_parameters(input_parameters=self.input_parameters,save_dir=self.save_dir)
+        self.input_parameters.save(save_dir_path=self.save_dir)
+        self.input_parameters.save_h5()
 
-    def _execute_worm(self,executable,input_file:Optional[Path]=None):
-
-        if input_file is None:
-            input_file = self.input_parameters.ini_path
-
-        # determine scheduler
-        if check_if_slurm_is_installed_and_running():
-            write_sbatch_script(script_path=self.save_dir / "run.sh",worm_executable_path=executable,parameters_path=input_file,pipeout_dir=self.save_dir/"pipe_out")
-
-            # submit job
-            call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
-
-        else:
-            try:
-                env = os.environ.copy()
-                env["TMPDIR"] = "/tmp"
-
-                p = subprocess.run(
-                    ["mpirun","--use-hwthread-cpus",str(executable), str(input_file)],
-                    env=env,
-                    stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    check=True,
-                )
-
-            except subprocess.CalledProcessError as e:
-                log.error(e.stderr.decode("utf-8"))
-                log.error(e.stdout.decode("utf-8"))
-                raise e
-
-
-    @property
-    def results(self):
-
-        if self.input_parameters.outputfile_relative is None:
-            out_file_path = REPO_DATA_ROOT / self.input_parameters.outputfile.split("data/")[-1]
-            log.debug(f"Using default output file path: {out_file_path}")
-        else:
-            out_file_path = self.save_dir / self.input_parameters.outputfile_relative
-
-        output = WormOutput(out_file_path=out_file_path)
-
-        return output
-
-    def check_convergence(self, results, relative_error_threshold: float = 0.01,absolute_error_threshold: float = 0.01):
-
-        try:
-            if results.observables is None:
-                return False, np.nan, np.nan, np.nan
-        except KeyError:
-            return False, np.nan, np.nan, np.nan
-
-        # if value is zero, error is nan
-        # if not (results.observables["Density_Distribution"]["mean"]["value"] == 0).any():
-            
-        #     rel_dens_error = (
-        #         results.observables["Density_Distribution"]["mean"]["error"]
-        #         / results.observables["Density_Distribution"]["mean"]["value"]
-        #     )
-
-        #     converged = (rel_dens_error < relative_error_threshold).all()
-        #     max_error = rel_dens_error.max()
-        # else:
-
-        log.debug("Density is zero, resorting to absolute error")
-        abs_dens_error = results.observables["Density_Distribution"]["mean"]["error"]
-        converged = (abs_dens_error < absolute_error_threshold).all()
-        max_error = abs_dens_error.max()
-
-        n_measurements = results.observables["Density_Distribution"]["count"]
-
-        # get max tau without nans
-        if np.isnan(results.observables["Density_Distribution"]["tau"]).all():
-            tau_max = np.nan
-            log.debug("All tau values are nan")
-        else:
-            tau_max = np.nanmax(results.observables["Density_Distribution"]["tau"])
-
-        return converged, max_error, n_measurements, tau_max
-
-    def _set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
+    def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
         for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
             with h5py.File(checkpoint_file, "r+") as f:
                 try:
                     f["parameters/extension_sweeps"][...] = extension_sweeps
                 except KeyError:
                     f["parameters/extension_sweeps"] = extension_sweeps
-        
 
-    def run(self,executable):
-        self.save_parameters()
-        self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
-        
-
-    def run_until_convergence(self,executable, tune: bool = True,intermediate_steps=True, continue_from_checkpoint: bool = True):
-        # tune measurement interval
-        # if continue_from_checkpoint, tune only if no entry in record
-        if tune:
-            measure2,thermalization,sweeps = self.tune(executable=executable)
-            self.input_parameters.Nmeasure2 = measure2
-            self.input_parameters.thermalization = thermalization
-            self.input_parameters.sweeps = sweeps
-            self.input_parameters.thermalization = max(int(measure2 * 100),50000)
-
-        self.save_parameters()
-
-        self._execute_worm(input_file=self.input_parameters.ini_path,executable=executable)
-
-        max_multiplier = 75000
-        minimum_sweeps = int(min(self.input_parameters.Nmeasure2 * 100,1250000))
-        max_sweeps = int(max(self.input_parameters.Nmeasure2 * max_multiplier,minimum_sweeps*10))
-        if intermediate_steps:
-            steps = np.logspace(np.log10(minimum_sweeps),np.log10(max_sweeps),num=15,dtype=int)
-        else:
-            steps = [int(min(max(self.input_parameters.Nmeasure2 * max_multiplier,1e6 + 1 + self.input_parameters.Nmeasure2 * 100),1e8))]
-
-        pbar = tqdm(steps, disable=True)
-        steps_counter = 0
-        for sweeps in pbar:
-            steps_counter += 1
-            self._set_extension_sweeps_in_checkpoints(extension_sweeps=sweeps)
-            self._execute_worm(input_file=self.input_parameters.checkpoint,executable=executable)
-
-            converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
-                self.results
-            )
-            self.plot_result()
-
-            # update tqdm description
-            pbar.set_description(
-                f"Running {sweeps} sweeps. Max rel error: {max_rel_error:.2e}. Measurements: {n_measurements}. Tau_max: {tau_max:.2e}"
-            )
-
-            if converged and sweeps/self.input_parameters.Nmeasure2 > 25000:
-                break
-            
-        self.record["convergence"] = {
-            "status": "not converged" if not converged else "converged",
-            "max_rel_error": float(max_rel_error),
-            "n_measurements": float(n_measurements),
-            "tau_max": float(tau_max),
-            "sweeps": int(sweeps),
-            "Nmeasure2": int(self.input_parameters.Nmeasure2),
-            "num_steps": int(steps_counter),
-        }
-
-
-    def tune(self,executable: Path = None,ntries: int = 100):
-
-        sweeps = [1000000000,12500000,1000000000,500000000,5000000]
-        Nmeasure2 = [50,500,50000]
-        Nmeasure = [10,100,1000]
-
-        #length 100 array with exponentially increasing sweep numbers from 0.01*min(sweeps) to max(sweeps)*0.01
-        sweep_steps = np.logspace(np.log10(min(sweeps)*0.1),np.log10(max(sweeps)*0.1),num=ntries)
-        nmeasure2_steps = np.logspace(np.log10(min(Nmeasure2)),np.log10(max(Nmeasure2)),num=ntries)
-        nmeasure_steps = np.logspace(np.log10(min(Nmeasure)),np.log10(max(Nmeasure)),num=ntries)
-
-        pbar = tqdm(range(ntries), disable=True)
-        _try = 0
-        while _try < ntries:
-            _try += 1
-
-            tune_dir = self.save_dir / "tune"
-
-            shutil.rmtree(self.save_dir / "tune", ignore_errors=True)
-            tune_dir.mkdir(parents=True, exist_ok=True)
-
-            tune_parameters = deepcopy(self.input_parameters)
-
-            # initial thermalization and measurement sweeps
-            tune_parameters.sweeps = int(sweep_steps[_try])
-            tune_parameters.thermalization = int(0.2 * tune_parameters.sweeps)
-            tune_parameters.Nmeasure2 = int(nmeasure2_steps[_try])
-            tune_parameters.Nmeasure = int(nmeasure_steps[_try])
-            tune_parameters.save(save_dir_path=tune_dir)
-
-            self._save_parameters(tune_parameters,tune_dir)
-
-            log.debug("Tuning measurement interval. Running 50000 sweeps.")
-            
-            # time execution
-            start_time = time.time()
-
-            try:
-                self._execute_worm(input_file=tune_parameters.ini_path,executable=executable)
-            except subprocess.CalledProcessError as e:
-                log.error(e.stderr.decode("utf-8"))
-                log.error(e.stdout.decode("utf-8"))
-                continue
-
-
-            time_interval = time.time() - start_time
-
-            if time_interval < 10:
-                _try += 10
-        
-            try:
-                converged, max_rel_error, n_measurements, tau_max = self.check_convergence(
-                    results=WormOutput(out_file_path=tune_parameters.outputfile)
-                )
-            except KeyError as e:
-                log.error(e)
-                continue
-
-            pbar.set_description(
-                f"Running {tune_parameters.sweeps} sweeps. Nmeasure2: {tune_parameters.Nmeasure2}. Nmeasure: {tune_parameters.Nmeasure}. Time: {time_interval:.2f}. Max rel error: {max_rel_error:.2e}. Measurements: {n_measurements}. Tau_max: {tau_max:.2e}. Converged: {converged}"
-            )
-
-            if np.isnan(tau_max) or tau_max<1e-3:
-                _try += 5
-
-            if not np.isnan(tau_max) and tau_max>1 and tau_max<5:
-                break                
-                
-
-
-
-        if np.isnan(tau_max):
-            log.debug("Tau_max is nan. Setting new Nmeasure2 to max.")
-            tau_max = 1
-        
-        new_measure2 = 2 * max(int(tune_parameters.Nmeasure2 * tau_max), 10)
-        log.debug(f"New Nmeasure2: {new_measure2}")
-
-        self.record["tune"] = {
-            "status": "finished",
-            "max_rel_error": float(max_rel_error),
-            "n_measurements": float(n_measurements),
-            "tau_max": float(tau_max),
-            "new_Nmeasure2": float(new_measure2),
-            "thermalization": float(tune_parameters.thermalization),
-            "sweeps": float(tune_parameters.sweeps),
-            "tries": _try + 1,
-        }
-
-        return new_measure2, tune_parameters.thermalization, tune_parameters.sweeps
-
-
-
-    def plot_result(self):
-
-        """
-        Plot the results of the worm calculation.
-        """
-
-
-
-        fig, ax = plt.subplots(1, 4, figsize=(12, 4))
-        plt.subplots_adjust(wspace=0.5)
+    @property
+    def tune_simulation(self):
+        tune_dir = self.save_dir / "tune"
+        tune_dir.mkdir(parents=True, exist_ok=True)
 
         try:
+            tune_simulation = WormSimulation.from_dir(
+                dir_path=tune_dir, worm_executable=self.executable
+            )
+        except FileNotFoundError:
+            tune_simulation = WormSimulation(
+                input_parameters=deepcopy(self.input_parameters),
+                save_dir=tune_dir,
+                worm_executable=self.executable,
+            )
+        return tune_simulation
 
-            inputs = self.input_parameters.mu
-            outputs = self.results.observables
-            
-            ax[0].imshow(outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1))
-            ax[0].set_title("Density Distribution")
 
-            ax[1].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1))
-            ax[1].set_title("Density Distribution Error")
+class WormSimulationRunner:
+    def __init__(self, worm_simulation: WormSimulation):
+        self.worm_simulation = worm_simulation
 
-            ax[2].imshow(inputs.reshape(self.input_parameters.Lx,self.input_parameters.Ly))
-            ax[2].set_title("Chemical Potential")
+    def run(self, num_restarts: int = 1):
+        self.worm_simulation.save_parameters()
+        self.worm_simulation.execute_worm(num_restarts=num_restarts)
 
-            # relative error
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                ax[3].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1)/outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1))
-                ax[3].set_title("Relative Error")
+    def run_continue(self, num_restarts: int = 1):
+        self.worm_simulation.execute_worm_continue(num_restarts=num_restarts)
 
-            for a in ax:
-                a.set_xticks([])
-                a.set_yticks([])
+    def run_iterative_until_converged(
+        self,
+        max_num_measurements_per_nmeasure2: int = 100000,
+        min_num_measurements_per_nmeasure2: int = 1000,
+        num_sweep_increments: int = 25,
+        sweeps_to_thermalization_ratio: int = 10,
+        max_abs_error_threshold: int = 0.01,
+        num_restarts: int = 1,
+    ) -> None:
+        try:
+            expected_required_num_measurements = (
+                2
+                * (
+                    self.worm_simulation.tune_simulation.uncorrected_max_density_error
+                    / max_abs_error_threshold
+                )
+                ** 2
+                * self.worm_simulation.tune_simulation.max_tau_int
+            )
+        except KeyError:
+            log.info(
+                "No tune simulation found. Will not be able to estimate required number of measurements."
+            )
+            expected_required_num_measurements = None
 
-            # add colorbars
-            fig.colorbar(ax[0].imshow(outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1)),ax=ax[0])
-            fig.colorbar(ax[1].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1)),ax=ax[1])
-            fig.colorbar(ax[2].imshow(inputs.reshape(self.input_parameters.Lx,self.input_parameters.Ly)),ax=ax[2])
+        num_sweeps_values = np.array(
+            [
+                (
+                    min_num_measurements_per_nmeasure2
+                    + i
+                    * int(
+                        (
+                            max_num_measurements_per_nmeasure2
+                            - min_num_measurements_per_nmeasure2
+                        )
+                        / num_sweep_increments
+                    )
+                )
+                * self.worm_simulation.input_parameters.Nmeasure2
+                for i in range(num_sweep_increments)
+            ]
+        )
+        # set thermalization
+        self.worm_simulation.input_parameters.thermalization = int(
+            num_sweeps_values[0] / sweeps_to_thermalization_ratio
+        )
+        self.worm_simulation.save_parameters()
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                fig.colorbar(ax[3].imshow(outputs["Density_Distribution"]["mean"]["error"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["error"]))),-1)/outputs["Density_Distribution"]["mean"]["value"].reshape(int(np.sqrt(len(outputs["Density_Distribution"]["mean"]["value"]))),-1)),ax=ax[3])
+        pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
+        self.worm_simulation.record["steps"] = []
+        elapsed_time = 0
+        for step_idx, num_sweeps in pbar:
+            self.worm_simulation.set_extension_sweeps_in_checkpoints(
+                extension_sweeps=num_sweeps
+            )
 
-        except TypeError as e:
-            log.warning("Could not plot density distribution. Skipping. Error: {}".format(e))
-        except KeyError as e:
-            log.warning("Could not plot density distribution. Skipping. Error: {}".format(e))
-        finally:
-            # save figure. append current time formatted to avoid overwriting
-            # plots dir
-            plots_dir = self.save_dir / "plots"
-            plots_dir.mkdir(parents=True, exist_ok=True)
+            # execute worm
+            start_time = time.perf_counter()
 
-            now = datetime.datetime.now()
-            now = now.strftime("%Y-%m-%d_%H-%M-%S")
-            fig.savefig(plots_dir/ f"density_distribution_{now}.png", dpi=300)
+            if step_idx > 0:
+                self.worm_simulation.execute_worm_continue(
+                    num_restarts=num_restarts,
+                )
+            else:
+                self.worm_simulation.execute_worm(num_restarts=num_restarts)
+
+            elapsed_time += time.perf_counter() - start_time
+
+            # get current error
+            error = self.worm_simulation.max_density_error
+            pbar.set_description(
+                f"Current error: {error}. Sweeps: {num_sweeps}. Num Nmeasure2: {num_sweeps/self.worm_simulation.input_parameters.Nmeasure2}. At step {step_idx} of {len(num_sweeps_values)}. Expected required number of measurements: {expected_required_num_measurements}"
+            )
+
+            self.worm_simulation.plot_observables()
+            self.worm_simulation.record["steps"].append(
+                {
+                    "sweeps": int(num_sweeps),
+                    "error": float(error),
+                    "elapsed_time": float(elapsed_time),
+                }
+            )
+
+            # if error is below threshold, break
+            if error < max_abs_error_threshold:
+                break
+
+    def tune_nmeasure2(
+        self,
+        max_nmeasure2: int = 100000,
+        min_nmeasure2: int = 50,
+        num_measurements_per_nmeasure2: int = 15000,
+        tau_threshold: int = 10,
+        step_size_multiplication_factor: float = 1.8,
+        sweeps_to_thermalization_ratio: int = 10,
+        nmeasure2_to_nmeasure_ratio: int = 10,
+        max_nmeasure: int = 100,
+        min_nmeasure: int = 1,
+    ) -> None:
+        tune_simulation = self.worm_simulation.tune_simulation
+
+        tune_simulation.record["steps"] = []
+
+        Nmeasure2_values = np.array([min_nmeasure2])
+        while Nmeasure2_values[-1] < max_nmeasure2:
+            Nmeasure2_values = np.append(
+                Nmeasure2_values, Nmeasure2_values[-1] * step_size_multiplication_factor
+            )
+        Nmeasure2_values = Nmeasure2_values.astype(int)
+
+        # tune Nmeasure, Nmeasure2, thermalization, sweeps
+        skip_next_counter = 0
+        for idx, Nmeasure2 in tqdm(
+            enumerate(Nmeasure2_values), total=len(Nmeasure2_values)
+        ):
+            if skip_next_counter > 0:
+                skip_next_counter -= 1
+                continue
+
+            Nmeasure2 = int(Nmeasure2)
+            Nmeasure = int(
+                max(
+                    min(max_nmeasure, Nmeasure2 / nmeasure2_to_nmeasure_ratio),
+                    min_nmeasure,
+                )
+            )
+            sweeps = int(num_measurements_per_nmeasure2 * Nmeasure2)
+            thermalization = int(sweeps / sweeps_to_thermalization_ratio)
+
+            tune_simulation.input_parameters.sweeps = sweeps
+            tune_simulation.input_parameters.thermalization = thermalization
+            tune_simulation.input_parameters.Nmeasure2 = Nmeasure2
+            tune_simulation.input_parameters.Nmeasure = Nmeasure
+
+            tune_runner = WormSimulationRunner(worm_simulation=tune_simulation)
+            try:
+                tune_runner.run()
+            except RuntimeError as e:
+                continue
+
+            stats_dict = tune_simulation.convergence_stats
+
+            tune_simulation.record["steps"].append(
+                {
+                    "sweeps": sweeps,
+                    "thermalization": thermalization,
+                    "Nmeasure2": Nmeasure2,
+                    **stats_dict,
+                }
+            )
+
+            tune_simulation.plot_observables()
+
+            # print all tau values
+            for obs in tune_simulation.results.vector_observables:
+                plt.plot(
+                    [step[obs]["tau_max"] for step in tune_simulation.record["steps"]]
+                )
+                plt.title(obs)
+                plt.yscale("log")
+                plt.savefig(tune_simulation.save_dir / f"tau_{obs}.png")
+                plt.close()
+
+            plt.plot(
+                [step["uw_tau_max_density"] for step in tune_simulation.record["steps"]]
+            )
+            plt.yscale("log")
+            plt.savefig(tune_simulation.save_dir / f"tau_max_uw_density.png")
             plt.close()
+
+            tau_max_values = np.array(
+                [step["uw_tau_max_density"] for step in tune_simulation.record["steps"]]
+            )
+
+            if (tau_max_values[-1:] < tau_threshold).all() and (
+                tau_max_values[-1:] > 0
+            ).all():
+                break
+
+            # get biggest smaller 2**x value
+            if tau_max_values[-1] > 0:
+                skip_next_counter = int(np.log2(tau_max_values[-2:].min())) - 2
+
+        self.worm_simulation.input_parameters.Nmeasure2 = Nmeasure2
+        self.worm_simulation.input_parameters.Nmeasure = Nmeasure
+        self.worm_simulation.save_parameters()
+
+        # save uncorrected density error
+        tune_simulation.record[
+            "uncorrected_max_density_error"
+        ] = tune_simulation.uncorrected_max_density_error

@@ -1,8 +1,6 @@
-- build models
-- dataset tests
-    - check vor all V_nn that concentration is uniform
-    - check for all sizes that concentration is uniform
-    
-- configs
-- hydra setup
-- experiments
+- requeueing with slurm
+- variance in density
+- check if mean coincides
+- TESTS
+- save time
+- num max steps dependent on tau + error
