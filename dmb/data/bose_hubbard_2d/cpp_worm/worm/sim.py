@@ -10,7 +10,7 @@ from copy import deepcopy
 from dmb.utils import create_logger
 from collections import defaultdict
 import json
-from dmb.data.bose_hubbard_2d.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
+from dmb.data.bose_hubbard_2d.cpp_worm.helpers import check_if_slurm_is_installed_and_running,write_sbatch_script,call_sbatch_and_wait
 from dmb.utils import REPO_DATA_ROOT
 from dmb.utils.syjson import SyJson
 import shutil

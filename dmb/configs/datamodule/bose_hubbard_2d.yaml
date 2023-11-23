@@ -1,4 +1,4 @@
-_target_: dmb.data.bose_hubbard_2d.datamodule.BoseHubbardDataModule
+_target_: dmb.data.bose_hubbard_2d.cpp_worm.datamodule.BoseHubbardDataModule
 
 data_dir: ${paths.data_dir}/bose_hubbard_2d
 batch_size: 512

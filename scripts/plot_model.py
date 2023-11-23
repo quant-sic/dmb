@@ -5,7 +5,7 @@ import argparse
 
 def plot_model(ckpt_dir):
 
-    for ckpt_path in list(sorted(ckpt_dir.glob("*.ckpt"),key=lambda x: int(x.stem.split("=")[-1]))):
+    for ckpt_path in list(sorted(ckpt_dir.glob("*.ckpt"),key=lambda x: int(x.stem.split("=")[-1]),reverse=True)):
 
         print(ckpt_path)
 
@@ -16,12 +16,14 @@ def plot_model(ckpt_dir):
         #mu,ztU,out = model_predict(net,batch_size=512)
         figures = plot_phase_diagram(net,n_samples=100,zVU=1.0)
 
-        save_path = ckpt_path.parent.parent.parent / "figures" / (ckpt_path.stem + check + ".png")
+        save_path = ckpt_path.parent.parent.parent / "figures" / (ckpt_path.stem + "_1_0_" + check + ".png")
         save_path.parent.mkdir(exist_ok=True,parents=True)
 
         figures[check].savefig(save_path)
         
         figures = plot_phase_diagram(net,n_samples=100,zVU=1.5)
+        save_path = ckpt_path.parent.parent.parent / "figures" / (ckpt_path.stem + "_1_5_" + check + ".png")
+        figures[check].savefig(save_path)
 
 
 if __name__ == "__main__":

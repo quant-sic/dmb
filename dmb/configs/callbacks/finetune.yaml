@@ -1,8 +1,0 @@
-defaults:
-  - default
-  - _self_
-
-
-freeze_encoder_unfreeze_at_epoch_callback:
-  _target_: aubesa_research.mineral_signature.experiments.ml.callbacks.FreezeEncoderUnfreezeAtEpochCallback
-  unfreeze_at_epoch: 10

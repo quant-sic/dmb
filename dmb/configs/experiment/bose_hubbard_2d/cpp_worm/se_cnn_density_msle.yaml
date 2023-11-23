@@ -17,9 +17,9 @@ seed: 12345
 trainer:
   max_epochs: 10000
   gradient_clip_val: 1
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 8
 
-exp_name: "setup_test/bose_hubbard_2d/se_cnn/density/msle"
+exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/density/msle"
 
 test: True
 
@@ -48,13 +48,13 @@ datamodule:
       _target_: torchvision.transforms.transforms.Compose
       transforms: [
                   _target_: dmb.data.utils.SquareSymmetryGroupAugmentations,
-                  {_target_: dmb.data.utils.TupleWrapper,
-                    transform: 
-                      {
-                        _target_: torchvision.transforms.RandomErasing
-                      }
+                  # {_target_: dmb.data.utils.TupleWrapper,
+                  #   transform: 
+                  #     {
+                  #       _target_: torchvision.transforms.RandomErasing
+                  #     }
                     
-                  }
+                  # }
                   ]
 
 

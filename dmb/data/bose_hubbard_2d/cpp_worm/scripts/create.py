@@ -1,4 +1,4 @@
-from dmb.data.bose_hubbard_2d.worm.sim import WormInputParameters, WormSimulation
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormInputParameters, WormSimulation
 import numpy as np
 from pathlib import Path
 

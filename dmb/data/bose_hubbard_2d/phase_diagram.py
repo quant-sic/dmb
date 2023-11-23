@@ -41,7 +41,7 @@ def phase_diagram_uniform_inputs(n_samples, zVU=1.0):
 
 
 def model_predict(model, inputs, batch_size=128):
-    dl = DataLoader(inputs, batch_size=batch_size, shuffle=False, num_workers=4)
+    dl = DataLoader(inputs, batch_size=batch_size, shuffle=False, num_workers=0)
 
     model.eval()
     with torch.no_grad():

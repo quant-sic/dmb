@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from dmb.data.bose_hubbard_2d.worm.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 from pathlib import Path
 from functools import cached_property
 from pathlib import Path
