@@ -1,20 +1,18 @@
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormInputParameters, WormSimulation
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormInputParameters, WormSimulation, WormSimulationRunner
 import numpy as np
 from pathlib import Path
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from pathlib import Path
 import shutil
 import argparse
 
 import datetime
-import joblib
 import shutil
-from dmb.utils.io import ProgressParallel
 import gc
 from dmb.utils import create_logger
-
-from functools import partial
+import os
+from dotenv import load_dotenv
+import asyncio
 
 log = create_logger(__name__)
 
@@ -49,7 +47,8 @@ def draw_uniform_config():
 
     return L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,None, mu_offset
 
-def simulate(sample_id,type="random"):
+# def simulate(sample_id,type="random"):
+async def simulate(sample_id,type="random"):
 
     if type == "random":
         L,U_on,V_nn,mu,t_hop_array,U_on_array,V_nn_array,power,mu_offset = draw_random_config()
@@ -66,37 +65,46 @@ def simulate(sample_id,type="random"):
     now = datetime.datetime.now()
     now = now.strftime("%Y-%m-%d_%H-%M-%S")
 
+    name_prefix = ""
+    # get slurm job id if running on cluster
+    if "SLURM_JOB_ID" in os.environ:
+        name_prefix += os.environ["SLURM_JOB_ID"] + "_"
+
     # save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
-    save_dir=Path(f"/ptmp/bale/data/bose_hubbard_2d/{now}_sample_{sample_id}")
+    save_dir=Path(f"/ptmp/bale/data/bose_hubbard_2d/{now}_sample_{name_prefix}{sample_id}")
 
     shutil.rmtree(save_dir,ignore_errors=True)
 
-    sim = WormSimulation(p,save_dir=save_dir)
+    sim = WormSimulation(p,save_dir=save_dir,worm_executable=os.environ["WORM_MPI_EXECUTABLE"])
+    sim_run = WormSimulationRunner(worm_simulation=sim)
 
-    sim.save_parameters()
     try:
-        sim.run_until_convergence(executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
-        sim.plot_result()
-    except:
-        log.error("Simulation failed")
-        return
-    #sim.run_until_convergence(executable="/Users/fabian/paper/worm/build_non_uniform/qmc_worm_mpi")
-
-    finally:
-        gc.collect()
+        await sim_run.tune_nmeasure2()
+        await sim_run.run_iterative_until_converged()
+    except Exception as e:
+        log.error(f"Exception occured: {e}")
 
 
 if __name__ == "__main__":
 
-
+    load_dotenv()
+    
     parser = argparse.ArgumentParser(description='Run worm simulation for 2D BH model')
     parser.add_argument('--number_of_samples', type=int, default=1,
                         help='number of samples to run')
-    parser.add_argument('--number_of_jobs', type=int, default=1,
-                        help='number of jobs to run in parallel')
+    parser.add_argument('--number_of_concurrent_jobs', type=int, default=1)
     parser.add_argument("--type",type=str,default="random",choices=["random","uniform"])
     
     args = parser.parse_args()
 
-    # run jobs in parallel
-    ProgressParallel(n_jobs=args.number_of_jobs,total=args.number_of_samples,desc="Running Simulations",timeout=99999)(joblib.delayed(partial(simulate,type=args.type))(sample_id) for sample_id in range(args.number_of_samples))
+    semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
+
+    async def run_sample(sample_id):
+        async with semaphore:
+            await simulate(sample_id,type=args.type)
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(asyncio.gather(*[run_sample(sample_id) for sample_id in range(args.number_of_samples)]))
+    loop.close()
+
+

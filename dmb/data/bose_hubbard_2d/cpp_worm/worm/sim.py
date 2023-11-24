@@ -46,14 +46,14 @@ class SimulationExecution:
 
         self._executable = executable
 
-    def execute_worm(
+    async def execute_worm(
         self,
         input_file: Optional[Path] = None,
         num_restarts: int = 1,
     ):
         for run_idx in range(num_restarts):
             try:
-                self.execute_worm_single_try(input_file=input_file)
+                await self.execute_worm_single_try(input_file=input_file)
             except subprocess.CalledProcessError as e:
                 log.error(f"Restarting worm calculation... run {run_idx} failed!")
 
@@ -65,16 +65,16 @@ class SimulationExecution:
             else:
                 break
 
-    def execute_worm_continue(
+    async def execute_worm_continue(
         self,
         num_restarts: int = 1,
     ):
-        self.execute_worm(
+        await self.execute_worm(
             input_file=self.input_parameters.checkpoint,
             num_restarts=num_restarts,
         )
 
-    def execute_worm_single_try(self, input_file: Optional[Path] = None):
+    async def execute_worm_single_try(self, input_file: Optional[Path] = None):
         if input_file is None:
             input_file = self.input_parameters.ini_path
 
@@ -91,13 +91,14 @@ class SimulationExecution:
             )
 
             # submit job
-            call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
+            await call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
 
         else:
             env = os.environ.copy()
             env["TMPDIR"] = "/tmp"
 
-            p = subprocess.run(
+
+            p = await subprocess.run(
                 [
                     "mpirun",
                     "--use-hwthread-cpus",
@@ -314,20 +315,20 @@ class WormSimulationRunner:
     def __init__(self, worm_simulation: WormSimulation):
         self.worm_simulation = worm_simulation
 
-    def run(self, num_restarts: int = 1):
+    async def run(self, num_restarts: int = 1):
         self.worm_simulation.save_parameters()
-        self.worm_simulation.execute_worm(num_restarts=num_restarts)
+        await self.worm_simulation.execute_worm(num_restarts=num_restarts)
 
-    def run_continue(self, num_restarts: int = 1):
-        self.worm_simulation.execute_worm_continue(num_restarts=num_restarts)
+    async def run_continue(self, num_restarts: int = 1):
+        await self.worm_simulation.execute_worm_continue(num_restarts=num_restarts)
 
-    def run_iterative_until_converged(
+    async def run_iterative_until_converged(
         self,
-        max_num_measurements_per_nmeasure2: int = 100000,
+        max_num_measurements_per_nmeasure2: int = 150000,
         min_num_measurements_per_nmeasure2: int = 1000,
         num_sweep_increments: int = 25,
         sweeps_to_thermalization_ratio: int = 10,
-        max_abs_error_threshold: int = 0.01,
+        max_abs_error_threshold: int = 0.015,
         num_restarts: int = 1,
     ) -> None:
         try:
@@ -371,7 +372,6 @@ class WormSimulationRunner:
 
         pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
         self.worm_simulation.record["steps"] = []
-        elapsed_time = 0
         for step_idx, num_sweeps in pbar:
             self.worm_simulation.set_extension_sweeps_in_checkpoints(
                 extension_sweeps=num_sweeps
@@ -381,13 +381,13 @@ class WormSimulationRunner:
             start_time = time.perf_counter()
 
             if step_idx > 0:
-                self.worm_simulation.execute_worm_continue(
+                await self.worm_simulation.execute_worm_continue(
                     num_restarts=num_restarts,
                 )
             else:
-                self.worm_simulation.execute_worm(num_restarts=num_restarts)
+                await self.worm_simulation.execute_worm(num_restarts=num_restarts)
 
-            elapsed_time += time.perf_counter() - start_time
+            elapsed_time = time.perf_counter() - start_time
 
             # get current error
             error = self.worm_simulation.max_density_error
@@ -401,6 +401,7 @@ class WormSimulationRunner:
                     "sweeps": int(num_sweeps),
                     "error": float(error),
                     "elapsed_time": float(elapsed_time),
+                    "tau_max": float(self.worm_simulation.max_tau_int),
                 }
             )
 
@@ -408,7 +409,7 @@ class WormSimulationRunner:
             if error < max_abs_error_threshold:
                 break
 
-    def tune_nmeasure2(
+    async def tune_nmeasure2(
         self,
         max_nmeasure2: int = 100000,
         min_nmeasure2: int = 50,
@@ -457,7 +458,7 @@ class WormSimulationRunner:
 
             tune_runner = WormSimulationRunner(worm_simulation=tune_simulation)
             try:
-                tune_runner.run()
+                await tune_runner.run()
             except RuntimeError as e:
                 continue
 

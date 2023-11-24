@@ -8,6 +8,7 @@ import time
 import numpy as np
 import subprocess
 from dmb.utils.io import create_logger
+import asyncio
 
 log = create_logger(__name__)
 
@@ -37,7 +38,7 @@ def write_sbatch_script(
 
         script_file.write("#SBATCH --time=10:00:00\n")
         script_file.write("#SBATCH --nodes=1\n")
-        script_file.write("#SBATCH --ntasks-per-node=4\n")
+        script_file.write("#SBATCH --ntasks-per-node=2\n")
         script_file.write("#SBATCH --cpus-per-task=1\n")
         script_file.write("#SBATCH --mem=2G\n")
 
@@ -57,7 +58,7 @@ def write_sbatch_script(
     os.chmod(script_path, 0o755)
 
 
-def call_sbatch_and_wait(script_path: Path, timeout=60 * 60 * 6):
+async def call_sbatch_and_wait(script_path: Path, timeout=60 * 60 * 6):
     try:
         p = subprocess.run(
             "sbatch " + str(script_path),
@@ -85,7 +86,7 @@ def call_sbatch_and_wait(script_path: Path, timeout=60 * 60 * 6):
         )
         if len(p.stdout.decode("utf-8").split("\n")) == 2:
             break
-        time.sleep(1)
+        await asyncio.sleep(1)
         if time.time() - start_time > timeout:
             raise TimeoutError("Job did not finish in time")
 

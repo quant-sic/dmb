@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from dmb.utils import REPO_ROOT, create_logger
 
+(REPO_ROOT / "dmb/data/bose_hubbard_2d/cpp_worm/worm/ac/build").mkdir(exist_ok=True, parents=True)
 err_rho_cpp = cpp_extension.load(
     name="err_rho_cpp",
     sources=[REPO_ROOT / "dmb/data/bose_hubbard_2d/cpp_worm/worm/ac/err_rho.cpp"],
