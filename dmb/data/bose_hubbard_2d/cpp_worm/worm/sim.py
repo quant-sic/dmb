@@ -218,6 +218,7 @@ class WormSimulation(SimulationExecution, SimulationResult):
         self.save_dir = save_dir
 
         self.record = SyJson(path=save_dir / "record.json")
+        self.save_parameters()
 
     @classmethod
     def from_dir(cls, dir_path: Path, worm_executable: Optional[Path] = None):
