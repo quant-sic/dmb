@@ -1,14 +1,10 @@
-from pathlib import Path
-import os
-from pathlib import Path
-import os
-import subprocess
-from dmb.utils.io import create_logger
-import time
-import numpy as np
-import subprocess
-from dmb.utils.io import create_logger
 import asyncio
+import os
+import subprocess
+import time
+from pathlib import Path
+
+from dmb.utils.io import create_logger
 
 log = create_logger(__name__)
 
@@ -30,15 +26,17 @@ def write_sbatch_script(
         script_file.write("#SBATCH --output=" + str(pipeout_dir) + "/%j.out\n")
         script_file.write("#SBATCH --error=" + str(pipeout_dir) + "/%j.err\n")
 
-        # randomly choose partition in (standard,highfreq)
-        # if np.random.rand() < 0.5:
-        #     script_file.write("#SBATCH --partition=highfreq\n")
-        # else:
-        script_file.write("#SBATCH --partition=standard\n")
+        script_file.write(
+            "#SBATCH --partition={}\n".format(os.environ["WORM_COMPUTE_PARTITION"])
+        )
 
         script_file.write("#SBATCH --time=10:00:00\n")
         script_file.write("#SBATCH --nodes=1\n")
-        script_file.write("#SBATCH --ntasks-per-node=2\n")
+        script_file.write(
+            "#SBATCH --ntasks-per-node={}\n".format(
+                os.environ["WORM_COMPUTE_NTASKS_PER_NODE"]
+            )
+        )
         script_file.write("#SBATCH --cpus-per-task=1\n")
         script_file.write("#SBATCH --mem=2G\n")
 

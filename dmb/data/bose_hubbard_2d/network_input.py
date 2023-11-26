@@ -1,34 +1,36 @@
-import torch
 import math
-from typing import Union, Tuple
+from typing import Tuple, Union
+
 import numpy as np
+import torch
 
 
-def get_ckeckerboard_projection(mu_input):
+def get_ckeckerboard_projection(target_density: torch.Tensor):
     """
     Determines and returns the checkerboard version (out of two possible) that has the largest correlation with the input mu.
     """
 
-    if len(mu_input.shape) == 1:
-        mu_input = mu_input.view(
-            int(math.sqrt(mu_input.shape[0])), int(math.sqrt(mu_input.shape[0]))
+    if len(target_density.shape) == 1:
+        target_density = target_density.view(
+            int(math.sqrt(target_density.shape[0])),
+            int(math.sqrt(target_density.shape[0])),
         )
-    elif len(mu_input.shape) == 2:
-        if not mu_input.shape[0] == mu_input.shape[1]:
+    elif len(target_density.shape) == 2:
+        if not target_density.shape[0] == target_density.shape[1]:
             raise ValueError("Input mu has to be square")
     else:
         raise ValueError("Input mu has to be either 1D or 2D")
 
-    cb_1 = torch.ones_like(mu_input)
+    cb_1 = torch.ones_like(target_density)
     cb_1[::2, ::2] = 0
     cb_1[1::2, 1::2] = 0
 
-    cb_2 = torch.ones_like(mu_input)
+    cb_2 = torch.ones_like(target_density)
     cb_2[1::2, ::2] = 0
     cb_2[::2, 1::2] = 0
 
-    corr_1 = torch.sum(mu_input * cb_1)
-    corr_2 = torch.sum(mu_input * cb_2)
+    corr_1 = torch.sum(target_density * cb_1)
+    corr_2 = torch.sum(target_density * cb_2)
 
     if corr_1 > corr_2:
         return cb_1
@@ -41,6 +43,7 @@ def net_input(
     U_on: Union[torch.Tensor, np.ndarray, float],
     V_nn: Union[torch.Tensor, np.ndarray, float],
     cb_projection: bool = True,
+    target_density: Union[torch.Tensor, np.ndarray] = None,
 ):
     # convert to torch.Tensor if necessary
     if isinstance(mu, np.ndarray):
@@ -87,9 +90,13 @@ def net_input(
 
     # get checkerboard projection
     if cb_projection:
-        cb_proj = get_ckeckerboard_projection(mu)
+        if target_density is None:
+            raise RuntimeError(
+                "If cb_projection is True, target_density has to be provided."
+            )
+        cb_proj = get_ckeckerboard_projection(target_density=target_density)
     else:
-        cb_proj = torch.ones_like(mu)
+        cb_proj = torch.ones_like(target_density)
 
     # get network input
     inputs = torch.concat(
@@ -104,6 +111,7 @@ def net_input_dimless_const_parameters(
     ztU: float,
     zVU: float,
     cb_projection: bool = True,
+    target_density: Union[torch.Tensor, np.ndarray] = None,
 ):
     # convert to torch.Tensor if necessary
     if isinstance(muU, np.ndarray):
@@ -120,9 +128,13 @@ def net_input_dimless_const_parameters(
 
     # get checkerboard projection
     if cb_projection:
-        cb_proj = get_ckeckerboard_projection(muU)
+        if target_density is None:
+            raise RuntimeError(
+                "If cb_projection is True, target_density has to be provided."
+            )
+        cb_proj = get_ckeckerboard_projection(target_density=target_density)
     else:
-        cb_proj = torch.ones_like(muU)
+        cb_proj = torch.ones_like(target_density)
 
     # conversion
     U_on = torch.full(size=muU.shape, fill_value=4 / ztU)

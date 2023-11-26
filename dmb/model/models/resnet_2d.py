@@ -1,11 +1,13 @@
-from torch import nn
-from torch import Tensor
+from typing import Callable, List, Optional, Type, Union
+
+from torch import Tensor, nn
 from torchvision.models.resnet import _log_api_usage_once
-from typing import Type, Callable, Union, List, Optional
 from torchvision.ops.misc import SqueezeExcitation
 
 
-def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
+def conv3x3(
+    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
+) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
         in_planes,
@@ -22,7 +24,14 @@ def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, d
 
 def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False, padding_mode="circular")
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=1,
+        stride=stride,
+        bias=False,
+        padding_mode="circular",
+    )
 
 
 class BasicBlock(nn.Module):
@@ -120,7 +129,9 @@ class Bottleneck(nn.Module):
 
         self.add_se = add_se
         if add_se:
-            self.se = SqueezeExcitation(planes * self.expansion, (planes * self.expansion) // 4)
+            self.se = SqueezeExcitation(
+                planes * self.expansion, (planes * self.expansion) // 4
+            )
 
     def forward(self, x: Tensor) -> Tensor:
         identity = x
@@ -184,22 +195,43 @@ class ResNet(nn.Module):
             )
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(in_channels, self.inplanes, kernel_size=7, stride=1, padding=3, bias=False,padding_mode='circular')
+        self.conv1 = nn.Conv2d(
+            in_channels,
+            self.inplanes,
+            kernel_size=7,
+            stride=1,
+            padding=3,
+            bias=False,
+            padding_mode="circular",
+        )
         self.bn1 = norm_layer(self.inplanes)
 
         self.add_se = add_se
         if add_se:
-            self.se1 = SqueezeExcitation(64,16)
+            self.se1 = SqueezeExcitation(64, 16)
 
         self.relu = nn.ReLU(inplace=True)
         # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=1, dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=1, dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=1, dilate=replace_stride_with_dilation[2])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=1, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=1, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=1, dilate=replace_stride_with_dilation[2]
+        )
 
         if out_channels is not None:
-            self.to_out = nn.Conv2d(512 * block.expansion, out_channels, kernel_size=1, stride=1, padding=0, bias=False)
+            self.to_out = nn.Conv2d(
+                512 * block.expansion,
+                out_channels,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            )
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -241,7 +273,15 @@ class ResNet(nn.Module):
         layers = []
         layers.append(
             block(
-                self.inplanes, planes, stride, downsample, self.groups, self.base_width, previous_dilation, norm_layer,add_se=self.add_se
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+                add_se=self.add_se,
             )
         )
         self.inplanes = planes * block.expansion
@@ -254,7 +294,7 @@ class ResNet(nn.Module):
                     base_width=self.base_width,
                     dilation=self.dilation,
                     norm_layer=norm_layer,
-                    add_se=self.add_se
+                    add_se=self.add_se,
                 )
             )
 
@@ -265,11 +305,11 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
 
-        if hasattr(self,'se1'):
+        if hasattr(self, "se1"):
             x = self.se1(x)
 
         x = self.relu(x)
-                
+
         # x = self.maxpool(x)
 
         x = self.layer1(x)
@@ -277,7 +317,7 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        if hasattr(self,'to_out'):
+        if hasattr(self, "to_out"):
             x = self.to_out(x)
 
         return x
@@ -285,38 +325,49 @@ class ResNet(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
 
-class ResNet18(nn.Module):
 
-    def __init__(self,in_channels:int,out_channels:int=None):
+class ResNet18(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int = None):
         super(ResNet18, self).__init__()
-        self.model = ResNet(in_channels=in_channels,block = BasicBlock,layers = [2, 2, 2, 2],replace_stride_with_dilation=[False,False,False],out_channels=out_channels)
+        self.model = ResNet(
+            in_channels=in_channels,
+            block=BasicBlock,
+            layers=[2, 2, 2, 2],
+            replace_stride_with_dilation=[False, False, False],
+            out_channels=out_channels,
+        )
 
     @property
     def out_channels(self):
         return self.model.out_channels
-    
+
     @property
     def in_channels(self):
         return self.model.in_channels
 
     def forward(self, x):
         return self.model(x)
-    
 
 
 class SeResNet18(nn.Module):
-
-    def __init__(self,in_channels:int,out_channels:int=None):
+    def __init__(self, in_channels: int, out_channels: int = None):
         super(SeResNet18, self).__init__()
-        self.model = ResNet(in_channels=in_channels,block = BasicBlock,layers = [2, 2, 2, 2],replace_stride_with_dilation=[False,False,False],add_se=True,out_channels=out_channels)
+        self.model = ResNet(
+            in_channels=in_channels,
+            block=BasicBlock,
+            layers=[2, 2, 2, 2],
+            replace_stride_with_dilation=[False, False, False],
+            add_se=True,
+            out_channels=out_channels,
+        )
 
     def forward(self, x):
         return self.model(x)
-    
+
     @property
     def out_channels(self):
         return self.model.out_channels
-    
+
     @property
     def in_channels(self):
         return self.model.in_channels

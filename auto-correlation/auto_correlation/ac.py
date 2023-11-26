@@ -1,20 +1,11 @@
 import logging
 
 import numpy as np
-import torch
 from scipy.special import gammainc
-from torch.utils import cpp_extension
 from tqdm import tqdm
 
-from dmb.utils import REPO_ROOT, create_logger
+from dmb.utils import create_logger
 
-(REPO_ROOT / "dmb/data/bose_hubbard_2d/cpp_worm/worm/ac/build").mkdir(exist_ok=True, parents=True)
-err_rho_cpp = cpp_extension.load(
-    name="err_rho_cpp",
-    sources=[REPO_ROOT / "dmb/data/bose_hubbard_2d/cpp_worm/worm/ac/err_rho.cpp"],
-    verbose=False,
-    build_directory=REPO_ROOT / "dmb/data/bose_hubbard_2d/cpp_worm/worm/ac/build",
-)
 
 logger = create_logger(__name__)
 
@@ -126,26 +117,7 @@ def err_rho(N, t_max, w_opt, rho):
         logger.debug(
             "AC error calculation with ~{} memory accesses".format(t_max * w_opt)
         )
-        try:
-            err_rho_out = err_rho_cpp.err_rho(
-                N, t_max, w_opt, torch.from_numpy(rho).clone().to(torch.float32)
-            ).numpy()
-        except:
-            return np.zeros(t_max + 1)
-
-        # ext_rho = np.zeros(2 * t_max + w_opt + 1)
-        # err_rho = np.zeros(t_max + 1)
-        # ext_rho[: t_max + 1] = rho[:]
-
-        # for w in tqdm(range(t_max + 1), desc="Error rho"):
-        #     for k in range(max(1, w - w_opt), w + w_opt + 1):
-        #         err_rho[w] += (
-        #             ext_rho[k + w] + ext_rho[abs(k - w)] - 2.0 * ext_rho[w] * ext_rho[k]
-        #         ) ** 2
-
-        #     err_rho[w] = math.sqrt(err_rho[w] / N)
-
-        return err_rho_out
+        return np.zeros(t_max + 1)
 
 
 # -------------------------------------------------------------------------------

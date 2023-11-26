@@ -1,17 +1,15 @@
+from functools import cached_property
+from typing import Any, Dict, List, Literal, Optional, cast
+
+import hydra
 import lightning.pytorch as pl
-import torch
-from typing import Any, Dict, Optional, Literal, cast, List
-import hydra
-import hydra
 import numpy as np
-import lightning.pytorch as pl
 import torch
 import torchmetrics
 from torchmetrics import MetricCollection
 
-from dmb.utils import create_logger
 from dmb.model.utils import MaskedMSE, MaskedMSELoss
-from functools import cached_property
+from dmb.utils import create_logger
 
 log = create_logger(__name__)
 

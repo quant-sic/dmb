@@ -1,17 +1,10 @@
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
+
 from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
-from pathlib import Path
-from typing import Optional, Any, List, Callable, Dict
-
-from typing import Optional, List
-from dmb.utils import create_logger
-
-from torch.utils.data.dataloader import default_collate
-from dmb.data.utils import chain_fns
 from dmb.data.mixins import DataModuleMixin
+from dmb.data.utils import chain_fns, collate_sizes
 from dmb.utils import create_logger
-from dmb.data.utils import collate_sizes
-
 
 log = create_logger(__name__)
 

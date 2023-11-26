@@ -1,13 +1,9 @@
-import lightning.pytorch as pl
-import torch
-from torch.utils.data import Dataset, DataLoader
-from dmb.data.dim_2.worm.helpers.sim import WormSimulation
-from pathlib import Path
-from dmb.data.dim_2.dataset import BoseHubbardDataset
-from dmb.utils.paths import REPO_DATA_ROOT
-from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm.auto import tqdm
+
+from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
+from dmb.utils.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":
     ds = BoseHubbardDataset(data_dir=REPO_DATA_ROOT / "bose_hubbard_2d")
@@ -90,5 +86,5 @@ if __name__ == "__main__":
                 plt.savefig(ds.sim_dirs[i] / "plots/sim_result.png", dpi=100)
                 plt.close()
 
-            except:
+            except Exception:
                 continue

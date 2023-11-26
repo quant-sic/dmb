@@ -1,13 +1,15 @@
-from venv import create
-import torch
-from torch import nn
+from typing import Literal, Union
+
 import lightning.pytorch as pl
-from dmb.model.torch.loss import WeightedMAE, IndexMSELoss
+import torch
+from dmb.misc import create_logger
+from torch import nn
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
+from dmb.model.torch.loss import IndexMSELoss, WeightedMAE
+
 from .simple_resnet1d import ResNet1d
 from .simple_resnet2d import ResNet2d
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from typing import Union, Literal
-from dmb.misc import create_logger
 
 logger = create_logger(__name__)
 
@@ -217,7 +219,7 @@ class LitModel1d(pl.LightningModule):
         batch_in, labels = batch
         prediction = self.model(batch_in)
 
-        batch_size = sum(len(l) for l in labels)
+        batch_size = sum(len(label) for label in labels)
         loss_mean = (
             sum(
                 self.loss(prediction=pred, label=label).sum()
@@ -422,7 +424,7 @@ class LitModel2d(pl.LightningModule):
         batch_in, labels = batch
         prediction = self.model(batch_in)
 
-        batch_size = sum(len(l) for l in labels)
+        batch_size = sum(len(label) for label in labels)
         loss_mean = (
             sum(
                 self.loss(pred.squeeze(), label).sum()

@@ -1,29 +1,13 @@
-import lightning.pytorch as pl
-import torch
-from torch.utils.data import Dataset, DataLoader
-from dmb.data.dim_2.worm.helpers.sim import WormSimulation
-from pathlib import Path
 from functools import cached_property
 from pathlib import Path
-from typing import (
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Union,
-    Tuple,
-    Any,
-    Callable,
-    Iterable,
-    Mapping,
-    Type,
-    cast,
-    Sized,
-)
+from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
+                    Sequence, Sized, Tuple, Type, Union, cast)
 
+import lightning.pytorch as pl
 import torch
+from torch.utils.data import DataLoader, Dataset, Subset, random_split
 
-from torch.utils.data import Dataset, Subset, random_split
+from dmb.data.dim_2.worm.helpers.sim import WormSimulation
 from dmb.utils import create_logger
 
 log = create_logger(__name__)

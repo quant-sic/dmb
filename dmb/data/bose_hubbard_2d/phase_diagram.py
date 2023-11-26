@@ -1,13 +1,10 @@
-import torch
-import numpy as np
-import itertools
-from dmb.data.bose_hubbard_2d.network_input import (
-    net_input,
-    net_input_dimless_const_parameters,
-)
-from tqdm.auto import tqdm
-from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
+
+from dmb.data.bose_hubbard_2d.network_input import net_input_dimless_const_parameters
 
 
 def phase_diagram_uniform_inputs_iter(

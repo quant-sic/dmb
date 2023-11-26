@@ -1,25 +1,21 @@
-from torch.utils.data import Dataset
-from dmb.data.bose_hubbard_2d.network_input import (
-    net_input,
-    dimless_from_net_input,
-)
-from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-import torch
+from typing import Any, List, Tuple
 
-from typing import Any, Tuple, List
-from torch import nn
-import numpy as np
-from torch import nn
 import lightning.pytorch as pl
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from torch import nn
+from torch.utils.data import Dataset
+from tqdm import tqdm
 
+from dmb.data.bose_hubbard_2d.network_input import dimless_from_net_input, net_input
+from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.simulated.fake_phase_diagram_objects import (
     BOSE_HUBBARD_FAKE_ELLIPSOIDS,
     BOSE_HUBBARD_FAKE_GRADIENTS,
     Ellipsoid,
     Gradient,
 )
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 
 
 class PhaseDiagram3d(pl.LightningModule):

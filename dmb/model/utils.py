@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from typing import Any, List, Literal, Optional, Union
+
 import torch
 import torchmetrics
-from typing import Any, Optional, Literal,Union,List
 
 from dmb.utils import create_logger
 
 log = create_logger(__name__)
+
 
 class MaskedMSE(torchmetrics.Metric):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -17,8 +19,13 @@ class MaskedMSE(torchmetrics.Metric):
     def compute(self) -> torch.Tensor:
         return self.mse.compute()
 
-    def update_impl(self, preds: torch.Tensor, target: torch.Tensor, mask: torch.Tensor, weight: torch.Tensor) -> None:
-
+    def update_impl(
+        self,
+        preds: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        weight: torch.Tensor,
+    ) -> None:
         if mask is None:
             mask = torch.ones_like(target, dtype=torch.bool)
 
@@ -35,7 +42,11 @@ class MaskedMSE(torchmetrics.Metric):
         self.mse.update(preds[valid_mask], target[valid_mask])
 
     def update(
-        self, preds: Union[torch.Tensor,List[torch.Tensor]], target: Union[torch.Tensor,List[torch.Tensor]], mask: Union[torch.Tensor,List[torch.Tensor]]=None, weight: Union[torch.Tensor,List[torch.Tensor]]=None
+        self,
+        preds: Union[torch.Tensor, List[torch.Tensor]],
+        target: Union[torch.Tensor, List[torch.Tensor]],
+        mask: Union[torch.Tensor, List[torch.Tensor]] = None,
+        weight: Union[torch.Tensor, List[torch.Tensor]] = None,
     ) -> None:
         """
         Args:
@@ -43,19 +54,19 @@ class MaskedMSE(torchmetrics.Metric):
             target (torch.Tensor): True values.
         """
 
-        if isinstance(preds, (list,tuple)):
-                
+        if isinstance(preds, (list, tuple)):
             if mask is None:
-                mask = [None]*len(preds)
-            
-            if weight is None:
-                weight = [None]*len(preds)
+                mask = [None] * len(preds)
 
-            for _, (preds_, target_, mask_, weight_) in enumerate(zip(preds, target, mask, weight)):
+            if weight is None:
+                weight = [None] * len(preds)
+
+            for _, (preds_, target_, mask_, weight_) in enumerate(
+                zip(preds, target, mask, weight)
+            ):
                 self.update_impl(preds_, target_, mask_, weight_)
         else:
             self.update_impl(preds, target, mask, weight)
-
 
     def to(self, dst) -> MaskedMSE:
         self.mse = self.mse.to(dst)
@@ -78,13 +89,13 @@ class MaskedMSELoss(torch.nn.Module):
         *args: Any,
         **kwargs: Any,
     ) -> None:
-
         super().__init__()
 
         self.reduction = reduction
 
-    def forward_impl(self,y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
-
+    def forward_impl(
+        self, y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.Tensor = None
+    ) -> torch.Tensor:
         if mask is None:
             mask = torch.ones_like(y_true, dtype=torch.bool)
 
@@ -108,13 +119,14 @@ class MaskedMSELoss(torch.nn.Module):
         return loss_out
 
     def forward(
-        self, y_pred: Union[List[torch.Tensor],torch.Tensor], y_true: Union[List[torch.Tensor],torch.Tensor], mask: Union[List[torch.Tensor],torch.Tensor] = None
+        self,
+        y_pred: Union[List[torch.Tensor], torch.Tensor],
+        y_true: Union[List[torch.Tensor], torch.Tensor],
+        mask: Union[List[torch.Tensor], torch.Tensor] = None,
     ) -> torch.Tensor:
-
         if isinstance(y_pred, (list, tuple)):
-            
             if mask is None:
-                mask = [None]*len(y_pred)
+                mask = [None] * len(y_pred)
 
             for idx, (y_pred_, y_true_, mask_) in enumerate(zip(y_pred, y_true, mask)):
                 if idx == 0:
@@ -126,7 +138,7 @@ class MaskedMSELoss(torch.nn.Module):
             loss = self.forward_impl(y_pred, y_true, mask)
 
         return loss
-    
+
 
 class MSLELoss(torch.nn.Module):
     def __init__(
@@ -139,8 +151,9 @@ class MSLELoss(torch.nn.Module):
 
         self.reduction = reduction
 
-    def forward_impl(self,y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
-
+    def forward_impl(
+        self, y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.Tensor = None
+    ) -> torch.Tensor:
         """
         Args:
             y_pred (torch.Tensor): Predicted values.
@@ -155,7 +168,7 @@ class MSLELoss(torch.nn.Module):
         y_pred = y_pred[mask].clone()
         y_true = y_true[mask].clone()
 
-        loss = torch.log((y_true + 1 )/ (y_pred + 1)) ** 2
+        loss = torch.log((y_true + 1) / (y_pred + 1)) ** 2
 
         valid_mask = loss.isfinite()
 
@@ -177,13 +190,14 @@ class MSLELoss(torch.nn.Module):
         return loss_out
 
     def forward(
-            self, y_pred: Union[List[torch.Tensor],torch.Tensor], y_true: Union[List[torch.Tensor],torch.Tensor], mask: Union[List[torch.Tensor],torch.Tensor] = None
-        ) -> torch.Tensor:
-        
+        self,
+        y_pred: Union[List[torch.Tensor], torch.Tensor],
+        y_true: Union[List[torch.Tensor], torch.Tensor],
+        mask: Union[List[torch.Tensor], torch.Tensor] = None,
+    ) -> torch.Tensor:
         if isinstance(y_pred, (list, tuple)):
-            
             if mask is None:
-                mask = [None]*len(y_pred)
+                mask = [None] * len(y_pred)
 
             for idx, (y_pred_, y_true_, mask_) in enumerate(zip(y_pred, y_true, mask)):
                 if idx == 0:

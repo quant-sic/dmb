@@ -1,5 +1,5 @@
-from typing import Callable, Tuple, Optional
-import numpy as np
+from typing import Callable, Optional, Tuple
+
 import FyeldGenerator
 import numpy as np
 from scipy import stats

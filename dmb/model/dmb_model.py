@@ -1,7 +1,8 @@
-from torch import nn
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 import hydra
 import torch
+from torch import nn
 
 
 class Exponential(torch.nn.Module):
