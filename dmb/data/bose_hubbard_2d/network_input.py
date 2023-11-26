@@ -49,6 +49,9 @@ def net_input(
     if isinstance(mu, np.ndarray):
         mu = torch.from_numpy(mu).float()
 
+    if isinstance(target_density, np.ndarray):
+        target_density = torch.from_numpy(target_density).float()
+
     if isinstance(U_on, np.ndarray):
         U_on = torch.from_numpy(U_on).float()
     elif isinstance(U_on, float):
