@@ -84,11 +84,11 @@ class BoseHubbardDataset(Dataset):
                 valid = True
             else:
                 try:
-                    sim.results.accumulator_observables["Density_Distribution"]["mean"][
+                    sim.output.accumulator_observables["Density_Distribution"]["mean"][
                         "value"
                     ]
                     valid = True
-                except KeyError:
+                except (KeyError, TypeError):
                     valid = False
 
                 finally:
