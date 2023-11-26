@@ -1,6 +1,4 @@
-- requeueing with slurm
-- variance in density
-- check if mean coincides
 - TESTS
-- save time
-- num max steps dependent on tau + error
+- fix checkerboard input
+- test transformations
+- test net input

@@ -1,11 +1,11 @@
-from torch.utils.data import Dataset, Subset, random_split
-from typing import Dict, Optional, Sequence, List, Union, Tuple
-import torch
-from torch.utils.data import Dataset
-from dmb.utils import create_logger
-from typing import Dict, Optional, Sequence, List, Iterable, Any, Callable
 from functools import reduce
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+
 import numpy as np
+import torch
+from torch.utils.data import Dataset, Subset, random_split
+
+from dmb.utils import create_logger
 
 log = create_logger(__name__)
 
@@ -33,10 +33,8 @@ def random_seeded_split(
 
     if isinstance(dataset, Subset):
         og_dataset = dataset.dataset
-        dataset_indices = dataset.indices
     else:
         og_dataset = dataset
-        dataset_indices = list(range(dataset_length))
 
     log.info("Splitting dataset with default indices")
 

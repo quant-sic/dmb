@@ -3,23 +3,16 @@ from typing import List, Optional, Tuple
 
 import hydra
 import lightning.pytorch as pl
+from lightning.pytorch import Callback, LightningDataModule, LightningModule, Trainer
 from omegaconf import DictConfig
-from lightning.pytorch import (
-    Callback,
-    LightningDataModule,
-    LightningModule,
-    Trainer,
-)
 
 from dmb.experiments.task_utils import (
     get_metric_value,
     instantiate_callbacks,
     instantiate_loggers,
     log_hyperparameters,
-    task_wrapper,
 )
 from dmb.utils import REPO_ROOT, create_logger
-
 
 log = create_logger(__name__)
 

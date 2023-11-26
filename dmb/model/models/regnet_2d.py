@@ -1,13 +1,13 @@
-from torchvision.models.regnet import _log_api_usage_once, AnyStage,_make_divisible
-from typing import Optional, Callable, Tuple, Union, List, Dict, Any
-from torch import nn
-from torch import Tensor
-from collections import OrderedDict
 import math
+from collections import OrderedDict
 from functools import partial
-from torchvision.ops.misc import ConvNormActivation,SqueezeExcitation
-import torch 
-from functools import partial
+from typing import Any, Callable, List, Optional, Tuple, Union
+
+import torch
+from torch import Tensor, nn
+from torchvision.models.regnet import AnyStage, _log_api_usage_once, _make_divisible
+from torchvision.ops.misc import ConvNormActivation, SqueezeExcitation
+
 
 class BlockParams:
     def __init__(
@@ -66,7 +66,14 @@ class BlockParams:
         # Compute the block widths. Each stage has one unique block width
         widths_cont = torch.arange(depth) * w_a + w_0
         block_capacity = torch.round(torch.log(widths_cont / w_0) / math.log(w_m))
-        block_widths = (torch.round(torch.divide(w_0 * torch.pow(w_m, block_capacity), QUANT)) * QUANT).int().tolist()
+        block_widths = (
+            (
+                torch.round(torch.divide(w_0 * torch.pow(w_m, block_capacity), QUANT))
+                * QUANT
+            )
+            .int()
+            .tolist()
+        )
         num_stages = len(set(block_widths))
 
         # Convert to per stage parameters
@@ -79,7 +86,11 @@ class BlockParams:
         splits = [w != wp or r != rp for w, wp, r, rp in split_helper]
 
         stage_widths = [w for w, t in zip(block_widths, splits[:-1]) if t]
-        stage_depths = torch.diff(torch.tensor([d for d, t in enumerate(splits) if t])).int().tolist()
+        stage_depths = (
+            torch.diff(torch.tensor([d for d, t in enumerate(splits) if t]))
+            .int()
+            .tolist()
+        )
 
         strides = [STRIDE] * num_stages
         bottleneck_multipliers = [bottleneck_multiplier] * num_stages
@@ -100,7 +111,13 @@ class BlockParams:
         )
 
     def _get_expanded_params(self):
-        return zip(self.widths, self.strides, self.depths, self.group_widths, self.bottleneck_multipliers)
+        return zip(
+            self.widths,
+            self.strides,
+            self.depths,
+            self.group_widths,
+            self.bottleneck_multipliers,
+        )
 
     @staticmethod
     def _adjust_widths_groups_compatibilty(
@@ -115,10 +132,11 @@ class BlockParams:
         group_widths_min = [min(g, w_bot) for g, w_bot in zip(group_widths, widths)]
 
         # Compute the adjusted widths so that stage and group widths fit
-        ws_bot = [_make_divisible(w_bot, g) for w_bot, g in zip(widths, group_widths_min)]
+        ws_bot = [
+            _make_divisible(w_bot, g) for w_bot, g in zip(widths, group_widths_min)
+        ]
         stage_widths = [int(w_bot / b) for w_bot, b in zip(ws_bot, bottleneck_ratios)]
         return stage_widths, group_widths_min
-
 
 
 class Conv2dNormActivationCircular(ConvNormActivation):
@@ -154,7 +172,6 @@ class Conv2dNormActivationCircular(ConvNormActivation):
         inplace: Optional[bool] = True,
         bias: Optional[bool] = None,
     ) -> None:
-
         super().__init__(
             in_channels,
             out_channels,
@@ -170,6 +187,7 @@ class Conv2dNormActivationCircular(ConvNormActivation):
             partial(torch.nn.Conv2d, padding_mode="circular"),
         )
 
+
 class SimpleStemIN(Conv2dNormActivationCircular):
     """Simple stem for ImageNet: 3x3, BN, ReLU."""
 
@@ -181,8 +199,14 @@ class SimpleStemIN(Conv2dNormActivationCircular):
         activation_layer: Callable[..., nn.Module],
     ) -> None:
         super().__init__(
-            width_in, width_out, kernel_size=3, stride=1, norm_layer=norm_layer, activation_layer=activation_layer
+            width_in,
+            width_out,
+            kernel_size=3,
+            stride=1,
+            norm_layer=norm_layer,
+            activation_layer=activation_layer,
         )
+
 
 class BottleneckTransform(nn.Sequential):
     """Bottleneck transformation: 1x1, 3x3 [+SE], 1x1."""
@@ -203,10 +227,21 @@ class BottleneckTransform(nn.Sequential):
         g = w_b // group_width
 
         layers["a"] = Conv2dNormActivationCircular(
-            width_in, w_b, kernel_size=1, stride=1, norm_layer=norm_layer, activation_layer=activation_layer
+            width_in,
+            w_b,
+            kernel_size=1,
+            stride=1,
+            norm_layer=norm_layer,
+            activation_layer=activation_layer,
         )
         layers["b"] = Conv2dNormActivationCircular(
-            w_b, w_b, kernel_size=3, stride=stride, groups=g, norm_layer=norm_layer, activation_layer=activation_layer
+            w_b,
+            w_b,
+            kernel_size=3,
+            stride=stride,
+            groups=g,
+            norm_layer=norm_layer,
+            activation_layer=activation_layer,
         )
 
         if se_ratio:
@@ -220,9 +255,15 @@ class BottleneckTransform(nn.Sequential):
             )
 
         layers["c"] = Conv2dNormActivationCircular(
-            w_b, width_out, kernel_size=1, stride=1, norm_layer=norm_layer, activation_layer=None
+            w_b,
+            width_out,
+            kernel_size=1,
+            stride=1,
+            norm_layer=norm_layer,
+            activation_layer=None,
         )
         super().__init__(layers)
+
 
 class ResBottleneckBlock(nn.Module):
     """Residual bottleneck block: x + F(x), F = bottleneck transform."""
@@ -245,7 +286,12 @@ class ResBottleneckBlock(nn.Module):
         should_proj = (width_in != width_out) or (stride != 1)
         if should_proj:
             self.proj = Conv2dNormActivationCircular(
-                width_in, width_out, kernel_size=1, stride=stride, norm_layer=norm_layer, activation_layer=None
+                width_in,
+                width_out,
+                kernel_size=1,
+                stride=stride,
+                norm_layer=norm_layer,
+                activation_layer=None,
             )
         self.f = BottleneckTransform(
             width_in,
@@ -265,6 +311,7 @@ class ResBottleneckBlock(nn.Module):
         else:
             x = x + self.f(x)
         return self.activation(x)
+
 
 class RegNet1d(nn.Module):
     def __init__(
@@ -355,15 +402,19 @@ class RegNet1d(nn.Module):
         # x = self.fc(x)
 
         return x
-    
-class RegNet400mf(nn.Module):
 
-    def __init__(self,in_channels:int):
+
+class RegNet400mf(nn.Module):
+    def __init__(self, in_channels: int):
         super().__init__()
-        block_params = BlockParams.from_init_params(depth=16, w_0=48, w_a=27.89, w_m=2.09, group_width=8, se_ratio=0.25)
+        block_params = BlockParams.from_init_params(
+            depth=16, w_0=48, w_a=27.89, w_m=2.09, group_width=8, se_ratio=0.25
+        )
 
         norm_layer = partial(nn.BatchNorm2d, eps=1e-05, momentum=0.1)
-        self.model = RegNet1d(block_params, norm_layer=norm_layer, in_channels=in_channels)
+        self.model = RegNet1d(
+            block_params, norm_layer=norm_layer, in_channels=in_channels
+        )
 
     def forward(self, x):
         return self.model(x)

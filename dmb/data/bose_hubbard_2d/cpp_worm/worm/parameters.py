@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
-import numpy as np
-import h5py
 from typing import Optional, Union
 
-from dmb.utils import create_logger
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
 
+from dmb.utils import create_logger
 
 log = create_logger(__name__)
 
@@ -79,7 +80,7 @@ class WormInputParameters:
                     elif key in ("mu_power", "mu_offset"):
                         value = float(value) if value != "None" else None
 
-                    elif not key in ("mu", "t_hop", "U_on", "V_nn"):
+                    elif key not in ("mu", "t_hop", "U_on", "V_nn"):
                         value = cls.__dataclass_fields__[key].type(value)
 
                     # add to dictionary
@@ -143,29 +144,24 @@ class WormInputParameters:
             else:
                 f.write(f"site_arrays = {self.h5_path}\n")
 
-    def save(
-        self,
-        save_dir_path: Path,
-        checkpoint: Optional[Path] = None,
-        outputfile: Optional[Path] = None,
-    ):
-        # create parent directory if it does not exist
-        save_dir_path.parent.mkdir(parents=True, exist_ok=True)
+    def set_paths(self, save_dir_path: Path):
+        self.outputfile = save_dir_path / "output.h5"
+        self.outputfile_relative = self.outputfile.relative_to(save_dir_path)
 
-        self.outputfile = (
-            save_dir_path / "output.h5" if outputfile is None else outputfile
-        )
-        self.outputfile_relative = Path("output.h5")
-
-        self.checkpoint = (
-            save_dir_path / "checkpoint.h5" if checkpoint is None else checkpoint
-        )
-        self.checkpoint_relative = Path("checkpoint.h5")
+        self.checkpoint = save_dir_path / "checkpoint.h5"
+        self.checkpoint_relative = self.checkpoint.relative_to(save_dir_path)
 
         self.h5_path = save_dir_path / "parameters.h5"
         self.ini_path = save_dir_path / "parameters.ini"
 
-        self.h5_path_relative = Path("parameters.h5")
+        self.h5_path_relative = self.h5_path.relative_to(save_dir_path)
+
+    def save(self, save_dir_path: Path):
+        # create parent directory if it does not exist
+        save_dir_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # set paths
+        self.set_paths(save_dir_path)
 
         # Create ini file
         self.to_ini(
@@ -174,3 +170,59 @@ class WormInputParameters:
             outputfile=self.outputfile,
         )
         self.save_h5()
+
+    def save_parameters(self, save_dir_path: Path):
+        self.save(save_dir_path)
+        self.save_h5()
+
+    def plot_inputs(self, plots_dir: Path):
+        # create parent directory if it does not exist
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+        ax[0].imshow(self.mu.reshape(self.Lx, self.Ly))
+        ax[0].set_title("mu")
+        ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0])
+        ax[1].set_title("t_hop")
+        ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly))
+        ax[2].set_title("U_on")
+        ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0])
+        ax[3].set_title("V_nn")
+
+        # set axes off
+        for ax_ in ax:
+            ax_.axis("off")
+
+        # set colorbars
+        fig.colorbar(ax[0].imshow(self.mu.reshape(self.Lx, self.Ly)), ax=ax[0])
+        fig.colorbar(ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0]), ax=ax[1])
+        fig.colorbar(ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly)), ax=ax[2])
+        fig.colorbar(ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0]), ax=ax[3])
+
+        plt.savefig(plots_dir / "inputs.png")
+
+    def plot_phase_diagram_inputs(self, plots_dir: Path):
+        muU = self.mu / self.U_on
+        ztU = 4 * self.t_hop / self.U_on[None, ...]
+        zVU = 4 * self.V_nn / self.U_on[None, ...]
+
+        fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+        ax[0].imshow(muU.reshape(self.Lx, self.Ly))
+        ax[0].set_title("muU")
+
+        ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0])
+        ax[1].set_title("ztU")
+
+        ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0])
+        ax[2].set_title("zVU")
+
+        # set axes off
+        for ax_ in ax:
+            ax_.axis("off")
+
+        # set colorbars
+        fig.colorbar(ax[0].imshow(muU.reshape(self.Lx, self.Ly)), ax=ax[0])
+        fig.colorbar(ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0]), ax=ax[1])
+        fig.colorbar(ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0]), ax=ax[2])
+
+        plt.savefig(plots_dir / "phase_diagram_inputs.png")

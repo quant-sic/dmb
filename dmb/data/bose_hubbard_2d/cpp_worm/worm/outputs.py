@@ -1,15 +1,12 @@
-import subprocess
+import json
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+
 import h5py
 
-from dmb.utils import create_logger
-from collections import defaultdict
-import json
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.ac import PrimaryAnalysis, DerivedAnalysis
-from functools import cached_property
-import numpy as np
+from dmb.utils import create_logger
 
 log = create_logger(__name__)
 
@@ -19,32 +16,22 @@ class WormOutput:
     out_file_path: Path
     input_parameters: WormInputParameters
 
-    @cached_property
+    @property
     def densities(self):
         with h5py.File(self.out_file_path, "r") as f:
             densities = f["simulation"]["densities"][()]
         return densities
 
-    @cached_property
-    def density_errors(self):
-        analysis = PrimaryAnalysis(
-            self.densities.reshape(1, *self.densities.shape),
-            rep_sizes=[len(self.densities)],
-            name=[
-                f"{int(idx/self.input_parameters.Lx)}{idx%self.input_parameters.Lx}"
-                for idx in range(self.input_parameters.Lx**2)
-            ],
+    @property
+    def reshape_densities(self):
+        return self.densities.reshape(
+            self.densities.shape[0],
+            self.input_parameters.Lx,
+            self.input_parameters.Ly,
         )
-        analysis.mean()
-        results = analysis.errors()
-        return results
-
-    @cached_property
-    def density_variance(self):
-        return np.var(self.densities, axis=0)
 
     @property
-    def observables(self):
+    def accumulator_observables(self):
         if not self.out_file_path.exists():
             return None
 
@@ -67,8 +54,8 @@ class WormOutput:
         return observables_dict
 
     @property
-    def vector_observables(self):
-        observables_dict = self.observables
+    def accumulator_vector_observables(self):
+        observables_dict = self.accumulator_observables
 
         # filter out non vector observables
         vector_observables = {

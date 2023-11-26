@@ -12,14 +12,12 @@ import rich.syntax
 import rich.tree
 import torch.multiprocessing
 from hydra.core.hydra_config import HydraConfig
-from omegaconf import DictConfig, OmegaConf, open_dict
 from lightning import Callback
-
+from omegaconf import DictConfig, OmegaConf, open_dict
 from rich.prompt import Prompt
 from torch import Tensor
 
 from dmb.utils import REPO_ROOT, create_logger
-
 
 log = create_logger(__name__)
 

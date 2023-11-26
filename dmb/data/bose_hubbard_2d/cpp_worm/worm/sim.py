@@ -1,28 +1,27 @@
-import subprocess
-from pathlib import Path
-import numpy as np
-import h5py
-from typing import Optional
+import asyncio
+import datetime
 import os
-from tqdm import tqdm
-from copy import deepcopy
-from dmb.utils import create_logger
+import subprocess
 from collections import defaultdict
+from copy import deepcopy
+from pathlib import Path
+from typing import Optional
+
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+from auto_correlation import GammaPathologicalError, PrimaryAnalysis
+
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.helpers import (
+    call_sbatch_and_wait,
     check_if_slurm_is_installed_and_running,
     write_sbatch_script,
-    call_sbatch_and_wait,
 )
-from dmb.utils import REPO_DATA_ROOT
-from dmb.utils.syjson import SyJson
-
-import matplotlib.pyplot as plt
-import datetime
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.observables import SimulationObservables
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
-import matplotlib.pyplot as plt
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.ac import GammaPathologicalError
-import time
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
+from dmb.utils import REPO_DATA_ROOT, create_logger
+from dmb.utils.syjson import SyJson
 
 log = create_logger(__name__)
 
@@ -38,7 +37,7 @@ class SimulationExecution:
     @executable.setter
     def executable(self, executable: Optional[str] = None) -> None:
         if executable is None:
-            log.info("No executable set. Won't be able to execute worm calculation.")
+            log.debug("No executable set. Won't be able to execute worm calculation.")
             return
 
         if not Path(executable).is_file():
@@ -51,15 +50,18 @@ class SimulationExecution:
         input_file: Optional[Path] = None,
         num_restarts: int = 1,
     ):
+        errors = []
         for run_idx in range(num_restarts):
             try:
                 await self.execute_worm_single_try(input_file=input_file)
             except subprocess.CalledProcessError as e:
                 log.error(f"Restarting worm calculation... run {run_idx} failed!")
+                errors.append(e)
 
                 if run_idx == num_restarts - 1:
                     raise RuntimeError(
-                        f"Worm calculation failed {num_restarts} times. Aborting."
+                        f"""Worm calculation failed {num_restarts} times.
+                        Errors: {errors}. Aborting."""
                     )
                 continue
             else:
@@ -97,40 +99,41 @@ class SimulationExecution:
             env = os.environ.copy()
             env["TMPDIR"] = "/tmp"
 
-
-            p = await subprocess.run(
-                [
-                    "mpirun",
-                    "--use-hwthread-cpus",
-                    str(self.executable),
-                    str(input_file),
-                ],
+            cmd = [
+                "mpirun",
+                "--use-hwthread-cpus",
+                str(self.executable),
+                str(input_file),
+            ]
+            p = await asyncio.create_subprocess_exec(
+                *cmd,
                 env=env,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                check=False,
+                stderr=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
             )
+
+            stdout, stderr = await p.communicate()
 
             # write output to file
             now = datetime.datetime.now()
             with open(pipeout_dir / f"stdout_{now}.txt", "w") as f:
-                f.write(p.stdout.decode("utf-8"))
+                f.write(stdout.decode("utf-8"))
             with open(pipeout_dir / f"stderr_{now}.txt", "w") as f:
-                f.write(p.stderr.decode("utf-8"))
+                f.write(stderr.decode("utf-8"))
 
             # if job failed, raise error
             if p.returncode != 0:
                 raise subprocess.CalledProcessError(
                     returncode=p.returncode,
-                    cmd=p.args,
-                    output=p.stdout,
-                    stderr=p.stderr,
+                    cmd=cmd,
+                    output=stdout,
+                    stderr=stderr,
                 )
 
 
 class SimulationResult:
     @property
-    def results(self):
+    def output(self):
         if self.input_parameters.outputfile_relative is None:
             out_file_path = (
                 REPO_DATA_ROOT / self.input_parameters.outputfile.split("data/")[-1]
@@ -139,20 +142,77 @@ class SimulationResult:
         else:
             out_file_path = self.save_dir / self.input_parameters.outputfile_relative
 
-        output = WormOutput(
+        _output = WormOutput(
             out_file_path=out_file_path, input_parameters=self.input_parameters
         )
 
-        return output
+        return _output
+
+    @property
+    def density_error_analysis(self):
+        analysis = PrimaryAnalysis(
+            self.output.densities.reshape(1, *self.output.densities.shape),
+            rep_sizes=[len(self.output.densities)],
+            name=[
+                f"{int(idx/self.input_parameters.Lx)}{idx%self.input_parameters.Lx}"
+                for idx in range(self.input_parameters.Lx**2)
+            ],
+        )
+        analysis.mean()
+        try:
+            results = analysis.errors()
+        except GammaPathologicalError as e:
+            log.warning(f"GammaPathologicalError: {e}")
+            results = None
+
+        return results
+
+    @property
+    def density_error(self) -> Optional[np.ndarray]:
+        return (
+            self.density_error_analysis.dvalue
+            if self.density_error_analysis is not None
+            else None
+        )
+
+    @property
+    def density_variance(self) -> Optional[np.ndarray]:
+        return (
+            np.var(self.output.densities, axis=0)
+            if self.densities is not None
+            else None
+        )
+
+    @property
+    def max_density_error(self) -> Optional[float]:
+        return (
+            float(np.max(self.density_error_analysis.dvalue))
+            if self.density_error_analysis is not None
+            else None
+        )
+
+    @property
+    def uncorrected_max_density_error(self) -> float:
+        return float(np.max(self.output.densities.std(axis=0)))
+
+    @property
+    def max_tau_int(self) -> float:
+        return (
+            float(np.max(self.density_error_analysis.tau_int))
+            if self.density_error_analysis is not None
+            else -1
+        )
+
+    @property
+    def observables(self):
+        return SimulationObservables(output=self.output)
 
     @property
     def convergence_stats(self):
-        RELATIVE_THRESHOLD: float = 0.01
         ABSOLUTE_THRESHOLD: float = 0.01
-        ERROR_STD_THRESHOLD: float = 0.01
         TAU_THRESHOLD: float = 5
 
-        observables = self.results.vector_observables
+        observables = self.output.accumulator_vector_observables
 
         stats_dict = defaultdict(dict)
         converged_dict = defaultdict(dict)
@@ -181,27 +241,14 @@ class SimulationResult:
 
         # get tau with ulli wolff method
         try:
-            density_errors = self.results.density_errors
-            stats_dict["uw_tau_max_density"] = float(np.max(density_errors.tau_int))
-            stats_dict["uw_dmax_density"] = float(np.max(density_errors.dvalue))
+            stats_dict["uw_tau_max_density"] = self.max_tau_int
+            stats_dict["uw_dmax_density"] = self.max_density_error
         except GammaPathologicalError as e:
             log.info(e)
             stats_dict["uw_tau_max_density"] = -1
             stats_dict["uw_dmax_density"] = -1
 
         return stats_dict
-
-    @property
-    def max_density_error(self):
-        return float(np.max(self.results.density_errors.dvalue))
-
-    @property
-    def uncorrected_max_density_error(self):
-        return float(np.max(self.results.densities.std(axis=0)))
-
-    @property
-    def max_tau_int(self):
-        return float(np.max(self.results.density_errors.tau_int))
 
 
 class WormSimulation(SimulationExecution, SimulationResult):
@@ -218,11 +265,35 @@ class WormSimulation(SimulationExecution, SimulationResult):
         self.save_dir = save_dir
 
         self.record = SyJson(path=save_dir / "record.json")
+        self.save_parameters()
 
     @classmethod
-    def from_dir(cls, dir_path: Path, worm_executable: Optional[Path] = None):
-        # Read in parameters
-        input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
+    def from_dir(
+        cls,
+        dir_path: Path,
+        worm_executable: Optional[Path] = None,
+        check_tune_dir: bool = True,
+    ):
+        try:
+            # Read in parameters
+            input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
+        except FileNotFoundError:
+            if check_tune_dir:
+                tune_dir = cls.get_tune_dir(save_dir=dir_path)
+                if tune_dir.is_dir():
+                    log.info(f"Parameters are loaded from tune_dir {tune_dir}.")
+                    loaded_simulation = cls.from_dir(
+                        dir_path=tune_dir,
+                        worm_executable=worm_executable,
+                        check_tune_dir=False,
+                    )
+                    loaded_simulation.input_parameters.save_parameters(
+                        save_dir_path=dir_path
+                    )
+                    loaded_simulation.save_dir = dir_path
+                    return loaded_simulation
+
+            raise FileNotFoundError(f"Could not find input parameters in {dir_path}.")
 
         # Create simulation
         return cls(
@@ -231,13 +302,51 @@ class WormSimulation(SimulationExecution, SimulationResult):
             worm_executable=worm_executable,
         )
 
+    @staticmethod
+    def get_tune_dir(save_dir: Path):
+        return save_dir / "tune"
+
+    @property
+    def tune_simulation(self):
+        tune_dir = self.get_tune_dir(save_dir=self.save_dir)
+        tune_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            tune_simulation = WormSimulation.from_dir(
+                dir_path=tune_dir, worm_executable=self.executable
+            )
+        except FileNotFoundError:
+            tune_simulation = WormSimulation(
+                input_parameters=deepcopy(self.input_parameters),
+                save_dir=tune_dir,
+                worm_executable=self.executable,
+            )
+        return tune_simulation
+
+    def save_parameters(self):
+        self.input_parameters.save_parameters(save_dir_path=self.save_dir)
+
+    def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
+        for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
+            with h5py.File(checkpoint_file, "r+") as f:
+                try:
+                    f["parameters/extension_sweeps"][...] = extension_sweeps
+                except KeyError:
+                    f["parameters/extension_sweeps"] = extension_sweeps
+
+    @staticmethod
+    def get_plot_dir(save_dir: Path):
+        plot_dir = save_dir / "plots"
+        plot_dir.mkdir(parents=True, exist_ok=True)
+        return plot_dir
+
     def plot_observables(self):
         """
         Plot the results of the worm calculation.
         """
 
         inputs = self.input_parameters.mu
-        outputs = self.results.vector_observables
+        outputs = self.output.accumulator_vector_observables
 
         for obs_idx, (obs, obs_dict) in enumerate(outputs.items()):
             fig, ax = plt.subplots(1, 3, figsize=(12, 4))
@@ -273,7 +382,7 @@ class WormSimulation(SimulationExecution, SimulationResult):
 
             # save figure. append current time formatted to avoid overwriting
             # plots dir
-            plots_dir = (self.save_dir / "plots") / obs
+            plots_dir = self.get_plot_dir(self.save_dir) / obs
             plots_dir.mkdir(parents=True, exist_ok=True)
 
             now = datetime.datetime.now()
@@ -281,235 +390,10 @@ class WormSimulation(SimulationExecution, SimulationResult):
             fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
             plt.close()
 
-    def save_parameters(self):
-        self.input_parameters.save(save_dir_path=self.save_dir)
-        self.input_parameters.save_h5()
+    def plot_inputs(self):
+        self.input_parameters.plot_inputs(plots_dir=self.get_plot_dir(self.save_dir))
 
-    def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
-        for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
-            with h5py.File(checkpoint_file, "r+") as f:
-                try:
-                    f["parameters/extension_sweeps"][...] = extension_sweeps
-                except KeyError:
-                    f["parameters/extension_sweeps"] = extension_sweeps
-
-    @property
-    def tune_simulation(self):
-        tune_dir = self.save_dir / "tune"
-        tune_dir.mkdir(parents=True, exist_ok=True)
-
-        try:
-            tune_simulation = WormSimulation.from_dir(
-                dir_path=tune_dir, worm_executable=self.executable
-            )
-        except FileNotFoundError:
-            tune_simulation = WormSimulation(
-                input_parameters=deepcopy(self.input_parameters),
-                save_dir=tune_dir,
-                worm_executable=self.executable,
-            )
-        return tune_simulation
-
-
-class WormSimulationRunner:
-    def __init__(self, worm_simulation: WormSimulation):
-        self.worm_simulation = worm_simulation
-
-    async def run(self, num_restarts: int = 1):
-        self.worm_simulation.save_parameters()
-        await self.worm_simulation.execute_worm(num_restarts=num_restarts)
-
-    async def run_continue(self, num_restarts: int = 1):
-        await self.worm_simulation.execute_worm_continue(num_restarts=num_restarts)
-
-    async def run_iterative_until_converged(
-        self,
-        max_num_measurements_per_nmeasure2: int = 150000,
-        min_num_measurements_per_nmeasure2: int = 1000,
-        num_sweep_increments: int = 25,
-        sweeps_to_thermalization_ratio: int = 10,
-        max_abs_error_threshold: int = 0.015,
-        num_restarts: int = 1,
-    ) -> None:
-        try:
-            expected_required_num_measurements = (
-                2
-                * (
-                    self.worm_simulation.tune_simulation.uncorrected_max_density_error
-                    / max_abs_error_threshold
-                )
-                ** 2
-                * self.worm_simulation.tune_simulation.max_tau_int
-            )
-        except KeyError:
-            log.info(
-                "No tune simulation found. Will not be able to estimate required number of measurements."
-            )
-            expected_required_num_measurements = None
-
-        num_sweeps_values = np.array(
-            [
-                (
-                    min_num_measurements_per_nmeasure2
-                    + i
-                    * int(
-                        (
-                            max_num_measurements_per_nmeasure2
-                            - min_num_measurements_per_nmeasure2
-                        )
-                        / num_sweep_increments
-                    )
-                )
-                * self.worm_simulation.input_parameters.Nmeasure2
-                for i in range(num_sweep_increments)
-            ]
+    def plot_phase_diagram_inputs(self):
+        self.input_parameters.plot_phase_diagram_inputs(
+            plots_dir=self.get_plot_dir(self.save_dir)
         )
-        # set thermalization
-        self.worm_simulation.input_parameters.thermalization = int(
-            num_sweeps_values[0] / sweeps_to_thermalization_ratio
-        )
-        self.worm_simulation.save_parameters()
-
-        pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
-        self.worm_simulation.record["steps"] = []
-        for step_idx, num_sweeps in pbar:
-            self.worm_simulation.set_extension_sweeps_in_checkpoints(
-                extension_sweeps=num_sweeps
-            )
-
-            # execute worm
-            start_time = time.perf_counter()
-
-            if step_idx > 0:
-                await self.worm_simulation.execute_worm_continue(
-                    num_restarts=num_restarts,
-                )
-            else:
-                await self.worm_simulation.execute_worm(num_restarts=num_restarts)
-
-            elapsed_time = time.perf_counter() - start_time
-
-            # get current error
-            error = self.worm_simulation.max_density_error
-            pbar.set_description(
-                f"Current error: {error}. Sweeps: {num_sweeps}. Num Nmeasure2: {num_sweeps/self.worm_simulation.input_parameters.Nmeasure2}. At step {step_idx} of {len(num_sweeps_values)}. Expected required number of measurements: {expected_required_num_measurements}"
-            )
-
-            self.worm_simulation.plot_observables()
-            self.worm_simulation.record["steps"].append(
-                {
-                    "sweeps": int(num_sweeps),
-                    "error": float(error),
-                    "elapsed_time": float(elapsed_time),
-                    "tau_max": float(self.worm_simulation.max_tau_int),
-                }
-            )
-
-            # if error is below threshold, break
-            if error < max_abs_error_threshold:
-                break
-
-    async def tune_nmeasure2(
-        self,
-        max_nmeasure2: int = 100000,
-        min_nmeasure2: int = 50,
-        num_measurements_per_nmeasure2: int = 15000,
-        tau_threshold: int = 10,
-        step_size_multiplication_factor: float = 1.8,
-        sweeps_to_thermalization_ratio: int = 10,
-        nmeasure2_to_nmeasure_ratio: int = 10,
-        max_nmeasure: int = 100,
-        min_nmeasure: int = 1,
-    ) -> None:
-        tune_simulation = self.worm_simulation.tune_simulation
-
-        tune_simulation.record["steps"] = []
-
-        Nmeasure2_values = np.array([min_nmeasure2])
-        while Nmeasure2_values[-1] < max_nmeasure2:
-            Nmeasure2_values = np.append(
-                Nmeasure2_values, Nmeasure2_values[-1] * step_size_multiplication_factor
-            )
-        Nmeasure2_values = Nmeasure2_values.astype(int)
-
-        # tune Nmeasure, Nmeasure2, thermalization, sweeps
-        skip_next_counter = 0
-        for idx, Nmeasure2 in tqdm(
-            enumerate(Nmeasure2_values), total=len(Nmeasure2_values)
-        ):
-            if skip_next_counter > 0:
-                skip_next_counter -= 1
-                continue
-
-            Nmeasure2 = int(Nmeasure2)
-            Nmeasure = int(
-                max(
-                    min(max_nmeasure, Nmeasure2 / nmeasure2_to_nmeasure_ratio),
-                    min_nmeasure,
-                )
-            )
-            sweeps = int(num_measurements_per_nmeasure2 * Nmeasure2)
-            thermalization = int(sweeps / sweeps_to_thermalization_ratio)
-
-            tune_simulation.input_parameters.sweeps = sweeps
-            tune_simulation.input_parameters.thermalization = thermalization
-            tune_simulation.input_parameters.Nmeasure2 = Nmeasure2
-            tune_simulation.input_parameters.Nmeasure = Nmeasure
-
-            tune_runner = WormSimulationRunner(worm_simulation=tune_simulation)
-            try:
-                await tune_runner.run()
-            except RuntimeError as e:
-                continue
-
-            stats_dict = tune_simulation.convergence_stats
-
-            tune_simulation.record["steps"].append(
-                {
-                    "sweeps": sweeps,
-                    "thermalization": thermalization,
-                    "Nmeasure2": Nmeasure2,
-                    **stats_dict,
-                }
-            )
-
-            tune_simulation.plot_observables()
-
-            # print all tau values
-            for obs in tune_simulation.results.vector_observables:
-                plt.plot(
-                    [step[obs]["tau_max"] for step in tune_simulation.record["steps"]]
-                )
-                plt.title(obs)
-                plt.yscale("log")
-                plt.savefig(tune_simulation.save_dir / f"tau_{obs}.png")
-                plt.close()
-
-            plt.plot(
-                [step["uw_tau_max_density"] for step in tune_simulation.record["steps"]]
-            )
-            plt.yscale("log")
-            plt.savefig(tune_simulation.save_dir / f"tau_max_uw_density.png")
-            plt.close()
-
-            tau_max_values = np.array(
-                [step["uw_tau_max_density"] for step in tune_simulation.record["steps"]]
-            )
-
-            if (tau_max_values[-1:] < tau_threshold).all() and (
-                tau_max_values[-1:] > 0
-            ).all():
-                break
-
-            # get biggest smaller 2**x value
-            if tau_max_values[-1] > 0:
-                skip_next_counter = int(np.log2(tau_max_values[-2:].min())) - 2
-
-        self.worm_simulation.input_parameters.Nmeasure2 = Nmeasure2
-        self.worm_simulation.input_parameters.Nmeasure = Nmeasure
-        self.worm_simulation.save_parameters()
-
-        # save uncorrected density error
-        tune_simulation.record[
-            "uncorrected_max_density_error"
-        ] = tune_simulation.uncorrected_max_density_error

@@ -1,19 +1,14 @@
-from torch.utils.data import Dataset
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
-from pathlib import Path
+import itertools
 from functools import cached_property
 from pathlib import Path
-from typing import List, Union
-from torch.utils.data import Dataset
-from dmb.utils import create_logger
+from typing import List, Optional, Union
 
 import torch
-from joblib import delayed
-from dmb.utils.io import ProgressParallel
-import itertools
-import math
-import numpy as np
+from torch.utils.data import Dataset
+
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 from dmb.data.bose_hubbard_2d.network_input import net_input
+from dmb.utils import create_logger
 
 log = create_logger(__name__)
 
@@ -26,53 +21,20 @@ class BoseHubbardDataset(Dataset):
         self,
         data_dir: Union[str, Path],
         observables: List[str] = [
-            "Density_Distribution",
-            "Density_Matrix",
-            "DensDens_CorrFun",
-            "DensDens_CorrFun_local_0",
-            "DensDens_CorrFun_local_1",
-            "DensDens_CorrFun_local_2",
-            "DensDens_CorrFun_local_3",
-            "DensDens_Diff_0",
-            "DensDens_Diff_1",
-            "DensDens_Diff_2",
-            "DensDens_Diff_3",
-            "DensDens_Diff_Diag_0",
-            "DensDens_Diff_Diag_1",
-            "DensDens_Diff_Diag_2",
-            "DensDens_Diff_Diag_3",
-            "DensDens_CorrFun_local_2_step_0",
-            "DensDens_CorrFun_local_2_step_1",
-            "DensDens_CorrFun_local_2_step_2",
-            "DensDens_CorrFun_local_2_step_3",
-            "DensDens_CorrFun_local_diag_0",
-            "DensDens_CorrFun_local_diag_1",
-            "DensDens_CorrFun_local_diag_2",
-            "DensDens_CorrFun_local_diag_3",
-            "DensDens_CorrFun_sq_0",
-            "DensDens_CorrFun_sq_1",
-            "DensDens_CorrFun_sq_2",
-            "DensDens_CorrFun_sq_3",
-            "DensDens_CorrFun_sq_0_",
-            "DensDens_CorrFun_sq_1_",
-            "DensDens_CorrFun_sq_2_",
-            "DensDens_CorrFun_sq_3_",
-            "DensDens_CorrFun_sq_diag_0",
-            "DensDens_CorrFun_sq_diag_1",
-            "DensDens_CorrFun_sq_diag_2",
-            "DensDens_CorrFun_sq_diag_3",
-            "DensDens_CorrFun_sq_diag_0_",
-            "DensDens_CorrFun_sq_diag_1_",
-            "DensDens_CorrFun_sq_diag_2_",
-            "DensDens_CorrFun_sq_diag_3_",
-            "DensDens_CorrFun_sq_0",
-            "Density_Distribution_squared",
+            "density",
+            "density_variance",
+            "density_density_corr_0",
+            "density_density_corr_1",
+            "density_density_corr_2",
+            "density_density_corr_3",
+            "density_squared",
         ],
         base_transforms=None,
         train_transforms=None,
         clean=True,
         reload=False,
         verbose=False,
+        max_density_error: float = 0.015,
     ):
         self.data_dir = Path(data_dir).resolve()
         self.observables = observables
@@ -81,6 +43,7 @@ class BoseHubbardDataset(Dataset):
 
         self.base_transforms = base_transforms
         self.train_transforms = train_transforms
+        self.max_density_error = max_density_error
 
         self.clean = clean
         self.reload = reload
@@ -92,28 +55,40 @@ class BoseHubbardDataset(Dataset):
 
         if self.clean:
             sim_dirs = self._clean_sim_dirs(
-                self.observables, sim_dirs, redo=self.reload, verbose=self.verbose
+                self.observables,
+                sim_dirs,
+                redo=self.reload,
+                verbose=self.verbose,
+                max_density_error=self.max_density_error,
             )
 
         return sim_dirs
 
     @staticmethod
-    def _clean_sim_dirs(observables, sim_dirs, redo=False, verbose=False):
+    def _clean_sim_dirs(
+        observables,
+        sim_dirs,
+        redo=False,
+        verbose=False,
+        max_density_error: Optional[float] = None,
+    ):
         def filter_fn(sim_dir):
             try:
                 sim = WormSimulation.from_dir(sim_dir)
-            except:
+            except Exception:
                 return False
 
-            if "clean" in sim.record and sim.record["clean"] == False and not redo:
+            if "clean" in sim.record and not sim.record["clean"] and not redo:
                 return False
-            elif "clean" in sim.record and sim.record["clean"] == True and not redo:
+            elif "clean" in sim.record and sim.record["clean"] and not redo:
                 valid = True
             else:
                 try:
-                    sim.results.observables["Density_Distribution"]["mean"]["value"]
+                    sim.results.accumulator_observables["Density_Distribution"]["mean"][
+                        "value"
+                    ]
                     valid = True
-                except:
+                except KeyError:
                     valid = False
 
                 finally:
@@ -126,27 +101,31 @@ class BoseHubbardDataset(Dataset):
             # general purpose validation
             sim.record["clean"] = valid
 
-            # check if all observables are present
-            if valid:
-                if "observables" not in sim.record:
-                    sim.record["observables"] = list(sim.results.observables.keys())
-
-                obs_present = set(observables).issubset(set(sim.record["observables"]))
-                valid = valid and obs_present
-
             return valid
+
+        def filter_by_error(sim_dir):
+            sim = WormSimulation.from_dir(sim_dir)
+            return sim.max_density_error <= max_density_error
 
         sim_dirs = list(
             itertools.compress(
                 sim_dirs,
-                ProgressParallel(
-                    n_jobs=10,
-                    total=len(sim_dirs),
-                    desc="Filtering Dataset",
-                    use_tqdm=verbose,
-                )(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs),
+                [filter_fn(sim_dir) for sim_dir in sim_dirs]
+                #     ProgressParallel(
+                #         n_jobs=10,
+                #         total=len(sim_dirs),
+                #         desc="Filtering Dataset",
+                #         use_tqdm=verbose,
+                #     )(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs),
             )
         )
+
+        if max_density_error is not None:
+            sim_dirs = list(
+                itertools.compress(
+                    sim_dirs, [filter_by_error(sim_dir) for sim_dir in sim_dirs]
+                )
+            )
 
         return sim_dirs
 
@@ -170,46 +149,29 @@ class BoseHubbardDataset(Dataset):
             try:
                 sim = WormSimulation.from_dir(sim_dir)
                 saved_observables = sim.record["saved_observables"]
-            except:
+            except Exception:
                 reload = True
 
             if not inputs_path.exists() or not outputs_path.exists() or reload:
                 sim = WormSimulation.from_dir(sim_dir)
+
+                saved_observables = sim.observables.observables_names
+
+                # stack observables
+                outputs = torch.stack(
+                    [
+                        torch.from_numpy(sim.observables[obs]).float()
+                        for obs in saved_observables
+                    ],
+                    dim=0,
+                )
 
                 inputs = net_input(
                     sim.input_parameters.mu,
                     sim.input_parameters.U_on,
                     sim.input_parameters.V_nn,
                     cb_projection=True,
-                )
-
-                # filter function for observables. Only keep the ones that have shape (L**2). also check if isinstance(...,np.ndarray)
-                obs_filter_fn = lambda obs: isinstance(
-                    sim.results.observables[obs]["mean"]["value"], np.ndarray
-                ) and len(sim.results.observables[obs]["mean"]["value"]) == int(
-                    sim.input_parameters.Lx
-                ) * int(
-                    sim.input_parameters.Ly
-                )
-
-                saved_observables = list(
-                    filter(obs_filter_fn, sorted(sim.results.observables.keys()))
-                )
-                # stack observables
-                outputs = torch.stack(
-                    [
-                        torch.from_numpy(
-                            sim.results.observables[obs]["mean"]["value"]
-                        ).float()
-                        for obs in saved_observables
-                    ],
-                    dim=0,
-                )
-                # reshape
-                outputs = outputs.view(
-                    outputs.shape[0],
-                    int(math.sqrt(outputs.shape[1])),
-                    int(math.sqrt(outputs.shape[1])),
+                    target_density=sim.observables["density"],
                 )
 
                 # save to .npy files

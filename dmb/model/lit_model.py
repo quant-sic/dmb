@@ -1,13 +1,12 @@
-import torch
-from typing import Any, Dict, Literal, List
+from functools import cached_property
+from typing import Any, Dict, List, Literal
+
 import hydra
-import hydra
+import lightning.pytorch as pl
 import torch
 
-from dmb.utils import create_logger
 from dmb.model.mixins import LitModelMixin
-import lightning.pytorch as pl
-from functools import cached_property
+from dmb.utils import create_logger
 
 log = create_logger(__name__)
 
