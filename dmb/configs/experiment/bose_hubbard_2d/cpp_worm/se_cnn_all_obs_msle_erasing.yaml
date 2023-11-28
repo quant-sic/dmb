@@ -19,7 +19,7 @@ trainer:
   gradient_clip_val: 1
   accumulate_grad_batches: 8
 
-exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/density/msle_erasing"
+exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/msle_erasing"
 
 test: True
 
@@ -30,6 +30,12 @@ datamodule:
   clean: True
   observables: [
     "density",
+    "density_variance",
+    "density_density_corr_0",
+    "density_density_corr_1",
+    "density_density_corr_2",
+    "density_density_corr_3",
+    "density_squared"
     ]
 
   base_transforms: null
@@ -47,13 +53,13 @@ model:
   model:
 
     in_channels: 4
-    out_channels: 1
+    out_channels: 7
 
     module_list: [
       {
         _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
         in_channels: 4,
-        out_channels: 1,
+        out_channels: 7,
         kernel_sizes: [5,3,3,3,3,3,3,3],
         n_channels: [16,32,64,128,128,256,256,256],
         dropout: 0.1

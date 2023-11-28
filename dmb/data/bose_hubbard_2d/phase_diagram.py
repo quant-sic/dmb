@@ -18,12 +18,17 @@ def phase_diagram_uniform_inputs_iter(
     MUU = MUU.flatten()
     ZTU = ZTU.flatten()
 
+    # cb version 1
+    fake_target_density = np.zeros((16, 16))
+    fake_target_density[::2, ::2] = 1.0
+
     for i in range(n_samples * n_samples):
         yield MUU[i], ZTU[i], net_input_dimless_const_parameters(
             muU=np.full((16, 16), fill_value=MUU[i]),
             ztU=ZTU[i],
             zVU=zVU,
             cb_projection=True,
+            target_density=fake_target_density,
         )
 
 
@@ -56,7 +61,7 @@ def plot_phase_diagram(model, n_samples=250, zVU=1.0):
     MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples, zVU=zVU)
     outputs = model_predict(model, inputs, batch_size=512)
 
-    density = outputs[:, model.observables.index("Density_Distribution")]
+    density = outputs[:, model.observables.index("density")]
 
     reductions = {
         "mean": lambda x: x.mean(dim=(-1, -2)),

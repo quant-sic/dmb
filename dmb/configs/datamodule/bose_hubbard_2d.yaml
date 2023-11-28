@@ -6,4 +6,5 @@ num_workers: 4
 clean: True
 base_transforms: null
 train_transforms: null
+max_density_error: 0.015
 

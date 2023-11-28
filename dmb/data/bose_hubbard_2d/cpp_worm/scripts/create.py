@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 from dotenv import load_dotenv
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import (
+from dmb.data.bose_hubbard_2d.cpp_worm.worm import (
     WormInputParameters,
     WormSimulation,
     WormSimulationRunner,

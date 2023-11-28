@@ -29,34 +29,16 @@ datamodule:
 
   clean: True
   observables: [
-    "Density_Distribution"
+    "density",
     ]
 
   base_transforms: null
-    # _target_: torchvision.transforms.transforms.Compose
-    # transforms: [
-    #   {
-    #     _target_: dmb.data.utils.TupleWrapper,
-    #     transform: 
-    #       {_target_: torchvision.transforms.Normalize,
-    #       mean: [14.1732,  0.5000, 12.3417,  3.7936],
-    #       std: [23.4323,  0.5000, 12.3242,  3.8556]}
-    #   }
-    # ]
 
   train_transforms: 
       _target_: torchvision.transforms.transforms.Compose
-      transforms: [
-                  _target_: dmb.data.utils.SquareSymmetryGroupAugmentations,
-                  # {_target_: dmb.data.utils.TupleWrapper,
-                  #   transform: 
-                  #     {
-                  #       _target_: torchvision.transforms.RandomErasing
-                  #     }
-                    
-                  # }
-                  ]
-
+      transforms: 
+        - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
+                 
 
 model:
   model:

@@ -120,6 +120,9 @@ def net_input_dimless_const_parameters(
     if isinstance(muU, np.ndarray):
         muU = torch.from_numpy(muU).float()
 
+    if isinstance(target_density, np.ndarray):
+        target_density = torch.from_numpy(target_density).float()
+
     # convert to 2D if necessary
     if len(muU.shape) == 1:
         muU = muU.view(int(math.sqrt(muU.shape[0])), int(math.sqrt(muU.shape[0])))

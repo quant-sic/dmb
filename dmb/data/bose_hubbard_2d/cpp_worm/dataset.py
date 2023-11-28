@@ -9,6 +9,8 @@ from torch.utils.data import Dataset
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 from dmb.data.bose_hubbard_2d.network_input import net_input
 from dmb.utils import create_logger
+from dmb.utils import ProgressParallel
+from joblib import delayed
 
 log = create_logger(__name__)
 
@@ -105,25 +107,36 @@ class BoseHubbardDataset(Dataset):
 
         def filter_by_error(sim_dir):
             sim = WormSimulation.from_dir(sim_dir)
-            return sim.max_density_error <= max_density_error
+
+            try:
+                return sim.record["steps"][-1]["error"] <= max_density_error
+            except IndexError:
+                return False
 
         sim_dirs = list(
             itertools.compress(
                 sim_dirs,
-                [filter_fn(sim_dir) for sim_dir in sim_dirs]
-                #     ProgressParallel(
-                #         n_jobs=10,
-                #         total=len(sim_dirs),
-                #         desc="Filtering Dataset",
-                #         use_tqdm=verbose,
-                #     )(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs),
+                # [filter_fn(sim_dir) for sim_dir in sim_dirs]
+                ProgressParallel(
+                    n_jobs=10,
+                    total=len(sim_dirs),
+                    desc="Filtering Dataset",
+                    use_tqdm=verbose,
+                )(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs),
             )
         )
 
         if max_density_error is not None:
             sim_dirs = list(
                 itertools.compress(
-                    sim_dirs, [filter_by_error(sim_dir) for sim_dir in sim_dirs]
+                    sim_dirs,
+                    # [filter_by_error(sim_dir) for sim_dir in sim_dirs]
+                    ProgressParallel(
+                        n_jobs=10,
+                        total=len(sim_dirs),
+                        desc="Filtering Dataset by Error",
+                        use_tqdm=verbose,
+                    )(delayed(filter_by_error)(sim_dir) for sim_dir in sim_dirs),
                 )
             )
 
