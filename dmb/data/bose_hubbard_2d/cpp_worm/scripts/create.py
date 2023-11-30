@@ -14,7 +14,7 @@ from dmb.data.bose_hubbard_2d.cpp_worm.worm import (
     WormSimulationRunner,
 )
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.utils import create_logger
+from dmb.utils import create_logger, REPO_DATA_ROOT
 
 log = create_logger(__name__)
 
@@ -110,10 +110,7 @@ async def simulate(sample_id, type="random"):
     if "SLURM_JOB_ID" in os.environ:
         name_prefix += os.environ["SLURM_JOB_ID"] + "_"
 
-    # save_dir=Path(REPO_ROOT/f"data/bose_hubbard_2d/{now}_sample_{sample_id}")
-    save_dir = Path(
-        f"/ptmp/bale/data/bose_hubbard_2d/{now}_sample_{name_prefix}{sample_id}"
-    )
+    save_dir = REPO_DATA_ROOT / f"bose_hubbard_2d/{now}_sample_{name_prefix}{sample_id}"
 
     shutil.rmtree(save_dir, ignore_errors=True)
 

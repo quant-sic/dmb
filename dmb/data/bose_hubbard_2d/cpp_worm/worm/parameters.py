@@ -200,6 +200,7 @@ class WormInputParameters:
         fig.colorbar(ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0]), ax=ax[3])
 
         plt.savefig(plots_dir / "inputs.png")
+        plt.close()
 
     def plot_phase_diagram_inputs(self, plots_dir: Path):
         muU = self.mu / self.U_on
@@ -226,3 +227,4 @@ class WormInputParameters:
         fig.colorbar(ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0]), ax=ax[2])
 
         plt.savefig(plots_dir / "phase_diagram_inputs.png")
+        plt.close()

@@ -3,62 +3,90 @@ import gc
 
 import joblib
 
-from dmb.data.bose_hubbard_2d.worm.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormSimulation, WormSimulationRunner
 from dmb.utils import REPO_DATA_ROOT, create_logger
 from dmb.utils.io import ProgressParallel
+from dotenv import load_dotenv
+import os
+from pathlib import Path
+
+import asyncio
 
 log = create_logger(__name__)
 
 
-def continue_simulation(sample_dir):
-    sim = WormSimulation.from_dir(sample_dir)
+async def continue_simulation(
+    sample_dir: Path, target_density_error: float = 0.015, tau_threshold: float = 10
+):
+    sim = WormSimulation.from_dir(
+        dir_path=sample_dir, worm_executable=os.environ.get("WORM_MPI_EXECUTABLE")
+    )
 
     try:
-        sim.run_until_convergence(
-            executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi"
-        )
-        sim.plot_result()
-    except Exception as e:
-        log.error("Simulation failed with exception: %s", e)
-        return
+        if sim.max_density_error <= target_density_error:
+            log.info(f"Sample {sample_dir} already converged.")
+            return
+    except:
+        pass
 
-    finally:
-        gc.collect()
+    # check if tuning is necessary
+    tuned = False
+    try:
+        # get tau_max key
+        tau_max_keys = filter(
+            lambda k: "tau_max" in k, sim.tune_simulation.record["steps"][-1].keys()
+        )
+        if len(tau_max_keys) == 0:
+            raise Exception("No tau_max key found in record.")
+        else:
+            tau_max_key = list(tau_max_keys)[0]
+
+        if sim.tune_simulation.record["steps"][-1][tau_max_key] < tau_threshold:
+            log.info(f"Sample {sample_dir} already tuned.")
+            tuned = True
+    except Exception as e:
+        log.warning(f"Exception occured during tune check: {e}")
+
+    sim_run = WormSimulationRunner(sim)
+
+    if not tuned:
+        log.info(f"Tuning sample {sample_dir}.")
+        try:
+            await sim_run.tune_nmeasure2()
+        except Exception as e:
+            log.error(f"Exception occured: {e}")
+
+    try:
+        await sim_run.run_iterative_until_converged()
+    except Exception as e:
+        log.error(f"Exception occured: {e}")
 
 
 if __name__ == "__main__":
+    load_dotenv()
+
     parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
-    parser.add_argument(
-        "--number_of_samples", type=int, default=1, help="number of samples to run"
-    )
-    parser.add_argument(
-        "--number_of_jobs",
-        type=int,
-        default=1,
-        help="number of jobs to run in parallel",
-    )
+    parser.add_argument("--number_of_concurrent_jobs", type=int, default=1)
+    parser.add_argument("--target_density_error", type=float, default=0.015)
+
     args = parser.parse_args()
 
     # load relevant directories
-
     dataset_dir = REPO_DATA_ROOT / "bose_hubbard_2d"
-    sample_dirs = list(dataset_dir.glob("*sample*"))
+    sample_dirs = sorted(dataset_dir.glob("*sample*"))
 
-    # filter finished simulations
-    # First attemt. If there is no output.h5 file, the simulation is not finished
+    semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
-    sample_dirs = [
-        sample_dir
-        for sample_dir in sample_dirs
-        if not (sample_dir / "output.h5").exists()
-    ]
+    async def run_continue_simulation(sample_dir):
+        async with semaphore:
+            await continue_simulation(
+                sample_dir, target_density_error=args.target_density_error
+            )
 
-    print(sorted(list(sample_dirs)))
-
-    # run jobs in parallel
-    ProgressParallel(
-        n_jobs=args.number_of_jobs,
-        total=args.number_of_samples,
-        desc="Running Simulations",
-        timeout=999999,
-    )(joblib.delayed(continue_simulation)(sample_dir) for sample_dir in sample_dirs)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(
+        asyncio.gather(
+            *[run_continue_simulation(sample_dir) for sample_dir in sample_dirs]
+        )
+    )
+    loop.close()
