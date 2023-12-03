@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional
 
 from dmb.utils.io import create_logger
 
@@ -30,7 +31,9 @@ def write_sbatch_script(
             "#SBATCH --partition={}\n".format(os.environ["WORM_COMPUTE_PARTITION"])
         )
 
-        script_file.write("#SBATCH --time=10:00:00\n")
+        script_file.write(
+            "#SBATCH --time={}:00:00\n".format(os.environ["WORM_COMPUTE_TIMEOUT"])
+        )
         script_file.write("#SBATCH --nodes=1\n")
         script_file.write(
             "#SBATCH --ntasks-per-node={}\n".format(
@@ -56,7 +59,7 @@ def write_sbatch_script(
     os.chmod(script_path, 0o755)
 
 
-async def call_sbatch_and_wait(script_path: Path, timeout=60 * 60 * 6):
+async def call_sbatch_and_wait(script_path: Path, timeout: int = 48 * 60 * 60):
     try:
         p = subprocess.run(
             "sbatch " + str(script_path),

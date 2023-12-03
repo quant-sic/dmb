@@ -110,7 +110,7 @@ class BoseHubbardDataset(Dataset):
 
             try:
                 return sim.record["steps"][-1]["error"] <= max_density_error
-            except IndexError:
+            except (IndexError, TypeError):
                 return False
 
         sim_dirs = list(
