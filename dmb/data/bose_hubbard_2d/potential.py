@@ -5,62 +5,10 @@ import numpy as np
 from scipy import stats
 
 
-def grf(shape: Tuple[int, int], cov_func: Callable[[int, int], float]) -> np.ndarray:
-    """
-    Generate a Gaussian random field with given covariance function. 2D only.
-
-    Args:
-        shape (Tuple[int, int]): Shape of the field.
-        cov_func (Callable[[int, int], float]): Covariance function.
-
-    Returns:
-        np.ndarray: Random field with desired covariance.
-    """
-
-    tx = np.arange(shape[0])
-    ty = np.arange(shape[1])
-    Rows = np.zeros(shape)
-    Cols = np.zeros(shape)
-
-    Rows = cov_func(
-        tx[:, None] - tx[0], ty[None, :] - ty[0]
-    )  # rows of blocks of cov matrix
-    Cols = cov_func(
-        tx[0] - tx[:, None], ty[None, :] - ty[0]
-    )  # columns of blocks of cov matrix
-
-    # create the first row of the block circulant matrix with circular blocks and store it as a matrix suitable for fft2;
-    BlkCirc_row = np.concatenate(
-        (
-            np.concatenate((Rows, Cols[:, :0:-1]), axis=1),
-            np.concatenate((Cols[:0:-1, :], Rows[:0:-1, :0:-1]), axis=1),
-        ),
-        axis=0,
-    )
-
-    # compute eigen-values
-    lam = np.real(np.fft.fft2(BlkCirc_row)) / (2 * shape[0] - 1) / (2 * shape[1] - 1)
-    if (lam < 0).any() and np.abs(np.min(lam[lam < 0])) > 10**-15:
-        raise ValueError("Could not find positive definite embedding!")
-    else:
-        lam[lam < 0] = 0
-        lam = np.sqrt(lam)
-
-    # #generate field with covariance given by block circular matrix
-    F = np.fft.fft2(
-        lam
-        * (
-            np.random.randn(2 * shape[0] - 1, 2 * shape[1] - 1)
-            + 1j * np.random.randn(2 * shape[0] - 1, 2 * shape[1] - 1)
-        )
-    )
-    F = F[: shape[0], : shape[1]]  # extract subblock with desired covariance
-
-    return np.real(F)
-
-
 def periodic_grf(shape: Tuple[int, int], power: float) -> np.ndarray:
+
     def Pkgen(n):
+
         def Pk(k):
             return np.power(k, -n)
 
@@ -77,20 +25,56 @@ def periodic_grf(shape: Tuple[int, int], power: float) -> np.ndarray:
     return field
 
 
-def get_offset_rescaled_trapping_potential(
-    potential: np.ndarray, desired_abs_max: float
-) -> np.ndarray:
-    abs_max = abs(potential).max()
-    return potential * desired_abs_max / abs_max
-
-
 def get_random_trapping_potential(
-    shape: Tuple[int, int], desired_abs_max: float, power: Optional[float] = None
-) -> Tuple[float, np.ndarray]:
+        shape: Tuple[int, int],
+        desired_abs_max: float,
+        power: Optional[float] = None) -> Tuple[float, np.ndarray]:
     if power is None:
         power = stats.loguniform.rvs(0.1, 10)
 
     scale = float(np.random.uniform(0.3, 1)) * desired_abs_max
 
     potential = periodic_grf(shape, power)
-    return float(power), get_offset_rescaled_trapping_potential(potential, scale)
+    potential_rescaled = potential * scale / abs(potential).max()
+
+    return float(power), potential_rescaled
+
+
+def get_square_mu_potential(base_mu, delta_mu, square_size, lattice_size):
+    mu = np.full(shape=(lattice_size, lattice_size), fill_value=base_mu)
+    mu[
+        int(float(lattice_size) / 2 - float(square_size) /
+            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
+        int(float(lattice_size) / 2 - float(square_size) /
+            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
+    ] = (base_mu + delta_mu)
+
+    return mu
+
+
+def get_quadratic_mu_potential(
+    coeffitients: tuple[float, float],
+    lattice_size: int,
+    center: tuple[float, float] = None,
+    offset: float = 0,
+) -> np.ndarray:
+    """Generate a 2D quadratic mu array
+
+    Args:
+        coeffitients: tuple of two floats, quadratic coefficients
+        lattice_size: size of the lattice
+        center: center of the quadratic mu array
+        offset: offset of the quadratic mu array
+
+    Returns:
+        np.ndarray: 2D quadratic mu array
+    """
+    if center is None:
+        center = (float(lattice_size) / 2, float(lattice_size) / 2)
+
+    X, Y = np.meshgrid(np.arange(lattice_size), np.arange(lattice_size))
+    mu = (offset + coeffitients[0] * (X - center[0])**2 /
+          ((float(lattice_size) * 0.5)**2) + coeffitients[1] *
+          (Y - center[1])**2 / ((float(lattice_size) * 0.5)**2))
+
+    return mu

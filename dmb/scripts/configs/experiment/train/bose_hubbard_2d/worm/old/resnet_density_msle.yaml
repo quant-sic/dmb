@@ -1,0 +1,79 @@
+# @package _global_
+
+# Test the Lucas dataset with all columns
+
+defaults:
+  - override /datamodule: bose_hubbard_2d
+  - override /model: dmb_lit_model
+  - override /model/model: dmb_model
+  - override /callbacks: default
+  - override /trainer: default
+  - _self_
+
+tags: ["test", "bose_hubbard_2d", "resnet"]
+
+seed: 12345
+
+trainer:
+  max_epochs: 10000
+  gradient_clip_val: 1
+  accumulate_grad_batches: 8
+
+exp_name: "bose_hubbard_2d/worm/resnet/density/msle"
+
+test: True
+
+datamodule:
+
+  batch_size: 1024
+
+  clean: True
+  observables: [
+    "density"
+    ]
+
+  base_transforms: null
+
+  train_transforms: 
+      _target_: torchvision.transforms.transforms.Compose
+      transforms: 
+        - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
+        - _target_: dmb.data.utils.TupleWrapper
+          transform: 
+            _target_: torchvision.transforms.RandomErasing
+                 
+
+model:
+  model:
+
+    in_channels: 4
+    out_channels: 1
+
+    module_list: [
+      {
+        _target_: dmb.model.models.resnet_2d.SeResNet18,
+        in_channels: 4,
+        out_channels: 1
+      },
+    ]
+
+    output_modification: [
+        _target_: torch.nn.Softplus
+    ]
+
+  optimizer:
+    lr: 0.0001
+
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    mode: min
+    factor: 0.5
+    patience: 200
+    min_lr: 1e-5
+    verbose: False
+    cooldown: 100
+    threshold: 0.1
+
+  loss:
+    _target_: dmb.model.utils.MSLELoss
+    reduction: "mean"

@@ -8,24 +8,23 @@ from torch import nn
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from dmb.data.bose_hubbard_2d.network_input import dimless_from_net_input, net_input
+from dmb.data.bose_hubbard_2d.nn_input import get_dimless_from_net_input, \
+    get_nn_input
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.data.bose_hubbard_2d.simulated.fake_phase_diagram_objects import (
-    BOSE_HUBBARD_FAKE_ELLIPSOIDS,
-    BOSE_HUBBARD_FAKE_GRADIENTS,
-    Ellipsoid,
-    Gradient,
-)
+from dmb.data.bose_hubbard_2d.simulated.fake_phase_diagram_objects import \
+    BOSE_HUBBARD_FAKE_ELLIPSOIDS, BOSE_HUBBARD_FAKE_GRADIENTS, Ellipsoid, \
+    Gradient
 
 
 class PhaseDiagram3d(pl.LightningModule):
+
     def __init__(
-        self,
-        ellipsoids: List[Ellipsoid],
-        gradients: List[Gradient],
-        muU_range: Tuple[float, float] = (-0.5, 3.0),
-        ztU_range: Tuple[float, float] = (0.05, 1.0),
-        zVU_range: Tuple[float, float] = (0.75, 1.75),
+            self,
+            ellipsoids: List[Ellipsoid],
+            gradients: List[Gradient],
+            muU_range: Tuple[float, float] = (-0.5, 3.0),
+            ztU_range: Tuple[float, float] = (0.05, 1.0),
+            zVU_range: Tuple[float, float] = (0.75, 1.75),
     ):
         super().__init__()
 
@@ -42,7 +41,8 @@ class PhaseDiagram3d(pl.LightningModule):
         )
         self.register_parameter(
             "ellipsoid_separation_exponents",
-            nn.Parameter(torch.tensor([e.separation_exponent for e in ellipsoids])),
+            nn.Parameter(
+                torch.tensor([e.separation_exponent for e in ellipsoids])),
         )
 
         self.size = [muU_range, ztU_range, zVU_range]
@@ -52,45 +52,40 @@ class PhaseDiagram3d(pl.LightningModule):
         return np.prod([max - min for min, max in self.size])
 
     def __contains__(self, x: torch.Tensor) -> bool:
-        return all(
-            [x[i] > self.size[i][0] and x[i] < self.size[i][1] for i in range(3)]
-        )
+        return all([
+            x[i] > self.size[i][0] and x[i] < self.size[i][1] for i in range(3)
+        ])
 
     def get_value_at_x(self, x: torch.Tensor) -> Tuple[float, float]:
         base_value = sum([g.get_value_at_x(x) for g in self.gradients])
 
         ellipsoids_contain = torch.stack(
-            [e.contains(x) for e in self.ellipsoids], dim=-1
-        )
+            [e.contains(x) for e in self.ellipsoids], dim=-1)
 
         distances = torch.stack(
-            [e.reparametrized_distance_to_center(x) for e in self.ellipsoids], dim=-1
-        )
+            [e.reparametrized_distance_to_center(x) for e in self.ellipsoids],
+            dim=-1)
 
         total_min_value = (
-            self.ellipsoid_min_values - base_value[..., None]
-        ) * torch.exp(-(distances**self.ellipsoid_separation_exponents)) + base_value[
-            ..., None
-        ]
+            self.ellipsoid_min_values - base_value[..., None]) * torch.exp(-(
+                distances**self.ellipsoid_separation_exponents)) + base_value[
+                    ..., None]
         total_max_value = (
-            self.ellipsoid_max_values - base_value[..., None]
-        ) * torch.exp(-(distances**self.ellipsoid_separation_exponents)) + base_value[
-            ..., None
-        ]
+            self.ellipsoid_max_values - base_value[..., None]) * torch.exp(-(
+                distances**self.ellipsoid_separation_exponents)) + base_value[
+                    ..., None]
 
         # trick
         total_min_value = torch.where(
             ~ellipsoids_contain,
-            total_min_value.max(dim=-1)
-            .values[..., None]
-            .expand(*total_min_value.shape),
+            total_min_value.max(dim=-1).values[..., None].expand(
+                *total_min_value.shape),
             total_min_value,
         )
         total_max_value = torch.where(
             ~ellipsoids_contain,
-            total_max_value.min(dim=-1)
-            .values[..., None]
-            .expand(*total_max_value.shape),
+            total_max_value.min(dim=-1).values[..., None].expand(
+                *total_max_value.shape),
             total_max_value,
         )
 
@@ -112,6 +107,7 @@ class PhaseDiagram3d(pl.LightningModule):
 
 
 class LocalDensityApproximationModel(pl.LightningModule):
+
     def __init__(self, phase_diagram: PhaseDiagram3d):
         super().__init__()
         self.register_module("phase_diagram", phase_diagram)
@@ -138,29 +134,30 @@ class LocalDensityApproximationModel(pl.LightningModule):
             raise ValueError("Input must be square")
 
         # get muU, ztU, zVU, cb
-        muU, cb, ztU, zVU = dimless_from_net_input(x)
+        muU, cb, ztU, zVU = get_dimless_from_net_input(x)
 
         # get base_value, ellipsoid_value
         (
             min_value,
             max_value,
         ) = self.phase_diagram.get_value_at_x(
-            torch.concat([muU[..., None], ztU[..., None], zVU[..., None]], dim=-1)
-        )
+            torch.concat([muU[..., None], ztU[..., None], zVU[..., None]],
+                         dim=-1))
 
         return min_value * cb + max_value * (1 - cb)
 
 
 class RandomLDAMSampler:
+
     def __init__(
-        self,
-        ellipsoids: List[Ellipsoid],
-        gradients: List[Gradient],
-        muU_range: Tuple[float, float] = (-0.5, 3.0),
-        ztU_range: Tuple[float, float] = (0.05, 1.0),
-        zVU_range: Tuple[float, float] = (0.75, 1.75),
-        L_range: Tuple[int, int] = (8, 20),
-        z=4,
+            self,
+            ellipsoids: List[Ellipsoid],
+            gradients: List[Gradient],
+            muU_range: Tuple[float, float] = (-0.5, 3.0),
+            ztU_range: Tuple[float, float] = (0.05, 1.0),
+            zVU_range: Tuple[float, float] = (0.75, 1.75),
+            L_range: Tuple[int, int] = (8, 20),
+            z=4,
     ):
         self.phase_diagram = PhaseDiagram3d(
             gradients=gradients,
@@ -178,7 +175,8 @@ class RandomLDAMSampler:
 
     @torch.no_grad()
     def sample(self):
-        L = np.random.randint(low=self.L_range[0] / 2, high=self.L_range[1] / 2) * 2
+        L = np.random.randint(low=self.L_range[0] / 2,
+                              high=self.L_range[1] / 2) * 2
 
         muU = np.random.uniform(low=self.muU_range[0], high=self.muU_range[1])
         ztU = np.random.uniform(low=self.ztU_range[0], high=self.ztU_range[1])
@@ -189,11 +187,11 @@ class RandomLDAMSampler:
         mu_offset = muU * U_on
 
         _, V_trap = get_random_trapping_potential(
-            shape=(L, L), desired_abs_max=abs(mu_offset) / 2
-        )
+            shape=(L, L), desired_abs_max=abs(mu_offset) / 2)
 
         mu = torch.from_numpy(mu_offset + V_trap).float()
-        inputs = net_input(mu=mu, U_on=U_on, V_nn=V_nn, cb_projection=True).unsqueeze(0)
+        inputs = get_nn_input(mu=mu, U_on=U_on, V_nn=V_nn,
+                              cb_projection=True).unsqueeze(0)
         label = self.ldam(inputs)
 
         return {
@@ -210,6 +208,7 @@ class RandomLDAMSampler:
 
 
 class SimulatedBoseHubbard2dDataset(Dataset):
+
     def __init__(
         self,
         num_samples,
@@ -253,7 +252,8 @@ class SimulatedBoseHubbard2dDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
-        inputs, outputs = self.samples[idx]["inputs"], self.samples[idx]["label"]
+        inputs, outputs = self.samples[idx]["inputs"], self.samples[idx][
+            "label"]
 
         # apply transforms
         if self.base_transforms is not None:
@@ -269,7 +269,8 @@ class SimulatedBoseHubbard2dDataset(Dataset):
         if hasattr(self, "_apply_train_transforms"):
             return self._apply_train_transforms
         else:
-            raise AttributeError("apply_transforms is not set. Please set it first.")
+            raise AttributeError(
+                "apply_transforms is not set. Please set it first.")
 
     @apply_train_transforms.setter
     def apply_train_transforms(self, value: bool):

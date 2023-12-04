@@ -1,3 +1,3 @@
-from .ac import GammaPathologicalError, PrimaryAnalysis
+from .ac import GammaPathologicalError, PrimaryAnalysis, DerivedAnalysis
 
-__all__ = ["GammaPathologicalError", "PrimaryAnalysis"]
+__all__ = ["GammaPathologicalError", "PrimaryAnalysis", "DerivedAnalysis"]

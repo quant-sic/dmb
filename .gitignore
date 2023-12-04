@@ -8,7 +8,17 @@
 !*.yaml
 !*.cpp
 
+!Makefile
+!poetry.lock
+
 !.gitignore
 
-dmb_old
+/data
 /logs
+
+!data/test/*
+
+.venv
+.trunk
+
+.ipynb_checkpoints/**/ */

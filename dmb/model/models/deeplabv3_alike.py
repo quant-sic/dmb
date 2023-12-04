@@ -9,6 +9,7 @@ from dmb.dmb.model.models.resnet_2d import ResNet18, SeResNet18
 
 
 class DeepLabHead(nn.Sequential):
+
     def __init__(self, in_channels: int, num_classes: int) -> None:
         super().__init__(
             ASPP(in_channels, [12, 24, 36]),
@@ -20,12 +21,14 @@ class DeepLabHead(nn.Sequential):
 
 
 class _SimpleSegmentationModel(nn.Module):
+
     def __init__(self, backbone: nn.Module, classifier: nn.Module) -> None:
         super().__init__()
         self.backbone = backbone
         self.classifier = classifier
 
-    def forward_impl(self, x: Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor]]:
+    def forward_impl(self,
+                     x: Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor]]:
         # input_shape = x.shape[-2:]
         # contract: features is a dict of tensors
         features = self.backbone(x)
@@ -46,13 +49,13 @@ class _SimpleSegmentationModel(nn.Module):
 
 
 class DeepLabV3Alike(_SimpleSegmentationModel):
+
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        backbone: Literal[
-            "regnet_y_400mf", "resnet18", "se_resnet18"
-        ] = "regnet_y_400mf",
+        backbone: Literal["regnet_y_400mf", "resnet18",
+                          "se_resnet18"] = "regnet_y_400mf",
     ) -> None:
         if backbone == "resnet18":
             backbone = ResNet18(in_channels=in_channels)
@@ -65,10 +68,8 @@ class DeepLabV3Alike(_SimpleSegmentationModel):
             head_in_channels = 440
         else:
             raise ValueError(
-                "backbone must be either resnet18 or regnet_y_400mf. Got: {}".format(
-                    backbone
-                )
-            )
+                "backbone must be either resnet18 or regnet_y_400mf. Got: {}".
+                format(backbone))
 
         head = DeepLabHead(head_in_channels, out_channels)
         super().__init__(backbone, head)

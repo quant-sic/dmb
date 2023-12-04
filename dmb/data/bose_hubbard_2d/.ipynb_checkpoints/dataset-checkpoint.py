@@ -1,7 +1,7 @@
 from functools import cached_property
 from pathlib import Path
-from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
-                    Sequence, Sized, Tuple, Type, Union, cast)
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, \
+    Sequence, Sized, Tuple, Type, Union, cast
 
 import lightning.pytorch as pl
 import torch
@@ -43,7 +43,9 @@ def random_seeded_split(
 
     log.info("Splitting dataset with default indices")
 
-    sample_numbers = [int(f * float(dataset_length)) for f in train_val_test_split]
+    sample_numbers = [
+        int(f * float(dataset_length)) for f in train_val_test_split
+    ]
     sample_numbers[-1] = dataset_length - sum(sample_numbers[:-1])
 
     split_datasets = random_split(
@@ -55,9 +57,11 @@ def random_seeded_split(
     split_datasets_out: List[Subset] = []
     if resplit is not None:
         if not len(resplit) == len(split_datasets):
-            raise ValueError("resplit must have the same length as split_datasets")
+            raise ValueError(
+                "resplit must have the same length as split_datasets")
 
-        for idx, (split_config, _dataset) in enumerate(zip(resplit, split_datasets)):
+        for idx, (split_config,
+                  _dataset) in enumerate(zip(resplit, split_datasets)):
             if split_config is None:
                 split_datasets_out.append(_dataset)
             else:
@@ -65,73 +69,53 @@ def random_seeded_split(
                     random_seeded_split(
                         dataset=_dataset,
                         **split_config,
-                    )
-                )
+                    ))
     else:
         split_datasets_out = split_datasets
 
-    if (
-        not len(
+    if (not len(
             set.intersection(
-                *[set(_dataset.indices) for _dataset in split_datasets_out]
-            )
-        )
-        == 0
-    ):
+                *[set(_dataset.indices)
+                  for _dataset in split_datasets_out])) == 0):
         raise ValueError(
             "Split datasets are not disjoint. Intersections: {}".format(
                 set.intersection(
-                    *[set(_dataset.indices) for _dataset in split_datasets_out]
-                )
-            )
-        )
+                    *
+                    [set(_dataset.indices)
+                     for _dataset in split_datasets_out])))
 
     # check that ids are disjoint
-    if (
-        not len(
-            set.intersection(
-                *[
-                    set(
-                        [
-                            og_dataset.get_dataset_id_from_index(idx)
-                            for idx in _dataset.indices
-                        ]
-                    )
-                    for _dataset in split_datasets_out
-                ]
-            )
-        )
-        == 0
-    ):
+    if (not len(
+            set.intersection(*[
+                set([
+                    og_dataset.get_dataset_id_from_index(idx)
+                    for idx in _dataset.indices
+                ]) for _dataset in split_datasets_out
+            ])) == 0):
         raise ValueError(
             "Split datasets have overlapping ids. Intersections: {}".format(
-                set.intersection(
-                    *[
-                        set(
-                            [
-                                og_dataset.get_dataset_id_from_index
-                                for idx in _dataset.indices
-                            ]
-                        )
-                        for _dataset in split_datasets_out
-                    ]
-                )
-            )
-        )
+                set.intersection(*[
+                    set([
+                        og_dataset.get_dataset_id_from_index
+                        for idx in _dataset.indices
+                    ]) for _dataset in split_datasets_out
+                ])))
 
-    if not sum([len(_dataset) for _dataset in split_datasets_out]) == dataset_length:
+    if not sum([len(_dataset)
+                for _dataset in split_datasets_out]) == dataset_length:
         raise ValueError(
-            "Split datasets do not add up to original dataset. Lengths: {}. Sum: {}. Dataset Length: {}.".format(
+            "Split datasets do not add up to original dataset. Lengths: {}. Sum: {}. Dataset Length: {}."
+            .format(
                 [len(_dataset) for _dataset in split_datasets_out],
                 sum([len(_dataset) for _dataset in split_datasets_out]),
                 dataset_length,
-            )
-        )
+            ))
 
     return split_datasets_out
 
 
 class BoseHubbardDataset(Dataset):
+
     def __init__(self, data_dir: Path, data_transform=None, clean=True):
         self.data_dir = data_dir
         self.data_transform = data_transform
@@ -149,11 +133,13 @@ class BoseHubbardDataset(Dataset):
 
     @staticmethod
     def _clean_sim_dirs(sim_dirs):
+
         def filter_fn(sim_dir):
             sim = WormSimulation.from_dir(sim_dir)
 
             try:
-                sim.results.observables["Density_Distribution"]["mean"]["value"]
+                sim.results.observables["Density_Distribution"]["mean"][
+                    "value"]
                 valid = True
             except:
                 valid = False
@@ -192,6 +178,7 @@ class BoseHubbardDataset(Dataset):
 
 
 class BoseHubbardDataModule(pl.LightningDataModule):
+
     def __init__(
         self,
         data_dir: Path,
@@ -209,7 +196,8 @@ class BoseHubbardDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         # load and split datasets only if not loaded already
-        if not len(self.split_datasets) == len(self.hparams["train_val_test_split"]):
+        if not len(self.split_datasets) == len(
+                self.hparams["train_val_test_split"]):
             self.dataset: Dataset = self.get_dataset()
 
             split_datasets = random_seeded_split(
@@ -217,30 +205,27 @@ class BoseHubbardDataModule(pl.LightningDataModule):
                 self.dataset,
                 seed=42,
                 mode=self.hparams["split_mode"]
-                if "split_mode" in self.hparams
-                else "random",
+                if "split_mode" in self.hparams else "random",
                 num_split_versions=self.hparams["num_split_versions"]
-                if "num_split_versions" in self.hparams
-                else 1,
+                if "num_split_versions" in self.hparams else 1,
                 split_version_id=self.hparams["split_version_id"]
-                if "split_version_id" in self.hparams
-                else 0,
+                if "split_version_id" in self.hparams else 0,
                 num_split_clusters=self.hparams["num_split_clusters"]
-                if "num_split_clusters" in self.hparams
-                else 1,
-                resplit=self.hparams["resplit"] if "resplit" in self.hparams else None,
+                if "num_split_clusters" in self.hparams else 1,
+                resplit=self.hparams["resplit"]
+                if "resplit" in self.hparams else None,
             )
 
             self.split_datasets = split_datasets
 
             # get expected number of split datasets. Right not only one layer of resplitting is supported
-            expected_num_split_datasets = len(self.hparams["train_val_test_split"])
+            expected_num_split_datasets = len(
+                self.hparams["train_val_test_split"])
             if self.hparams["resplit"] is not None:
                 for _resplit in self.hparams["resplit"]:
                     if _resplit is not None:
                         expected_num_split_datasets += (
-                            len(_resplit["train_val_test_split"]) - 1
-                        )
+                            len(_resplit["train_val_test_split"]) - 1)
 
             if not len(split_datasets) == expected_num_split_datasets:
                 raise RuntimeError(
@@ -251,11 +236,10 @@ class BoseHubbardDataModule(pl.LightningDataModule):
         if self.dataset is None:
             raise ValueError("Dataset is None.")
 
-        if any(
-            idx < 0 or idx > len(self.split_datasets)
-            for idx in self.hparams["split_usage"].values()
-        ):
-            raise ValueError(f"Invalid split usage: {self.hparams['split_usage']}")
+        if any(idx < 0 or idx > len(self.split_datasets)
+               for idx in self.hparams["split_usage"].values()):
+            raise ValueError(
+                f"Invalid split usage: {self.hparams['split_usage']}")
 
         self.data_train, self.data_val, self.data_test = (
             self.split_datasets[self.hparams["split_usage"]["train"]],
@@ -372,39 +356,34 @@ class BoseHubbardDataModule(pl.LightningDataModule):
             self._previous_split_ids = state_dict["split_ids"]
 
     def check_loaded_consistency(self):
-        if (
-            hasattr(self, "_previous_split_indices")
-            and self._previous_split_indices is not None
-        ):
+        if (hasattr(self, "_previous_split_indices")
+                and self._previous_split_indices is not None):
             for stage, dataset in zip(
                 ("train", "val", "test"),
                 (self.data_train, self.data_val, self.data_test),
             ):
                 if dataset is not None:
-                    if (
-                        hasattr(self, "_previous_split_indices")
-                        and self._previous_split_indices is not None
-                    ):
+                    if (hasattr(self, "_previous_split_indices")
+                            and self._previous_split_indices is not None):
                         if not np.array_equal(
-                            dataset.indices, self._previous_split_indices[stage]
-                        ):
+                                dataset.indices,
+                                self._previous_split_indices[stage]):
                             raise RuntimeError(
                                 f"Loaded indices for {stage} dataset are not consistent with previous ones."
                             )
 
-                    if (
-                        hasattr(self, "_previous_split_ids")
-                        and self._previous_split_ids is not None
-                    ):
+                    if (hasattr(self, "_previous_split_ids")
+                            and self._previous_split_ids is not None):
                         if not np.array_equal(
                             [
                                 dataset.dataset.get_dataset_id_from_index(idx)
                                 for idx in dataset.indices
                             ],
-                            self._previous_split_ids[stage],
+                                self._previous_split_ids[stage],
                         ):
                             raise RuntimeError(
                                 f"Loaded ids for {stage} dataset are not consistent with previous ones."
                             )
         else:
-            log.warning("No previous split indices found. Skipping consistency check.")
+            log.warning(
+                "No previous split indices found. Skipping consistency check.")

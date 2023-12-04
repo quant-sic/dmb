@@ -4,6 +4,7 @@ from torch import nn
 
 
 class Ellipsoid(pl.LightningModule):
+
     def __init__(
         self,
         center: torch.Tensor,
@@ -21,13 +22,14 @@ class Ellipsoid(pl.LightningModule):
         self.separation_exponent = separation_exponent
 
     def contains(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.sum(((x - self.center) / self.params) ** 2, dim=-1) < 1
+        return torch.sum(((x - self.center) / self.params)**2, dim=-1) < 1
 
     def reparametrized_distance_to_center(self, x: torch.Tensor) -> float:
-        return torch.sqrt((((x - self.center) / self.params) ** 2).sum(dim=-1))
+        return torch.sqrt((((x - self.center) / self.params)**2).sum(dim=-1))
 
 
 class Gradient(pl.LightningModule):
+
     def __init__(
         self,
         anchor: torch.Tensor,
@@ -44,10 +46,8 @@ class Gradient(pl.LightningModule):
 
     def get_value_at_x(self, x: torch.tensor) -> float:
         # print datatypes of tensors
-        return abs(
-            self.anchor_value
-            + self.direction_value * ((x - self.anchor) @ self.direction)
-        )
+        return abs(self.anchor_value + self.direction_value *
+                   ((x - self.anchor) @ self.direction))
 
 
 BOSE_HUBBARD_FAKE_ELLIPSOIDS = [

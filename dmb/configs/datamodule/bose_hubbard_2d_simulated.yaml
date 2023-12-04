@@ -1,8 +1,0 @@
-_target_: dmb.data.bose_hubbard_2d.simulated.datamodule.SiumlatedBoseHubbardDataModule
-
-batch_size: 512
-num_workers: 4
-base_transforms: null
-train_transforms: null
-
-num_samples: 5000
