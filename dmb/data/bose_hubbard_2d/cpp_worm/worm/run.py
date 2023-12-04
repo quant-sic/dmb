@@ -78,9 +78,24 @@ class WormSimulationRunner:
         )
         self.worm_simulation.save_parameters()
 
+        if not "steps" in self.worm_simulation.record:
+            self.worm_simulation.record["steps"] = []
+
+        skip_next_counter = 0
+        if len(self.worm_simulation.record["steps"]) > 0:
+            # get last sweeps value
+            last_sweeps = self.worm_simulation.record["steps"][-1]["sweeps"]
+            skip_next_counter = np.argwhere((num_sweeps_values - last_sweeps) > 0).min()
+            log.info(
+                f"Found existing run. Continuing with sweeps={num_sweeps_values[skip_next_counter]}. Skipping {skip_next_counter} steps."
+            )
+
         pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
-        self.worm_simulation.record["steps"] = []
         for step_idx, num_sweeps in pbar:
+            if skip_next_counter > 0:
+                skip_next_counter -= 1
+                continue
+
             self.worm_simulation.set_extension_sweeps_in_checkpoints(
                 extension_sweeps=num_sweeps
             )
@@ -111,6 +126,9 @@ class WormSimulationRunner:
                     "error": float(error) if error is not None else None,
                     "elapsed_time": float(elapsed_time),
                     "tau_max": float(self.worm_simulation.max_tau_int),
+                    "num_nmeasure2": int(
+                        num_sweeps / self.worm_simulation.input_parameters.Nmeasure2
+                    ),
                 }
             )
 
@@ -150,9 +168,36 @@ class WormSimulationRunner:
         max_nmeasure: int = 100,
         min_nmeasure: int = 1,
     ) -> None:
+        def break_condition(tune_sim: WormSimulation) -> bool:
+            tau_max_values = np.array(
+                [step["tau_max"] for step in tune_simulation.record["steps"]]
+            )
+
+            if (tau_max_values[-1:] < tau_threshold).all() and (
+                tau_max_values[-1:] > 0
+            ).all():
+                return True
+
+        def finalize_tuning(
+            parent_sim: WormSimulation, tune_sim: WormSimulation
+        ) -> None:
+            parent_sim.input_parameters.sweeps = tune_sim.input_parameters.sweeps
+            parent_sim.input_parameters.thermalization = (
+                tune_sim.input_parameters.thermalization
+            )
+            parent_sim.input_parameters.Nmeasure2 = tune_sim.input_parameters.Nmeasure2
+            parent_sim.input_parameters.Nmeasure = tune_sim.input_parameters.Nmeasure
+            parent_sim.save_parameters()
+
+            # save uncorrected density error for final run
+            tune_sim.record[
+                "uncorrected_max_density_error"
+            ] = tune_sim.uncorrected_max_density_error
+
         tune_simulation = self.worm_simulation.tune_simulation
 
-        tune_simulation.record["steps"] = []
+        if not "steps" in tune_simulation.record:
+            tune_simulation.record["steps"] = []
 
         Nmeasure2_values = np.array([min_nmeasure2])
         while Nmeasure2_values[-1] < max_nmeasure2:
@@ -160,9 +205,25 @@ class WormSimulationRunner:
                 Nmeasure2_values, Nmeasure2_values[-1] * step_size_multiplication_factor
             )
         Nmeasure2_values = Nmeasure2_values.astype(int)
+        skip_next_counter = 0
+
+        if len(tune_simulation.record["steps"]) > 0:
+            if break_condition(tune_simulation):
+                finalize_tuning(self.worm_simulation, tune_simulation)
+                log.info("Tuning finished.")
+                return
+            else:
+                # get last Nmeasure2 value
+                last_Nmeasure2 = tune_simulation.record["steps"][-1]["Nmeasure2"]
+                # take next higher value
+                skip_next_counter = np.argwhere(
+                    (Nmeasure2_values - last_Nmeasure2) > 0
+                ).min()
+                log.info(
+                    f"Found existing tuning runs. Continuing with Nmeasure2={Nmeasure2_values[skip_next_counter]}. Skipping {skip_next_counter} steps."
+                )
 
         # tune Nmeasure, Nmeasure2, thermalization, sweeps
-        skip_next_counter = 0
         for idx, Nmeasure2 in tqdm(
             enumerate(Nmeasure2_values), total=len(Nmeasure2_values)
         ):
@@ -213,27 +274,15 @@ class WormSimulationRunner:
             )
             plt.close()
 
+            if break_condition(tune_simulation):
+                break
+
             tau_max_values = np.array(
                 [step["tau_max"] for step in tune_simulation.record["steps"]]
             )
-
-            if (tau_max_values[-1:] < tau_threshold).all() and (
-                tau_max_values[-1:] > 0
-            ).all():
-                break
-
             # get biggest smaller 2**x value
             if tau_max_values[-1] > 0 and not tau_max_values[-1] is None:
                 skip_next_counter = int(np.log2(tau_max_values[-1])) - 2
-
-        self.worm_simulation.input_parameters.Nmeasure2 = Nmeasure2
-        self.worm_simulation.input_parameters.Nmeasure = Nmeasure
-        self.worm_simulation.save_parameters()
-
-        # save uncorrected density error for final run
-        tune_simulation.record[
-            "uncorrected_max_density_error"
-        ] = tune_simulation.uncorrected_max_density_error
 
     def tune_nmeasure2_sync(
         self,

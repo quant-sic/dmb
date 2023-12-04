@@ -5,6 +5,7 @@ from typing import Optional, Union
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+from functools import partial
 
 from dmb.utils import create_logger
 
@@ -151,10 +152,59 @@ class WormInputParameters:
         self.checkpoint = save_dir_path / "checkpoint.h5"
         self.checkpoint_relative = self.checkpoint.relative_to(save_dir_path)
 
+        def iterfill_path(path, obj, file, contained_str, paths_list):
+            if isinstance(obj, h5py.Dataset):
+                if isinstance(obj[()], (bytes, str)):
+                    out = obj[()].decode("utf-8")
+                    if contained_str in out:
+                        paths_list.append(path)
+
         self.h5_path = save_dir_path / "parameters.h5"
         self.ini_path = save_dir_path / "parameters.ini"
 
         self.h5_path_relative = self.h5_path.relative_to(save_dir_path)
+
+        # if checkpoints already exist, edit the checkpoint path
+        if self.checkpoint.exists():
+            for ckpt_path in self.checkpoint.parent.glob("checkpoint.h5*"):
+                with h5py.File(ckpt_path, "r+") as file:
+                    paths_list = []
+                    file.visititems(
+                        partial(
+                            iterfill_path,
+                            file=file,
+                            paths_list=paths_list,
+                            contained_str="checkpoint.h5",
+                        )
+                    )
+                    for path in paths_list:
+                        file[path][...] = str(self.checkpoint).encode("utf-8")
+
+                    paths_list = []
+                    file.visititems(
+                        partial(
+                            iterfill_path,
+                            file=file,
+                            paths_list=paths_list,
+                            contained_str="output.h5",
+                        )
+                    )
+                    for path in paths_list:
+                        file[path][...] = str(self.outputfile).encode("utf-8")
+
+        if self.outputfile.exists():
+            with h5py.File(self.outputfile, "r+") as file:
+                paths_list = []
+                file.visititems(
+                    partial(
+                        iterfill_path,
+                        file=file,
+                        paths_list=paths_list,
+                        contained_str="checkpoint.h5",
+                    )
+                )
+                for path in paths_list:
+                    file[path][...] = str(self.outputfile).encode("utf-8")
 
     def save(self, save_dir_path: Path):
         # create parent directory if it does not exist

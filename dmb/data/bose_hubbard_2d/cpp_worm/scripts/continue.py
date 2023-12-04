@@ -1,11 +1,8 @@
 import argparse
-import gc
 
-import joblib
 
 from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormSimulation, WormSimulationRunner
 from dmb.utils import REPO_DATA_ROOT, create_logger
-from dmb.utils.io import ProgressParallel
 from dotenv import load_dotenv
 import os
 from pathlib import Path
