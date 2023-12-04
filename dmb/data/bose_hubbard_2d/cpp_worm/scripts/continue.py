@@ -33,7 +33,7 @@ async def continue_simulation(
     tuned = False
     try:
         # get tau_max key
-        tau_max_keys = len(
+        tau_max_keys = list(
             filter(
                 lambda k: "tau_max" in k, sim.tune_simulation.record["steps"][-1].keys()
             )
