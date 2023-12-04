@@ -1,11 +1,8 @@
 import argparse
-import gc
 
-import joblib
 
 from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormSimulation, WormSimulationRunner
 from dmb.utils import REPO_DATA_ROOT, create_logger
-from dmb.utils.io import ProgressParallel
 from dotenv import load_dotenv
 import os
 from pathlib import Path
@@ -33,7 +30,7 @@ async def continue_simulation(
     tuned = False
     try:
         # get tau_max key
-        tau_max_keys = len(
+        tau_max_keys = list(
             filter(
                 lambda k: "tau_max" in k, sim.tune_simulation.record["steps"][-1].keys()
             )
