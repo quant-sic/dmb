@@ -4,6 +4,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+from typing import List, Dict
 
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 from dmb.utils import create_logger
@@ -168,10 +169,39 @@ class WormSimulationRunner:
         max_nmeasure: int = 100,
         min_nmeasure: int = 1,
     ) -> None:
-        def break_condition(tune_sim: WormSimulation) -> bool:
-            tau_max_values = np.array(
-                [step["tau_max"] for step in tune_simulation.record["steps"]]
+        def get_tau_max_keys(steps: List[Dict]) -> List[str]:
+            # get tau_max key
+            tau_max_keys_steps = [
+                list(
+                    filter(
+                        lambda k: "tau_max" in k,
+                        step[idx].keys(),
+                    )
+                )
+                for idx, step in enumerate(steps)
+            ]
+            if any(
+                [
+                    len(tau_max_keys_step) == 0
+                    for tau_max_keys_step in tau_max_keys_steps
+                ]
+            ):
+                raise Exception("No tau_max key found in record.")
+            else:
+                return [
+                    list(tau_max_keys_step)[0]
+                    for tau_max_keys_step in tau_max_keys_steps
+                ]
+
+        def get_tau_max_values(steps: List[Dict]) -> np.ndarray:
+            tau_max_keys = get_tau_max_keys(steps)
+            return np.array(
+                [step[tau_max_key] for step, tau_max_key in zip(steps, tau_max_keys)]
             )
+
+        def break_condition(tune_sim: WormSimulation) -> bool:
+            # get tau_max key
+            tau_max_values = get_tau_max_values(tune_simulation.record["steps"])
 
             if (tau_max_values[-1:] < tau_threshold).all() and (
                 tau_max_values[-1:] > 0
@@ -277,9 +307,8 @@ class WormSimulationRunner:
             if break_condition(tune_simulation):
                 break
 
-            tau_max_values = np.array(
-                [step["tau_max"] for step in tune_simulation.record["steps"]]
-            )
+            tau_max_values = get_tau_max_values(tune_simulation.record["steps"])
+
             # get biggest smaller 2**x value
             if tau_max_values[-1] > 0 and not tau_max_values[-1] is None:
                 skip_next_counter = int(np.log2(tau_max_values[-1])) - 2

@@ -17,7 +17,7 @@ seed: 12345
 trainer:
   max_epochs: 10000
   gradient_clip_val: 1
-  accumulate_grad_batches: 8
+  accumulate_grad_batches: 1
 
 exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/msle_erasing"
 
@@ -71,7 +71,7 @@ model:
     ]
 
   optimizer:
-    lr: 0.001
+    lr: 0.005
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
