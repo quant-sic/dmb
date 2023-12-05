@@ -8,6 +8,7 @@ import numpy as np
 from functools import partial
 
 from dmb.utils import create_logger
+import os
 
 log = create_logger(__name__)
 
@@ -191,6 +192,34 @@ class WormInputParameters:
                     )
                     for path in paths_list:
                         file[path][...] = str(self.outputfile).encode("utf-8")
+
+                    ini_values = file["parameters"].attrs["ini_values"]
+                    ini_keys = list(file["parameters"].attrs["ini_keys"])
+                    for ini_key in (
+                        "checkpoint",
+                        "h5_path",
+                        "h5_path_relative",
+                        "outputfile",
+                        "site_arrays",
+                    ):
+                        ini_key_idx = ini_keys.index(ini_key)
+
+                        input_parameters_key = (
+                            ini_key if ini_key != "site_arrays" else "h5_path"
+                        )
+                        ini_values[ini_key_idx] = str(
+                            self.__getattribute__(input_parameters_key)
+                        )
+
+                    file["parameters"].attrs.modify("ini_values", ini_values)
+                    file["parameters"].attrs.modify(
+                        "origins",
+                        [
+                            os.environ["WORM_MPI_EXECUTABLE"],
+                            str(self.outputfile),
+                            str(self.checkpoint),
+                        ],
+                    )
 
         if self.outputfile.exists():
             with h5py.File(self.outputfile, "r+") as file:

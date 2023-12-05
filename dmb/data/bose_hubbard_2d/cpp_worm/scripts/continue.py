@@ -52,7 +52,7 @@ async def continue_simulation(
         log.info(f"Tuning sample {sample_dir}.")
         try:
             await sim_run.tune_nmeasure2()
-        except Exception as e:
+        except KeyError as e:
             log.error(f"Exception occured during tuning: {e}")
 
     try:
