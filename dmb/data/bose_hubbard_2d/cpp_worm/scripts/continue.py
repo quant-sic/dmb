@@ -53,12 +53,12 @@ async def continue_simulation(
         try:
             await sim_run.tune_nmeasure2()
         except Exception as e:
-            log.error(f"Exception occured: {e}")
+            log.error(f"Exception occured during tuning: {e}")
 
     try:
         await sim_run.run_iterative_until_converged()
     except Exception as e:
-        log.error(f"Exception occured: {e}")
+        log.error(f"Exception occured during run: {e}")
 
 
 if __name__ == "__main__":
