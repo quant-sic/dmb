@@ -175,10 +175,10 @@ class WormSimulationRunner:
                 list(
                     filter(
                         lambda k: "tau_max" in k,
-                        step[idx].keys(),
+                        step.keys(),
                     )
                 )
-                for idx, step in enumerate(steps)
+                for step in steps
             ]
             if any(
                 [
@@ -294,8 +294,10 @@ class WormSimulationRunner:
 
             tune_simulation.plot_observables()
 
+            tau_max_values = get_tau_max_values(tune_simulation.record["steps"])
+
             # plot all tau values
-            plt.plot([step["tau_max"] for step in tune_simulation.record["steps"]])
+            plt.plot(tau_max_values)
             plt.title("tau_max")
             plt.yscale("log")
             plt.savefig(
@@ -306,8 +308,6 @@ class WormSimulationRunner:
 
             if break_condition(tune_simulation):
                 break
-
-            tau_max_values = get_tau_max_values(tune_simulation.record["steps"])
 
             # get biggest smaller 2**x value
             if tau_max_values[-1] > 0 and not tau_max_values[-1] is None:
