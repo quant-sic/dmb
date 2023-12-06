@@ -22,7 +22,7 @@ def write_sbatch_script(
     with open(script_path, "w") as script_file:
         # write lines
         script_file.write("#!/bin/bash -l\n")
-        script_file.write("#SBATCH --job-name=worm\n")
+        script_file.write("#SBATCH --job-name={}\n".format(os.environ["WORM_JOB_NAME"]))
 
         script_file.write("#SBATCH --output=" + str(pipeout_dir) + "/%j.out\n")
         script_file.write("#SBATCH --error=" + str(pipeout_dir) + "/%j.err\n")

@@ -18,17 +18,30 @@ class WormOutput:
 
     @property
     def densities(self):
-        with h5py.File(self.out_file_path, "r") as f:
-            densities = f["simulation"]["densities"][()]
-        return densities
+        if not self.out_file_path.exists():
+            log.warning(f"File {self.out_file_path} does not exist.")
+            return None
+
+        try:
+            with h5py.File(self.out_file_path, "r") as f:
+                densities = f["simulation"]["densities"][()]
+            return densities
+        except OSError as e:
+            log.error(
+                f"Exception occured during of file {self.out_file_path} loading: {e}"
+            )
+            return None
 
     @property
     def reshape_densities(self):
-        return self.densities.reshape(
-            self.densities.shape[0],
-            self.input_parameters.Lx,
-            self.input_parameters.Ly,
-        )
+        if self.densities is None:
+            return None
+        else:
+            return self.densities.reshape(
+                self.densities.shape[0],
+                self.input_parameters.Lx,
+                self.input_parameters.Ly,
+            )
 
     @property
     def accumulator_observables(self):
@@ -56,6 +69,8 @@ class WormOutput:
     @property
     def accumulator_vector_observables(self):
         observables_dict = self.accumulator_observables
+        if observables_dict is None:
+            return None
 
         # filter out non vector observables
         vector_observables = {
