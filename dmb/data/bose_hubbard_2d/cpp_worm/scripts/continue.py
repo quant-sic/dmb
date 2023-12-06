@@ -6,7 +6,7 @@ from dmb.utils import REPO_DATA_ROOT, create_logger
 from dotenv import load_dotenv
 import os
 from pathlib import Path
-
+import click
 import asyncio
 
 log = create_logger(__name__)
@@ -59,6 +59,41 @@ async def continue_simulation(
         await sim_run.run_iterative_until_converged()
     except Exception as e:
         log.error(f"Exception occured during run: {e}")
+
+
+@click.command()
+@click.option(
+    "--number_of_concurrent_jobs", default=1, help="Number of concurrent jobs."
+)
+@click.option("--target_density_error", default=0.01, help="Target density error.")
+def run_until_complete(number_of_concurrent_jobs, target_density_error):
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser.add_argument("--number_of_concurrent_jobs", type=int, default=1)
+    parser.add_argument("--target_density_error", type=float, default=0.015)
+
+    args = parser.parse_args()
+
+    # load relevant directories
+    dataset_dir = REPO_DATA_ROOT / "bose_hubbard_2d"
+    sample_dirs = sorted(dataset_dir.glob("*sample*"))
+
+    semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
+
+    async def run_continue_simulation(sample_dir):
+        async with semaphore:
+            await continue_simulation(
+                sample_dir, target_density_error=args.target_density_error
+            )
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(
+        asyncio.gather(
+            *[run_continue_simulation(sample_dir) for sample_dir in sample_dirs]
+        )
+    )
+    loop.close()
 
 
 if __name__ == "__main__":
