@@ -150,20 +150,24 @@ class SimulationResult:
 
     @property
     def density_error_analysis(self):
-        analysis = PrimaryAnalysis(
-            self.output.densities.reshape(1, *self.output.densities.shape),
-            rep_sizes=[len(self.output.densities)],
-            name=[
-                f"{int(idx/self.input_parameters.Lx)}{idx%self.input_parameters.Lx}"
-                for idx in range(self.input_parameters.Lx**2)
-            ],
-        )
-        analysis.mean()
-        try:
-            results = analysis.errors()
-        except GammaPathologicalError as e:
-            log.warning(f"GammaPathologicalError: {e}")
+        if self.output.densities is None:
             results = None
+        else:
+            analysis = PrimaryAnalysis(
+                self.output.densities.reshape(1, *self.output.densities.shape),
+                rep_sizes=[len(self.output.densities)],
+                name=[
+                    f"{int(idx/self.input_parameters.Lx)}{idx%self.input_parameters.Lx}"
+                    for idx in range(self.input_parameters.Lx**2)
+                ],
+            )
+            analysis.mean()
+
+            try:
+                results = analysis.errors()
+            except GammaPathologicalError as e:
+                log.warning(f"GammaPathologicalError: {e}")
+                results = None
 
         return results
 
@@ -347,6 +351,12 @@ class WormSimulation(SimulationExecution, SimulationResult):
 
         inputs = self.input_parameters.mu
         outputs = self.output.accumulator_vector_observables
+
+        if outputs is None:
+            log.warning(
+                f"No outputs found. Skipping plotting for this simulation {self.save_dir}"
+            )
+            return
 
         for obs_idx, (obs, obs_dict) in enumerate(outputs.items()):
             fig, ax = plt.subplots(1, 3, figsize=(12, 4))

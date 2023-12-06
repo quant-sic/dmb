@@ -33,12 +33,13 @@ class WormSimulationRunner:
 
     async def run_iterative_until_converged(
         self,
-        max_num_measurements_per_nmeasure2: int = 150000,
+        max_num_measurements_per_nmeasure2: int = 250000,
         min_num_measurements_per_nmeasure2: int = 1000,
-        num_sweep_increments: int = 25,
+        num_sweep_increments: int = 35,
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
         num_restarts: int = 1,
+        restart: bool = False,
     ) -> None:
         try:
             expected_required_num_measurements = (
@@ -55,6 +56,17 @@ class WormSimulationRunner:
                 "No tune simulation found. Will not be able to estimate required number of measurements."
             )
             expected_required_num_measurements = None
+
+        # update Nmeasure2 from tune simulation
+        try:
+            tune_Nmeasure2 = self.worm_simulation.tune_simulation.record["steps"][-1][
+                "Nmeasure2"
+            ]
+            self.worm_simulation.input_parameters.Nmeasure2 = tune_Nmeasure2
+            self.worm_simulation.input_parameters.Nmeasure = int(tune_Nmeasure2 / 10)
+            self.worm_simulation.save_parameters()
+        except KeyError:
+            log.info("No tune simulation found. Using default Nmeasure2.")
 
         num_sweeps_values = np.array(
             [
@@ -79,17 +91,19 @@ class WormSimulationRunner:
         )
         self.worm_simulation.save_parameters()
 
-        if not "steps" in self.worm_simulation.record:
+        if not "steps" in self.worm_simulation.record or restart:
             self.worm_simulation.record["steps"] = []
 
         skip_next_counter = 0
-        if len(self.worm_simulation.record["steps"]) > 0:
+        checkpoint_produced = False
+        if len(self.worm_simulation.record["steps"]) > 0 and not restart:
             # get last sweeps value
             last_sweeps = self.worm_simulation.record["steps"][-1]["sweeps"]
             skip_next_counter = np.argwhere((num_sweeps_values - last_sweeps) > 0).min()
             log.info(
                 f"Found existing run. Continuing with sweeps={num_sweeps_values[skip_next_counter]}. Skipping {skip_next_counter} steps."
             )
+            checkpoint_produced = True
 
         pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
         for step_idx, num_sweeps in pbar:
@@ -104,7 +118,7 @@ class WormSimulationRunner:
             # execute worm
             start_time = time.perf_counter()
             try:
-                if step_idx > 0:
+                if step_idx > 0 and checkpoint_produced:
                     await self.run_continue(num_restarts=num_restarts)
                 else:
                     await self.run(num_restarts=num_restarts)
@@ -116,6 +130,10 @@ class WormSimulationRunner:
 
             # get current error
             error = self.worm_simulation.max_density_error
+
+            if error is not None:
+                checkpoint_produced = True
+
             pbar.set_description(
                 f"Current error: {error}. Sweeps: {num_sweeps}. Num Nmeasure2: {num_sweeps/self.worm_simulation.input_parameters.Nmeasure2}. At step {step_idx} of {len(num_sweeps_values)}. Expected required number of measurements: {expected_required_num_measurements}"
             )
@@ -145,6 +163,7 @@ class WormSimulationRunner:
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
         num_restarts: int = 1,
+        restart: bool = False,
     ) -> None:
         asyncio.run(
             self.run_iterative_until_converged(
@@ -154,6 +173,7 @@ class WormSimulationRunner:
                 sweeps_to_thermalization_ratio=sweeps_to_thermalization_ratio,
                 max_abs_error_threshold=max_abs_error_threshold,
                 num_restarts=num_restarts,
+                restart=restart,
             )
         )
 
@@ -287,8 +307,12 @@ class WormSimulationRunner:
                     "sweeps": sweeps,
                     "thermalization": thermalization,
                     "Nmeasure2": Nmeasure2,
-                    "tau_max": float(tune_simulation.max_tau_int),
-                    "max_density_error": float(tune_simulation.max_density_error),
+                    "tau_max": float(tune_simulation.max_tau_int)
+                    if tune_simulation.max_tau_int is not None
+                    else None,
+                    "max_density_error": float(tune_simulation.max_density_error)
+                    if tune_simulation.max_density_error is not None
+                    else None,
                 }
             )
 
