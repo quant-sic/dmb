@@ -152,6 +152,18 @@ def collate_sizes(batch):
     return size_batches_in, size_batches_out
 
 
+class GaussianNoise:
+    def __init__(self, mean: float, std: float):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        return x + torch.randn_like(x) * self.std + self.mean
+
+    def __repr__(self):
+        return self.__class__.__name__ + "(mean={}, std={})".format(self.mean, self.std)
+
+
 # Transorm for symmetry of the square
 class SquareSymmetryGroupAugmentations(object):
     def __call__(
@@ -223,7 +235,7 @@ class SquareSymmetryGroupAugmentations(object):
         return self.__class__.__name__ + "()"
 
 
-class TupleWrapper(object):
+class TupleWrapperInTransform(object):
     def __init__(self, transform: Callable[[torch.Tensor], torch.Tensor]):
         self.transform = transform
 
@@ -234,3 +246,22 @@ class TupleWrapper(object):
             return self.transform(x[0]), x[1]
         else:
             return self.transform(x)
+
+    def __repr__(self):
+        return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
+
+
+class TupleWrapperOutTransform(object):
+    def __init__(self, transform: Callable[[torch.Tensor], torch.Tensor]):
+        self.transform = transform
+
+    def __call__(
+        self, x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        if isinstance(x, tuple):
+            return x[0], self.transform(x[1])
+        else:
+            return self.transform(x)
+
+    def __repr__(self):
+        return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()

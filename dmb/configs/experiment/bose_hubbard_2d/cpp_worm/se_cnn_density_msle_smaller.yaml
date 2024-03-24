@@ -19,7 +19,7 @@ trainer:
   gradient_clip_val: 1
   accumulate_grad_batches: 8
 
-exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/msle_erasing"
+exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/density/msle"
 
 test: True
 
@@ -29,13 +29,7 @@ datamodule:
 
   clean: True
   observables: [
-    "density",
-    "density_variance",
-    "density_density_corr_0",
-    "density_density_corr_1",
-    "density_density_corr_2",
-    "density_density_corr_3",
-    "density_squared"
+    "density"
     ]
 
   base_transforms: null
@@ -44,14 +38,6 @@ datamodule:
       _target_: torchvision.transforms.transforms.Compose
       transforms: 
         - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
-        - _target_: dmb.data.utils.TupleWrapperInTransform
-          transform: 
-            _target_: torchvision.transforms.RandomErasing
-        - _target_: dmb.data.utils.TupleWrapperOutTransform
-          transform: 
-            _target_: dmb.data.utils.GaussianNoise
-            mean: 0.0
-            std: 0.0075
 
                  
 
@@ -59,15 +45,15 @@ model:
   model:
 
     in_channels: 4
-    out_channels: 7
+    out_channels: 1
 
     module_list: [
       {
         _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
         in_channels: 4,
-        out_channels: 7,
-        kernel_sizes: [5,3,3,3,3,3,3,3],
-        n_channels: [16,32,64,128,128,256,256,256],
+        out_channels: 1,
+        kernel_sizes: [5,3,3,3,3],
+        n_channels: [16,32,64,128,256],
         dropout: 0.1
       },
     ]

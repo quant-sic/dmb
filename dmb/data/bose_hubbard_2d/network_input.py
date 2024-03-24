@@ -73,7 +73,13 @@ def net_input(
 
     # convert to 2D if necessary
     if len(U_on.shape) == 1:
-        U_on = U_on.view(int(math.sqrt(U_on.shape[0])), int(math.sqrt(U_on.shape[0])))
+        # error
+        if not len(U_on) == np.prod(mu.shape):
+            U_on = U_on.view(-1, mu.shape[-2], mu.shape[-1])[0]
+        else:
+            U_on = U_on.view(
+                int(math.sqrt(U_on.shape[0])), int(math.sqrt(U_on.shape[0]))
+            )
     elif len(U_on.shape) == 2:
         if not U_on.shape[0] == U_on.shape[1]:
             raise ValueError("Input U_on has to be square")

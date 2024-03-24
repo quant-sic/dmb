@@ -146,19 +146,12 @@ class WormInputParameters:
             else:
                 f.write(f"site_arrays = {self.h5_path}\n")
 
-    def set_paths(self, save_dir_path: Path):
+    def set_paths(self, save_dir_path: Path, reset_paths: bool = False):
         self.outputfile = save_dir_path / "output.h5"
         self.outputfile_relative = self.outputfile.relative_to(save_dir_path)
 
         self.checkpoint = save_dir_path / "checkpoint.h5"
         self.checkpoint_relative = self.checkpoint.relative_to(save_dir_path)
-
-        def iterfill_path(path, obj, file, contained_str, paths_list):
-            if isinstance(obj, h5py.Dataset):
-                if isinstance(obj[()], (bytes, str)):
-                    out = obj[()].decode("utf-8")
-                    if contained_str in out:
-                        paths_list.append(path)
 
         self.h5_path = save_dir_path / "parameters.h5"
         self.ini_path = save_dir_path / "parameters.ini"
@@ -166,64 +159,23 @@ class WormInputParameters:
         self.h5_path_relative = self.h5_path.relative_to(save_dir_path)
 
         # if checkpoints already exist, edit the checkpoint path
-        try:
-            if self.checkpoint.exists():
-                for ckpt_path in self.checkpoint.parent.glob("checkpoint.h5*"):
-                    with h5py.File(ckpt_path, "r+") as file:
-                        paths_list = []
-                        file.visititems(
-                            partial(
-                                iterfill_path,
-                                file=file,
-                                paths_list=paths_list,
-                                contained_str="checkpoint.h5",
-                            )
-                        )
-                        for path in paths_list:
-                            file[path][...] = str(self.checkpoint).encode("utf-8")
+        if reset_paths:
+            try:
+                self.update_paths_in_checkpoint()               
+            except OSError as e:
+                log.warning(f"Exception occured during checkpoint editing: {e}")
 
-                        paths_list = []
-                        file.visititems(
-                            partial(
-                                iterfill_path,
-                                file=file,
-                                paths_list=paths_list,
-                                contained_str="output.h5",
-                            )
-                        )
-                        for path in paths_list:
-                            file[path][...] = str(self.outputfile).encode("utf-8")
+    def update_paths_in_checkpoint(self):
+        def iterfill_path(path, obj, file, contained_str, paths_list):
+            if isinstance(obj, h5py.Dataset):
+                if isinstance(obj[()], (bytes, str)):
+                    out = obj[()].decode("utf-8")
+                    if contained_str in out:
+                        paths_list.append(path)
 
-                        ini_values = file["parameters"].attrs["ini_values"]
-                        ini_keys = list(file["parameters"].attrs["ini_keys"])
-                        for ini_key in (
-                            "checkpoint",
-                            "h5_path",
-                            "h5_path_relative",
-                            "outputfile",
-                            "site_arrays",
-                        ):
-                            ini_key_idx = ini_keys.index(ini_key)
-
-                            input_parameters_key = (
-                                ini_key if ini_key != "site_arrays" else "h5_path"
-                            )
-                            ini_values[ini_key_idx] = str(
-                                self.__getattribute__(input_parameters_key)
-                            )
-
-                        file["parameters"].attrs.modify("ini_values", ini_values)
-                        file["parameters"].attrs.modify(
-                            "origins",
-                            [
-                                os.environ["WORM_MPI_EXECUTABLE"],
-                                str(self.outputfile),
-                                str(self.checkpoint),
-                            ],
-                        )
-
-            if self.outputfile.exists():
-                with h5py.File(self.outputfile, "r+") as file:
+        if self.checkpoint.exists():
+            for ckpt_path in self.checkpoint.parent.glob("checkpoint.h5*"):
+                with h5py.File(ckpt_path, "r+") as file:
                     paths_list = []
                     file.visititems(
                         partial(
@@ -234,16 +186,68 @@ class WormInputParameters:
                         )
                     )
                     for path in paths_list:
-                        file[path][...] = str(self.outputfile).encode("utf-8")
-        except OSError as e:
-            log.warning(f"Exception occured during checkpoint editing: {e}")
+                        file[path][...] = str(self.checkpoint).encode("utf-8")
 
-    def save(self, save_dir_path: Path):
+                    paths_list = []
+                    file.visititems(
+                        partial(
+                            iterfill_path,
+                            file=file,
+                            paths_list=paths_list,
+                            contained_str="output.h5",
+                        )
+                    )
+                    for path in paths_list:
+                        file[path][...] = str(self.outputfile).encode("utf-8")
+
+                    ini_values = file["parameters"].attrs["ini_values"]
+                    ini_keys = list(file["parameters"].attrs["ini_keys"])
+                    for ini_key in (
+                        "checkpoint",
+                        "h5_path",
+                        "h5_path_relative",
+                        "outputfile",
+                        "site_arrays",
+                    ):
+                        ini_key_idx = ini_keys.index(ini_key)
+
+                        input_parameters_key = (
+                            ini_key if ini_key != "site_arrays" else "h5_path"
+                        )
+                        ini_values[ini_key_idx] = str(
+                            self.__getattribute__(input_parameters_key)
+                        )
+
+                    file["parameters"].attrs.modify("ini_values", ini_values)
+                    file["parameters"].attrs.modify(
+                        "origins",
+                        [
+                            os.environ["WORM_MPI_EXECUTABLE"],
+                            str(self.outputfile),
+                            str(self.checkpoint),
+                        ],
+                    )
+
+        if self.outputfile.exists():
+            with h5py.File(self.outputfile, "r+") as file:
+                paths_list = []
+                file.visititems(
+                    partial(
+                        iterfill_path,
+                        file=file,
+                        paths_list=paths_list,
+                        contained_str="checkpoint.h5",
+                    )
+                )
+                for path in paths_list:
+                    file[path][...] = str(self.outputfile).encode("utf-8")
+
+    def save(self, save_dir_path: Path, reset_paths: bool = False):
         # create parent directory if it does not exist
         save_dir_path.parent.mkdir(parents=True, exist_ok=True)
 
         # set paths
-        self.set_paths(save_dir_path)
+        self.set_paths(save_dir_path, reset_paths=reset_paths)
 
         # Create ini file
         self.to_ini(

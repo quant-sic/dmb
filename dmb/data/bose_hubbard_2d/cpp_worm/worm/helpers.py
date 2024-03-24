@@ -43,7 +43,7 @@ def write_sbatch_script(
         script_file.write("#SBATCH --cpus-per-task=1\n")
         script_file.write("#SBATCH --mem=2G\n")
 
-        script_file.write("module load gcc\n")
+        script_file.write("module load gcc/11\n")
         script_file.write("module load openmpi\n")
         script_file.write("module load boost\n")
 

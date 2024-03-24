@@ -21,20 +21,21 @@ class WormSimulationRunner:
         try:
             await self.worm_simulation.execute_worm(num_restarts=num_restarts)
         except RuntimeError as e:
-            log.error(e)
+            self.worm_simulation.file_logger.error(e)
             raise e
 
     async def run_continue(self, num_restarts: int = 1):
+        self.worm_simulation.save_parameters()
         try:
             await self.worm_simulation.execute_worm_continue(num_restarts=num_restarts)
         except RuntimeError as e:
-            log.error(e)
+            self.worm_simulation.file_logger.error(e)
             raise e
 
     async def run_iterative_until_converged(
         self,
         max_num_measurements_per_nmeasure2: int = 250000,
-        min_num_measurements_per_nmeasure2: int = 1000,
+        min_num_measurements_per_nmeasure2: int = 15000,
         num_sweep_increments: int = 35,
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
@@ -52,7 +53,7 @@ class WormSimulationRunner:
                 * self.worm_simulation.tune_simulation.max_tau_int
             )
         except KeyError:
-            log.info(
+            self.worm_simulation.file_logger.info(
                 "No tune simulation found. Will not be able to estimate required number of measurements."
             )
             expected_required_num_measurements = None
@@ -66,7 +67,9 @@ class WormSimulationRunner:
             self.worm_simulation.input_parameters.Nmeasure = int(tune_Nmeasure2 / 10)
             self.worm_simulation.save_parameters()
         except KeyError:
-            log.info("No tune simulation found. Using default Nmeasure2.")
+            self.worm_simulation.file_logger.info(
+                "No tune simulation found. Using default Nmeasure2."
+            )
 
         num_sweeps_values = np.array(
             [
@@ -100,7 +103,7 @@ class WormSimulationRunner:
             # get last sweeps value
             last_sweeps = self.worm_simulation.record["steps"][-1]["sweeps"]
             skip_next_counter = np.argwhere((num_sweeps_values - last_sweeps) > 0).min()
-            log.info(
+            self.worm_simulation.file_logger.info(
                 f"Found existing run. Continuing with sweeps={num_sweeps_values[skip_next_counter]}. Skipping {skip_next_counter} steps."
             )
             checkpoint_produced = True
@@ -123,7 +126,7 @@ class WormSimulationRunner:
                 else:
                     await self.run(num_restarts=num_restarts)
             except RuntimeError as e:
-                log.error(e)
+                self.worm_simulation.file_logger.error(e)
                 continue
 
             elapsed_time = time.perf_counter() - start_time
@@ -131,7 +134,7 @@ class WormSimulationRunner:
             # get current error
             error = self.worm_simulation.max_density_error
 
-            if error is not None:
+            if error is not None and error > 0:
                 checkpoint_produced = True
 
             pbar.set_description(
@@ -152,13 +155,13 @@ class WormSimulationRunner:
             )
 
             # if error is below threshold, break
-            if error is not None and error < max_abs_error_threshold:
+            if error is not None and error < max_abs_error_threshold and error > 0:
                 break
 
     def run_iterative_until_converged_sync(
         self,
-        max_num_measurements_per_nmeasure2: int = 150000,
-        min_num_measurements_per_nmeasure2: int = 1000,
+        max_num_measurements_per_nmeasure2: int = 250000,
+        min_num_measurements_per_nmeasure2: int = 15000,
         num_sweep_increments: int = 25,
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
@@ -179,14 +182,14 @@ class WormSimulationRunner:
 
     async def tune_nmeasure2(
         self,
-        max_nmeasure2: int = 100000,
+        max_nmeasure2: int = 250000,
         min_nmeasure2: int = 35,
         num_measurements_per_nmeasure2: int = 15000,
         tau_threshold: int = 10,
         step_size_multiplication_factor: float = 1.8,
         sweeps_to_thermalization_ratio: int = 10,
         nmeasure2_to_nmeasure_ratio: int = 10,
-        max_nmeasure: int = 100,
+        max_nmeasure: int = 10000,
         min_nmeasure: int = 1,
     ) -> None:
         def get_tau_max_keys(steps: List[Dict]) -> List[str]:
@@ -260,7 +263,7 @@ class WormSimulationRunner:
         if len(tune_simulation.record["steps"]) > 0:
             if break_condition(tune_simulation):
                 finalize_tuning(self.worm_simulation, tune_simulation)
-                log.info("Tuning finished.")
+                self.worm_simulation.file_logger.info("Tuning finished.")
                 return
             else:
                 # get last Nmeasure2 value
@@ -269,7 +272,7 @@ class WormSimulationRunner:
                 skip_next_counter = np.argwhere(
                     (Nmeasure2_values - last_Nmeasure2) > 0
                 ).min()
-                log.info(
+                self.worm_simulation.file_logger.info(
                     f"Found existing tuning runs. Continuing with Nmeasure2={Nmeasure2_values[skip_next_counter]}. Skipping {skip_next_counter} steps."
                 )
 
@@ -323,7 +326,11 @@ class WormSimulationRunner:
             # plot all tau values
             plt.plot(tau_max_values)
             plt.title("tau_max")
-            plt.yscale("log")
+
+            # suppress warning: UserWarning: Data has no positive values, and therefore cannot be log-scaled.
+            if (tau_max_values > 0).any():
+                plt.yscale("log")
+
             plt.savefig(
                 tune_simulation.get_plot_dir(tune_simulation.save_dir)
                 / "tau_int_max.png"
@@ -331,6 +338,7 @@ class WormSimulationRunner:
             plt.close()
 
             if break_condition(tune_simulation):
+                finalize_tuning(self.worm_simulation, tune_simulation)
                 break
 
             # get biggest smaller 2**x value
@@ -339,14 +347,14 @@ class WormSimulationRunner:
 
     def tune_nmeasure2_sync(
         self,
-        max_nmeasure2: int = 100000,
-        min_nmeasure2: int = 50,
+        max_nmeasure2: int = 250000,
+        min_nmeasure2: int = 35,
         num_measurements_per_nmeasure2: int = 15000,
         tau_threshold: int = 10,
         step_size_multiplication_factor: float = 1.8,
         sweeps_to_thermalization_ratio: int = 10,
         nmeasure2_to_nmeasure_ratio: int = 10,
-        max_nmeasure: int = 100,
+        max_nmeasure: int = 10000,
         min_nmeasure: int = 1,
     ) -> None:
         asyncio.run(

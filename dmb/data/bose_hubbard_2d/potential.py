@@ -5,60 +5,6 @@ import numpy as np
 from scipy import stats
 
 
-def grf(shape: Tuple[int, int], cov_func: Callable[[int, int], float]) -> np.ndarray:
-    """
-    Generate a Gaussian random field with given covariance function. 2D only.
-
-    Args:
-        shape (Tuple[int, int]): Shape of the field.
-        cov_func (Callable[[int, int], float]): Covariance function.
-
-    Returns:
-        np.ndarray: Random field with desired covariance.
-    """
-
-    tx = np.arange(shape[0])
-    ty = np.arange(shape[1])
-    Rows = np.zeros(shape)
-    Cols = np.zeros(shape)
-
-    Rows = cov_func(
-        tx[:, None] - tx[0], ty[None, :] - ty[0]
-    )  # rows of blocks of cov matrix
-    Cols = cov_func(
-        tx[0] - tx[:, None], ty[None, :] - ty[0]
-    )  # columns of blocks of cov matrix
-
-    # create the first row of the block circulant matrix with circular blocks and store it as a matrix suitable for fft2;
-    BlkCirc_row = np.concatenate(
-        (
-            np.concatenate((Rows, Cols[:, :0:-1]), axis=1),
-            np.concatenate((Cols[:0:-1, :], Rows[:0:-1, :0:-1]), axis=1),
-        ),
-        axis=0,
-    )
-
-    # compute eigen-values
-    lam = np.real(np.fft.fft2(BlkCirc_row)) / (2 * shape[0] - 1) / (2 * shape[1] - 1)
-    if (lam < 0).any() and np.abs(np.min(lam[lam < 0])) > 10**-15:
-        raise ValueError("Could not find positive definite embedding!")
-    else:
-        lam[lam < 0] = 0
-        lam = np.sqrt(lam)
-
-    # #generate field with covariance given by block circular matrix
-    F = np.fft.fft2(
-        lam
-        * (
-            np.random.randn(2 * shape[0] - 1, 2 * shape[1] - 1)
-            + 1j * np.random.randn(2 * shape[0] - 1, 2 * shape[1] - 1)
-        )
-    )
-    F = F[: shape[0], : shape[1]]  # extract subblock with desired covariance
-
-    return np.real(F)
-
-
 def periodic_grf(shape: Tuple[int, int], power: float) -> np.ndarray:
     def Pkgen(n):
         def Pk(k):

@@ -3,9 +3,12 @@ from typing import Any, Optional
 
 from joblib import Parallel
 from tqdm import tqdm
+from pathlib import Path
 
 
-def create_logger(app_name: str, level: int = logging.INFO) -> logging.Logger:
+def create_logger(
+    app_name: str, file: Optional[Path] = None, level: int = logging.INFO
+) -> logging.Logger:
     """Serves as a unified way to instantiate a new logger. Will create a new logging instance with the name app_name. The logging output is sent to the console via a logging.StreamHandler() instance. The output will be formatted using the logging time, the logger name, the level at which the logger was called and the logging message. As the root logger threshold is set to WARNING, the instantiation via logging.getLogger(__name__) results in a logger instance, which console handel also has the threshold set to WARNING. One needs to additionally set the console handler level to the desired level, which is done by this function.
 
     ..note:: Function might be adapted for more specialized usage in the future
@@ -35,7 +38,22 @@ def create_logger(app_name: str, level: int = logging.INFO) -> logging.Logger:
     ch.setLevel(level)
     ch.setFormatter(logFormatter)
 
-    if not len(logger.handlers):
+    # add file handler
+    if file is not None:
+        fh = logging.FileHandler(file)
+        fh.setLevel(level)
+        fh.setFormatter(logFormatter)
+        logger.addHandler(fh)
+
+    # if number of stream handlers is 0, add console handler
+    if (
+        len(
+            list(
+                filter(lambda x: isinstance(x, logging.StreamHandler), logger.handlers)
+            )
+        )
+        == 0
+    ):
         logger.addHandler(ch)
 
     return logger

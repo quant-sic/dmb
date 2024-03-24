@@ -19,13 +19,13 @@ trainer:
   gradient_clip_val: 1
   accumulate_grad_batches: 8
 
-exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/msle_erasing"
+exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/mse/exp"
 
 test: True
 
 datamodule:
 
-  batch_size: 1024
+  batch_size: 2048
 
   clean: True
   observables: [
@@ -51,7 +51,7 @@ datamodule:
           transform: 
             _target_: dmb.data.utils.GaussianNoise
             mean: 0.0
-            std: 0.0075
+            std: 0.01
 
                  
 
@@ -63,32 +63,32 @@ model:
 
     module_list: [
       {
-        _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
+        _target_: dmb.model.models.simple_resnet2d.ResNet2d,
         in_channels: 4,
         out_channels: 7,
-        kernel_sizes: [5,3,3,3,3,3,3,3],
-        n_channels: [16,32,64,128,128,256,256,256],
+        kernel_sizes: [5,3,3,3,3,3,3,3,3],
+        n_channels: [16,32,64,128,128,128,256,256,256],
         dropout: 0.1
       },
     ]
 
     output_modification: [
-        _target_: torch.nn.Softplus
+        _target_: dmb.model.dmb_model.Exponential
     ]
 
   optimizer:
-    lr: 0.005
+    lr: 0.001
 
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
     mode: min
-    factor: 0.5
+    factor: 0.75
     patience: 200
     min_lr: 1e-5
     verbose: False
-    cooldown: 100
+    cooldown: 500
     threshold: 0.1
 
   loss:
-    _target_: dmb.model.utils.MSLELoss
+    _target_: dmb.model.utils.MaskedMSELoss
     reduction: "mean"

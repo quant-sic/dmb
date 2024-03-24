@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+from collections import defaultdict
 
 from dmb.data.bose_hubbard_2d.network_input import net_input_dimless_const_parameters
 
@@ -42,13 +43,13 @@ def phase_diagram_uniform_inputs(n_samples, zVU=1.0):
     return MUU, ZTU, inputs
 
 
-def model_predict(model, inputs, batch_size=128):
+def model_predict(model, inputs, batch_size=512):
     dl = DataLoader(inputs, batch_size=batch_size, shuffle=False, num_workers=0)
 
     model.eval()
     with torch.no_grad():
         outputs = []
-        for inputs in tqdm(dl, desc="Predicting"):
+        for inputs in tqdm(dl, desc="Predicting", disable=True):
             inputs = inputs.to(model.device)
             outputs.append(model(inputs))
 
@@ -57,11 +58,135 @@ def model_predict(model, inputs, batch_size=128):
     return outputs
 
 
+import numpy as np
+
+
+def add_phase_boundaries(ax):
+    red = [
+        (0, 0),
+        (2, 62),
+        (3, 124),
+        (3, 183),
+        (3, 245),
+        (3.5, 306),
+        (4, 368),
+        (5, 430),
+        (6, 478),
+        (6.5, 491),
+        (7, 500),
+        (8, 506),
+        (8, 502),
+        (9, 494),
+        (10, 484),
+        (13.5, 439),
+        (18, 386),
+        (24, 334),
+        (32, 287),
+        (42, 247),
+        (55, 214),
+        (72, 198),
+        (90, 199),
+        (73, 216),
+        (60, 249),
+        (51, 295),
+        (45, 345),
+        (42, 381),
+        (42, 394),
+        (42, 408),
+        (43, 415),
+        (45, 415),
+        (47, 413),
+        (53, 402),
+        (62, 389),
+        (71, 383),
+        (81, 387),
+        (90, 398),
+        (81, 416),
+        (74.5, 442),
+        (71, 462),
+        (68, 483),
+        (65, 508),
+        (64, 522),
+        (64, 529),
+        (65, 542),
+        (66, 544),
+        (67, 548),
+        (71, 556),
+        (74, 561),
+        (78, 567),
+        (84, 580),
+        (90, 597),
+    ]
+    distances = (199, 230 / 0.15)
+
+    red_dots = []
+    for point in red:
+        x, y = (
+            np.cos(point[0] * np.pi / 180) * point[1] / distances[1],
+            np.sin(point[0] * np.pi / 180) * point[1] / distances[0],
+        )
+        red_dots.append((x, y))
+
+    ax.plot(*zip(*red_dots), marker="o", c="red")
+
+    blue_1 = [
+        (90, 199),
+        (73, 210),
+        (58, 235),
+        (47, 271),
+        (38, 313),
+        (31, 358),
+        (25, 403),
+        (18.5, 450),
+        (12.5, 499),
+        (11, 509),
+        (10, 513),
+        (8, 515),
+        (7, 508),
+        (6.5, 503),
+    ]
+    blue_dots_1 = []
+    for point in blue_1:
+        x, y = (
+            np.cos(point[0] * np.pi / 180) * point[1] / distances[1],
+            np.sin(point[0] * np.pi / 180) * point[1] / distances[0],
+        )
+        blue_dots_1.append((x, y))
+
+    ax.plot(*zip(*blue_dots_1), marker="o", c="blue")
+
+    blue_2 = [
+        (90, 398),
+        (81, 406),
+        (73, 425),
+        (66, 453),
+        (61, 495),
+        (59, 527),
+        (58, 555),
+        (58, 568),
+        (59, 581),
+        (60, 590),
+        (63, 605),
+        (67, 616),
+        (73, 618),
+        (78, 610),
+        (84, 602),
+        (90, 597),
+    ]
+    blue_dots_2 = []
+    for point in blue_2:
+        x, y = (
+            np.cos(point[0] * np.pi / 180) * point[1] / distances[1],
+            np.sin(point[0] * np.pi / 180) * point[1] / distances[0],
+        )
+        blue_dots_2.append((x, y))
+
+    ax.plot(*zip(*blue_dots_2), marker="o", c="blue")
+
+
 def plot_phase_diagram(model, n_samples=250, zVU=1.0):
     MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples, zVU=zVU)
     outputs = model_predict(model, inputs, batch_size=512)
-
-    density = outputs[:, model.observables.index("density")]
 
     reductions = {
         "mean": lambda x: x.mean(dim=(-1, -2)),
@@ -71,38 +196,43 @@ def plot_phase_diagram(model, n_samples=250, zVU=1.0):
         "min": lambda x: x.amin(dim=(-1, -2)),
     }
 
-    figures_out = {}
+    figures_out = defaultdict(dict)
 
-    for name, reduction in reductions.items():
-        figures_out[name] = plt.figure()
+    for obs in model.observables:
+        output_obs = outputs[:, model.observables.index(obs)]
 
-        plt.pcolormesh(
-            ZTU.view(n_samples, n_samples).cpu().numpy(),
-            MUU.view(n_samples, n_samples).cpu().numpy(),
-            reduction(density).view(n_samples, n_samples).cpu().numpy(),
-        )
+        for name, reduction in reductions.items():
+            figures_out[obs][name] = plt.figure()
 
-        if zVU == 1.0:
-            plt.ylim([0, 3])
-            plt.xlim([0.1, 0.5])
+            plt.pcolormesh(
+                ZTU.view(n_samples, n_samples).cpu().numpy(),
+                MUU.view(n_samples, n_samples).cpu().numpy(),
+                reduction(output_obs).view(n_samples, n_samples).cpu().numpy(),
+            )
 
-            if name == "max-min":
-                plt.clim([0, 1])
+            if zVU == 1.0:
+                add_phase_boundaries(plt.gca())
+                plt.ylim([0, 3])
+                plt.xlim([0.1, 0.5])
 
-        elif zVU == 1.5:
-            plt.ylim([0, 3])
-            plt.xlim([0.1, 0.8])
+                if name == "max-min" and obs == "density":
+                    plt.clim([0, 1])
 
-            if name == "max-min":
-                plt.clim([0, 3])
-        else:
-            raise RuntimeError(f"No plot specifications given for zVU={zVU}")
+            elif zVU == 1.5:
+                plt.ylim([0, 3])
+                plt.xlim([0.1, 0.8])
 
-        plt.xlabel(r"$4J/U$")
-        plt.ylabel(r"$\mu/{U}$")
-        plt.colorbar()
-        plt.tight_layout()
+                if name == "max-min" and obs == "density":
+                    plt.clim([0, 3])
 
-        plt.close()
+            plt.xlabel(r"$4J/U$")
+            plt.ylabel(r"$\mu/{U}$")
+            plt.colorbar()
+            plt.tight_layout()
+
+            plt.close()
 
     return figures_out
+
+
+# def plot_phase_diagram_mu_cut(model,

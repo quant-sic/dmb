@@ -37,11 +37,17 @@ class WormOutput:
         if self.densities is None:
             return None
         else:
-            return self.densities.reshape(
-                self.densities.shape[0],
-                self.input_parameters.Lx,
-                self.input_parameters.Ly,
-            )
+            try:
+                return self.densities.reshape(
+                    self.densities.shape[0],
+                    self.input_parameters.Lx,
+                    self.input_parameters.Ly,
+                )
+            except (ValueError, AttributeError) as e:
+                log.error(
+                    f"Exception occured during reshape: {e} for {self.out_file_path}"
+                )
+                return None
 
     @property
     def accumulator_observables(self):

@@ -35,6 +35,7 @@ class BoseHubbardDataModule(DataModuleMixin):
         save_split_indices: bool = True,
         reload: bool = False,
         verbose: bool = False,
+        include_tune_dirs: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -46,6 +47,8 @@ class BoseHubbardDataModule(DataModuleMixin):
             observables=self.hparams["observables"],
             reload=self.hparams["reload"],
             verbose=self.hparams["verbose"],
+            max_density_error=self.hparams["max_density_error"],
+            include_tune_dirs=self.hparams["include_tune_dirs"],
         )
 
     def get_collate_fn(self) -> Optional[Callable]:

@@ -19,7 +19,7 @@ trainer:
   gradient_clip_val: 1
   accumulate_grad_batches: 8
 
-exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/msle_erasing"
+exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/mse"
 
 test: True
 
@@ -44,14 +44,6 @@ datamodule:
       _target_: torchvision.transforms.transforms.Compose
       transforms: 
         - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
-        - _target_: dmb.data.utils.TupleWrapperInTransform
-          transform: 
-            _target_: torchvision.transforms.RandomErasing
-        - _target_: dmb.data.utils.TupleWrapperOutTransform
-          transform: 
-            _target_: dmb.data.utils.GaussianNoise
-            mean: 0.0
-            std: 0.0075
 
                  
 
@@ -66,8 +58,8 @@ model:
         _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
         in_channels: 4,
         out_channels: 7,
-        kernel_sizes: [5,3,3,3,3,3,3,3],
-        n_channels: [16,32,64,128,128,256,256,256],
+        kernel_sizes: [5,3,3,3,3],
+        n_channels: [16,32,64,128,256],
         dropout: 0.1
       },
     ]
@@ -90,5 +82,5 @@ model:
     threshold: 0.1
 
   loss:
-    _target_: dmb.model.utils.MSLELoss
+    _target_: dmb.model.utils.MaskedMSELoss
     reduction: "mean"

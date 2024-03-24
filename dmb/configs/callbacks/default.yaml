@@ -4,6 +4,7 @@ defaults:
   - model_summary
   - rich_progress_bar
   - lr_monitor
+  - plot_phase_diagram
   # - stochastic_weight_averaging
   - _self_
 

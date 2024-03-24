@@ -19,11 +19,20 @@ from dmb.utils import create_logger, REPO_DATA_ROOT
 log = create_logger(__name__)
 
 
-def draw_random_config():
-    L = np.random.randint(low=4, high=10) * 2
-    U_on = (np.random.uniform(low=0.05, high=1) ** (-1)) * 4
-    V_nn = np.random.uniform(low=0.75 / 4, high=1.75 / 4) * U_on
-    mu_offset = np.random.uniform(low=-0.5, high=3.0) * U_on
+def draw_random_config(
+    L_half_min: int = 4,
+    L_half_max: int = 10,
+    U_on_min: float = 0.05,
+    U_on_max: float = 1.0,
+    V_nn_z_min: float = 0.75,
+    V_nn_z_max: float = 1.75,
+    mu_offset_min: float = -0.5,
+    mu_offset_max: float = 3.0,
+):
+    L = np.random.randint(low=L_half_min, high=L_half_max) * 2
+    U_on = (np.random.uniform(low=U_on_min, high=U_on_max) ** (-1)) * 4
+    V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
+    mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
     power, V_trap = get_random_trapping_potential(
         shape=(L, L), desired_abs_max=abs(mu_offset) / 2
@@ -57,7 +66,18 @@ def draw_uniform_config():
 
 
 # def simulate(sample_id,type="random"):
-async def simulate(sample_id, type="random"):
+async def simulate(
+    sample_id,
+    type="random",
+    L_half_min=4,
+    L_half_max=10,
+    U_on_min=0.05,
+    U_on_max=1.0,
+    V_nn_z_min=0.75,
+    V_nn_z_max=1.75,
+    mu_offset_min=-0.5,
+    mu_offset_max=3.0,
+):
     if type == "random":
         (
             L,
@@ -69,7 +89,17 @@ async def simulate(sample_id, type="random"):
             V_nn_array,
             power,
             mu_offset,
-        ) = draw_random_config()
+        ) = draw_random_config(
+            L_half_min=L_half_min,
+            L_half_max=L_half_max,
+            U_on_min=U_on_min,
+            U_on_max=U_on_max,
+            V_nn_z_min=V_nn_z_min,
+            V_nn_z_max=V_nn_z_max,
+            mu_offset_min=mu_offset_min,
+            mu_offset_max=mu_offset_max,
+        )
+
     elif type == "uniform":
         (
             L,
@@ -138,13 +168,51 @@ if __name__ == "__main__":
         "--type", type=str, default="random", choices=["random", "uniform"]
     )
 
+    parser.add_argument(
+        "--L_half_min", type=int, default=4, help="minimum half side length of lattice"
+    )
+    parser.add_argument(
+        "--L_half_max", type=int, default=10, help="maximum half side length of lattice"
+    )
+    parser.add_argument(
+        "--U_on_min", type=float, default=0.05, help="minimum U_on value"
+    )
+    parser.add_argument(
+        "--U_on_max", type=float, default=1.0, help="maximum U_on value"
+    )
+    parser.add_argument(
+        "--V_nn_z_min", type=float, default=0.75, help="minimum V_nn_z value"
+    )
+    parser.add_argument(
+        "--V_nn_z_max", type=float, default=1.75, help="maximum V_nn_z value"
+    )
+    parser.add_argument(
+        "--mu_offset_min", type=float, default=-0.5, help="minimum mu_offset value"
+    )
+    parser.add_argument(
+        "--mu_offset_max", type=float, default=3.0, help="maximum mu_offset value"
+    )
+
     args = parser.parse_args()
+
+    os.environ["WORM_JOB_NAME"] = os.environ.get("SLURM_JOB_NAME", "worm")
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
     async def run_sample(sample_id):
         async with semaphore:
-            await simulate(sample_id, type=args.type)
+            await simulate(
+                sample_id,
+                type=args.type,
+                L_half_min=args.L_half_min,
+                L_half_max=args.L_half_max,
+                U_on_min=args.U_on_min,
+                U_on_max=args.U_on_max,
+                V_nn_z_min=args.V_nn_z_min,
+                V_nn_z_max=args.V_nn_z_max,
+                mu_offset_min=args.mu_offset_min,
+                mu_offset_max=args.mu_offset_max,
+            )
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(

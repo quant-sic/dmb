@@ -22,6 +22,8 @@ from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
 from dmb.utils import REPO_DATA_ROOT, create_logger
 from dmb.utils.syjson import SyJson
+import logging
+
 
 log = create_logger(__name__)
 
@@ -50,12 +52,23 @@ class SimulationExecution:
         input_file: Optional[Path] = None,
         num_restarts: int = 1,
     ):
+        self.file_logger.info(
+            f"""Running simulation with:
+            sweeps: {self.input_parameters.sweeps},
+            Nmeasure2: {self.input_parameters.Nmeasure2},
+            Nmeasure: {self.input_parameters.Nmeasure},
+            thermalization: {self.input_parameters.thermalization}
+            Restarts: {num_restarts}"""
+        )
+
         errors = []
         for run_idx in range(num_restarts):
             try:
                 await self.execute_worm_single_try(input_file=input_file)
             except subprocess.CalledProcessError as e:
-                log.error(f"Restarting worm calculation... run {run_idx} failed!")
+                self.file_logger.error(
+                    f"Restarting worm calculation... run {run_idx} failed!"
+                )
                 errors.append(e)
 
                 if run_idx == num_restarts - 1:
@@ -138,7 +151,7 @@ class SimulationResult:
             out_file_path = (
                 REPO_DATA_ROOT / self.input_parameters.outputfile.split("data/")[-1]
             )
-            log.debug(f"Using default output file path: {out_file_path}")
+            self.file_logger.debug(f"Using default output file path: {out_file_path}")
         else:
             out_file_path = self.save_dir / self.input_parameters.outputfile_relative
 
@@ -166,7 +179,7 @@ class SimulationResult:
             try:
                 results = analysis.errors()
             except GammaPathologicalError as e:
-                log.warning(f"GammaPathologicalError: {e}")
+                self.file_logger.warning(f"GammaPathologicalError: {e}")
                 results = None
 
         return results
@@ -236,7 +249,7 @@ class SimulationResult:
             # # get max tau without nans
             if np.isnan(observables[obs]["tau"]).all():
                 tau_max = np.nan
-                log.debug("All tau values are nan")
+                self.file_logger.debug("All tau values are nan")
             else:
                 tau_max = np.nanmax(observables[obs]["tau"])
 
@@ -248,7 +261,7 @@ class SimulationResult:
             stats_dict["uw_tau_max_density"] = self.max_tau_int
             stats_dict["uw_dmax_density"] = self.max_density_error
         except GammaPathologicalError as e:
-            log.info(e)
+            self.file_logger.info(e)
             stats_dict["uw_tau_max_density"] = -1
             stats_dict["uw_dmax_density"] = -1
 
@@ -263,13 +276,27 @@ class WormSimulation(SimulationExecution, SimulationResult):
         input_parameters: WormInputParameters,
         save_dir: Path,
         worm_executable: Optional[Path] = None,
+        reloaded_from_dir: bool = False,
     ):
         self.input_parameters = input_parameters
         self.executable = worm_executable
         self.save_dir = save_dir
 
         self.record = SyJson(path=save_dir / "record.json")
-        self.save_parameters()
+
+        if not reloaded_from_dir:
+            self.save_parameters()
+
+        self.file_logger = create_logger(
+            app_name=f"worm_simulation_{self.save_dir.name}"
+            if self.save_dir.name != "tune"
+            else f"worm_simulation_{self.save_dir.parent.name}_{self.save_dir.name}",
+            level=logging.INFO,
+            file=self.save_dir / "log.txt",
+        )
+
+        if not reloaded_from_dir:
+            self.file_logger.info(f"Initialized worm simulation in {self.save_dir}")
 
     @classmethod
     def from_dir(
@@ -304,6 +331,7 @@ class WormSimulation(SimulationExecution, SimulationResult):
             input_parameters=input_parameters,
             save_dir=dir_path,
             worm_executable=worm_executable,
+            reloaded_from_dir=True,
         )
 
     @staticmethod
@@ -353,7 +381,7 @@ class WormSimulation(SimulationExecution, SimulationResult):
         outputs = self.output.accumulator_vector_observables
 
         if outputs is None:
-            log.warning(
+            self.file_logger.warning(
                 f"No outputs found. Skipping plotting for this simulation {self.save_dir}"
             )
             return

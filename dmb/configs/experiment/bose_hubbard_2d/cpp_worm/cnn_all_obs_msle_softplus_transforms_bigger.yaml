@@ -19,7 +19,7 @@ trainer:
   gradient_clip_val: 1
   accumulate_grad_batches: 8
 
-exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/msle_erasing"
+exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/all_obs/msle/softplus"
 
 test: True
 
@@ -44,15 +44,6 @@ datamodule:
       _target_: torchvision.transforms.transforms.Compose
       transforms: 
         - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
-        - _target_: dmb.data.utils.TupleWrapperInTransform
-          transform: 
-            _target_: torchvision.transforms.RandomErasing
-        - _target_: dmb.data.utils.TupleWrapperOutTransform
-          transform: 
-            _target_: dmb.data.utils.GaussianNoise
-            mean: 0.0
-            std: 0.0075
-
                  
 
 model:
@@ -63,17 +54,17 @@ model:
 
     module_list: [
       {
-        _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
+        _target_: dmb.model.models.simple_resnet2d.ResNet2d,
         in_channels: 4,
         out_channels: 7,
-        kernel_sizes: [5,3,3,3,3,3,3,3],
-        n_channels: [16,32,64,128,128,256,256,256],
+        kernel_sizes: [5,3,3,3,3,3,3,3,3],
+        n_channels: [16,32,64,128,128,128,256,256,256],
         dropout: 0.1
       },
     ]
 
     output_modification: [
-        _target_: torch.nn.Softplus
+      _target_: torch.nn.Softplus
     ]
 
   optimizer:
@@ -84,9 +75,9 @@ model:
     mode: min
     factor: 0.5
     patience: 200
-    min_lr: 1e-5
+    min_lr: 1e-4
     verbose: False
-    cooldown: 100
+    cooldown: 500
     threshold: 0.1
 
   loss:

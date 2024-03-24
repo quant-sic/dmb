@@ -151,9 +151,7 @@ class MSLELoss(torch.nn.Module):
 
         self.reduction = reduction
 
-    def forward_impl(
-        self, y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.Tensor = None
-    ) -> torch.Tensor:
+    def forward_impl(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         """
         Args:
             y_pred (torch.Tensor): Predicted values.
@@ -162,12 +160,6 @@ class MSLELoss(torch.nn.Module):
         Returns:
             torch.Tensor: Loss value.
         """
-        # log shapes
-        # log.info(f"y_pred: {y_pred.shape}, y_true: {y_true.shape}, mask: {mask.shape}")
-
-        y_pred = y_pred[mask].clone()
-        y_true = y_true[mask].clone()
-
         loss = torch.log((y_true + 1) / (y_pred + 1)) ** 2
 
         valid_mask = loss.isfinite()
@@ -193,19 +185,14 @@ class MSLELoss(torch.nn.Module):
         self,
         y_pred: Union[List[torch.Tensor], torch.Tensor],
         y_true: Union[List[torch.Tensor], torch.Tensor],
-        mask: Union[List[torch.Tensor], torch.Tensor] = None,
     ) -> torch.Tensor:
         if isinstance(y_pred, (list, tuple)):
-            if mask is None:
-                mask = [None] * len(y_pred)
-
-            for idx, (y_pred_, y_true_, mask_) in enumerate(zip(y_pred, y_true, mask)):
+            for idx, (y_pred_, y_true_) in enumerate(zip(y_pred, y_true)):
                 if idx == 0:
-                    loss = self.forward_impl(y_pred_, y_true_, mask_)
+                    loss = self.forward_impl(y_pred_, y_true_)
                 else:
-                    loss += self.forward_impl(y_pred_, y_true_, mask_)
-
+                    loss += self.forward_impl(y_pred_, y_true_)
         else:
-            loss = self.forward_impl(y_pred, y_true, mask)
+            loss = self.forward_impl(y_pred, y_true)
 
         return loss
