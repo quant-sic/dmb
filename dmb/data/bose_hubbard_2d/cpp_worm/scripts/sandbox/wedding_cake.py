@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--muU_min",
         type=float,
-        default=1.0,
+        default=0.0,
         help="minimum mu offset",
     )
     parser.add_argument(
@@ -51,8 +51,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--muU_num_steps",
         type=int,
-        default=1,
+        default=10,
         help="number of mu offset steps",
+    )
+    parser.add_argument(
+        "--coefficient",
+        type=float,
+        default=-2.0,
+        help="quadratic mu coefficients",
     )
     parser.add_argument(
         "--ztU",
@@ -75,15 +81,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "--number_of_concurrent_jobs",
         type=int,
-        default=10,
+        default=20,
         help="number of concurrent jobs",
     )
 
     args = parser.parse_args()
 
-    os.environ["WORM_JOB_NAME"] = "mu_cut"
+    os.environ["WORM_JOB_NAME"] = "wedding_cake"
 
-    target_dir = REPO_DATA_ROOT / f"mu_cut/{args.zVU}/{args.ztU}/{args.L}"
+    target_dir = (
+        REPO_DATA_ROOT
+        / f"wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
+    )
     target_dir.mkdir(parents=True, exist_ok=True)
 
     L_out, ztU_out, zVU_out, muU_out = get_missing_samples(
@@ -104,13 +113,18 @@ if __name__ == "__main__":
         async with semaphore:
             await simulate(
                 parent_dir=target_dir,
-                simulation_name="mu_cut_{}_{:.3f}_{}".format(
+                simulation_name="wedding_cake_{}_{:.3f}_{}".format(
                     args.zVU, muU_out[sample_id], sample_id
                 ),
                 L=args.L,
                 U_on=U_on,
                 V_nn=args.zVU * U_on / 4,
-                mu=np.ones((args.L, args.L)) * muU_out[sample_id] * U_on,
+                mu=get_quadratic_mu(
+                    [args.coefficient, args.coefficient],
+                    args.L,
+                    offset=muU_out[sample_id],
+                )
+                * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
                 U_on_array=np.ones((args.L, args.L)) * U_on,
                 V_nn_array=np.ones((2, args.L, args.L)) * args.zVU * U_on / 4,

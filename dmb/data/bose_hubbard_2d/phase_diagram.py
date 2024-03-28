@@ -4,8 +4,10 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from collections import defaultdict
+from dmb.utils import REPO_DATA_ROOT
 
 from dmb.data.bose_hubbard_2d.network_input import net_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
 
 
 def phase_diagram_uniform_inputs_iter(
@@ -235,4 +237,88 @@ def plot_phase_diagram(model, n_samples=250, zVU=1.0):
     return figures_out
 
 
-# def plot_phase_diagram_mu_cut(model,
+def plot_phase_diagram_mu_cut(
+    model,
+    zVU: float = 1.0,
+    ztU: float = 0.25,
+    muU_min: float = 0.0,
+    muU_max: float = 3.0,
+    L: int = 16,
+    muU_num_steps: int = 50,
+):
+    path = REPO_DATA_ROOT / "mu_cut" / f"{zVU}/{ztU}/{L}"
+
+    ds = BoseHubbardDataset(
+        data_dir=path,
+        clean=True,
+        observables=[
+            "density",
+            "density_variance",
+            "density_density_corr_0",
+            "density_density_corr_1",
+            "density_density_corr_2",
+            "density_density_corr_3",
+            "density_squared",
+        ],
+        max_density_error=0.015,
+        reload=True,
+        verbose=False,
+    )
+
+    muU = np.linspace(muU_min, muU_max, muU_num_steps)
+    inputs = torch.stack(
+        [
+            net_input_dimless_const_parameters(
+                muU=np.full((L, L), fill_value=_muU),
+                ztU=ztU,
+                zVU=zVU,
+                cb_projection=True,
+                target_density=np.ones((L, L)),
+            )
+            for _muU in muU
+        ],
+        dim=0,
+    )
+    outputs = model_predict(model, inputs, batch_size=512)
+
+    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+
+    try:
+        muU_qmc, n_qmc = zip(
+            *[
+                (ds.phase_diagram_position(i)[1], ds_i[1][0])
+                for i, ds_i in enumerate(ds)
+            ]
+        )
+
+        ax.scatter(
+            muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))], c="black", label="QMC"
+        )
+        ax.scatter(
+            muU_qmc, [n_qmc[i].min() for i in range(len(n_qmc))], c="black", label="QMC"
+        )
+    except:
+        pass
+
+    # max
+    ax.scatter(
+        muU,
+        outputs.cpu()[:, 0].numpy().max(axis=(-1, -2)),
+        c="red",
+        label="NN",
+    )
+
+    ax.scatter(
+        muU,
+        outputs.cpu()[:, 0].numpy().min(axis=(-1, -2)),
+        c="red",
+        label="NN",
+    )
+
+    plt.legend()
+    plt.xlabel(r"$\mu/U$")
+    plt.ylabel(r"$n$")
+    plt.tight_layout()
+    plt.close()
+
+    return {"mu_cut": fig}

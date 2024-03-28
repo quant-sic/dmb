@@ -10,6 +10,7 @@ class PhaseDiagramPlotCallback(Callback):
         check: List[Tuple[str, ...]] = [
             ("density", "max-min"),
             ("density_variance", "mean"),
+            ("mu_cut",),
         ],
     ) -> None:
         super().__init__()

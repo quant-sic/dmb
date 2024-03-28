@@ -15,6 +15,22 @@ from typing import List
 import itertools
 
 
+def get_square_mu(base_mu, delta_mu, square_size, lattice_size):
+    mu = np.full(shape=(lattice_size, lattice_size), fill_value=base_mu)
+    mu[
+        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
+            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
+        ),
+        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
+            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
+        ),
+    ] = (
+        base_mu + delta_mu
+    )
+
+    return mu
+
+
 if __name__ == "__main__":
     load_dotenv()
 

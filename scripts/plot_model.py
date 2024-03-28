@@ -9,7 +9,7 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("ckpt_dir", type=str, help="Path to checkpoint directory")
+    parser.add_argument("--ckpt_dir", type=str, help="Path to checkpoint directory")
     args = parser.parse_args()
 
     ckpt_dir = REPO_LOGS_ROOT / args.ckpt_dir
@@ -22,9 +22,8 @@ if __name__ == "__main__":
         )
     ):
         model = DMBLitModel.load_from_checkpoint(ckpt_path)
-        check = "max-min"
 
         save_dir = ckpt_path.parent.parent.parent / "figures"
         file_name_stem = ckpt_path.stem
 
-        model.plot_model(check=check, save_dir=save_dir, file_name_stem=file_name_stem)
+        model.plot_model(save_dir=save_dir, file_name_stem=file_name_stem)

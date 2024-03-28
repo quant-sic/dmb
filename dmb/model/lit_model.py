@@ -7,9 +7,13 @@ import torch
 
 from dmb.model.mixins import LitModelMixin
 from dmb.utils import create_logger
-from dmb.data.bose_hubbard_2d.phase_diagram import plot_phase_diagram
+from dmb.data.bose_hubbard_2d.phase_diagram import (
+    plot_phase_diagram,
+    plot_phase_diagram_mu_cut,
+)
 from pathlib import Path
 import matplotlib.pyplot as plt
+import itertools
 
 log = create_logger(__name__)
 
@@ -152,36 +156,50 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         check: List[Tuple[str, ...]] = [
             ("density", "max-min"),
             ("density_variance", "mean"),
+            ("mu_cut",),
         ],
         zVUs: List[float] = (1.0, 1.5),
+        ztUs: List[float] = (0.1, 0.25),
     ) -> None:
         # mu,ztU,out = model_predict(net,batch_size=512)
-        for zVU in zVUs:
-            figures = plot_phase_diagram(self, n_samples=resolution, zVU=zVU)
+        for zVU, ztU in itertools.product(zVUs, ztUs):
+            for figures in (
+                plot_phase_diagram(self, n_samples=resolution, zVU=zVU),
+                plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
+                plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
+            ):
 
-            def recursive_iter(path, obj):
-                if isinstance(obj, dict):
-                    for key, value in obj.items():
-                        yield from recursive_iter(path + (key,), value)
-                elif isinstance(obj, list):
-                    for idx, value in enumerate(obj):
-                        yield from recursive_iter(path + (idx,), value)
-                else:
-                    yield path, obj
+                def recursive_iter(path, obj):
+                    if isinstance(obj, dict):
+                        for key, value in obj.items():
+                            yield from recursive_iter(path + (key,), value)
+                    elif isinstance(obj, list):
+                        for idx, value in enumerate(obj):
+                            yield from recursive_iter(path + (idx,), value)
+                    else:
+                        yield path, obj
 
-            # recursively visit all figures
-            for path, figure in recursive_iter((), figures):
-                if not any([path == check_ for check_ in check]):
-                    continue
+                print(figures)
 
-                if isinstance(figure, plt.Figure):
-                    save_path = Path(save_dir) / (
-                        file_name_stem
-                        + "_"
-                        + str(zVU).replace(".", "_")
-                        + "_"
-                        + "_".join(path)
-                        + ".png"
-                    )
-                    save_path.parent.mkdir(exist_ok=True, parents=True)
-                    figure.savefig(save_path)
+                # recursively visit all figures
+                for path, figure in recursive_iter((), figures):
+
+                    print(path)
+                    if not any([path == check_ for check_ in check]):
+                        continue
+
+                    print(path)
+
+                    if isinstance(figure, plt.Figure):
+                        save_path = Path(save_dir) / (
+                            file_name_stem
+                            + "_"
+                            + str(zVU).replace(".", "_")
+                            + "_"
+                            + str(ztU).replace(".", "_")
+                            + "_"
+                            + "_".join(path)
+                            + ".png"
+                        )
+                        save_path.parent.mkdir(exist_ok=True, parents=True)
+                        figure.savefig(save_path)
