@@ -58,7 +58,9 @@ class SimulationExecution:
             Nmeasure2: {self.input_parameters.Nmeasure2},
             Nmeasure: {self.input_parameters.Nmeasure},
             thermalization: {self.input_parameters.thermalization}
-            Restarts: {num_restarts}"""
+            Restarts: {num_restarts}
+            Executable: {self.executable}
+            """
         )
 
         errors = []
@@ -118,6 +120,7 @@ class SimulationExecution:
                 str(self.executable),
                 str(input_file),
             ]
+            self.file_logger.info(f"Running command: {' '.join(cmd)}")
             p = await asyncio.create_subprocess_exec(
                 *cmd,
                 env=env,
@@ -288,9 +291,11 @@ class WormSimulation(SimulationExecution, SimulationResult):
             self.save_parameters()
 
         self.file_logger = create_logger(
-            app_name=f"worm_simulation_{self.save_dir.name}"
-            if self.save_dir.name != "tune"
-            else f"worm_simulation_{self.save_dir.parent.name}_{self.save_dir.name}",
+            app_name=(
+                f"worm_simulation_{self.save_dir.name}"
+                if self.save_dir.name != "tune"
+                else f"worm_simulation_{self.save_dir.parent.name}_{self.save_dir.name}"
+            ),
             level=logging.INFO,
             file=self.save_dir / "log.txt",
         )

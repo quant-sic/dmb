@@ -58,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--number_of_concurrent_jobs",
         type=int,
-        default=25,
+        default=1,
         help="number of concurrent jobs",
     )
 
