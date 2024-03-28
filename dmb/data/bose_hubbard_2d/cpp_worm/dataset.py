@@ -321,7 +321,7 @@ class BoseHubbardDataset(Dataset):
         zVU_tol: float = 0.01,
     ):
         for idx, _ in enumerate(self):
-            ztU_i, muU_i, zVU_i = self.phase_diagram_position(idx)
+            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
             L_i = self.get_parameters(idx).Lx
 
             if (

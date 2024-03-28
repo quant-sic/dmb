@@ -19,10 +19,10 @@ log = create_logger(__name__)
 
 def get_missing_samples(
     target_dir: Path,
-    L: int | List[int],
-    ztU: float | List[float],
-    zVU: float | List[float],
-    muU: float | List[float | np.ndarray],
+    L: int | list[int],
+    ztU: float | list[float],
+    zVU: float | list[float],
+    muU: float | list[float],
     tolerance_ztU: float = 0.01,
     tolerance_zVU: float = 0.01,
     tolerance_muU: float = 0.01,
