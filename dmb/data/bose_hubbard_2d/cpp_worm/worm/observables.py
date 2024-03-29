@@ -1,79 +1,99 @@
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
-from dmb.utils import create_logger
-
-log = create_logger(__name__)
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import SimulationOutput
 
 
 class SimulationObservables:
     """Class for computing observables from a simulation."""
 
-    @classmethod
-    @property
-    def observable_name_function_map(cls):
-        return {
-            "density": cls.get_density_mean,
-            "density_variance": cls.get_density_variance,
-            "density_density_corr_0": cls.get_density_density_corr_0,
-            "density_density_corr_1": cls.get_density_density_corr_1,
-            "density_density_corr_2": cls.get_density_density_corr_2,
-            "density_density_corr_3": cls.get_density_density_corr_3,
-            "density_squared": cls.get_density_squared_mean,
-        }
+    observables: dict[str, callable] = {}
+    observable_shapes: dict[str, tuple[str, ...]] = {}
 
-    def __init__(self, output: WormOutput):
+    @classmethod
+    def observable_names(cls):
+        """Return the names of the observables that can be computed."""
+        return cls.observables.keys()
+
+    def __init__(self, output: SimulationOutput):
         self.output = output
 
-    def __getitem__(self, key) -> float:
-        return self.observable_name_function_map[key](self.output)
-
-    def __contains__(self, key) -> bool:
-        return key in self.observable_name_function_map
-
     @classmethod
-    @property
-    def observables_names(cls):
-        return list(cls.observable_name_function_map.keys())
+    def register(cls, name, shape) -> callable:
+        """Register an observable with the class.
 
-    @staticmethod
-    def get_density_distribution(output: WormOutput) -> np.ndarray:
-        return output.reshape_densities.mean(axis=0)
+        Args:
+            name: The name of the observable.
+            shape: The shape of the observable.
 
-    @staticmethod
-    def get_density_variance(output: WormOutput) -> np.ndarray:
-        return output.reshape_densities.var(axis=0)
+        Returns:
+            A decorator that registers the function as an observable.
+        """
 
-    @staticmethod
-    def get_density_mean(output: WormOutput) -> np.ndarray:
-        return output.reshape_densities.mean(axis=0)
+        def wrapper(func):
+            cls.observables[name] = func
+            cls.observable_shapes[name] = shape
+            return func
 
-    @staticmethod
-    def get_density_density_corr_0(output: WormOutput) -> np.ndarray:
-        return (
-            np.roll(output.reshape_densities, axis=1, shift=1)
-            * output.reshape_densities
-        ).mean(axis=0)
+        return wrapper
 
-    @staticmethod
-    def get_density_density_corr_1(output: WormOutput) -> np.ndarray:
-        densities = output.reshape_densities
-        return (np.roll(densities, axis=2, shift=1) * densities).mean(axis=0)
+    def __getitem__(self, key):
+        """Return the value of the observable with the given key."""
+        return self.observables[key](self.output)
 
-    @staticmethod
-    def get_density_density_corr_2(output: WormOutput) -> np.ndarray:
-        densities = output.reshape_densities
-        return (
-            np.roll(np.roll(densities, axis=1, shift=1), axis=2, shift=1) * densities
-        ).mean(axis=0)
+    def __contains__(self, key):
+        """Return whether the observable with the given key is present."""
+        return key in self.observables
 
-    @staticmethod
-    def get_density_density_corr_3(output: WormOutput) -> np.ndarray:
-        densities = output.reshape_densities
-        return (
-            np.roll(np.roll(densities, axis=1, shift=-1), axis=2, shift=1) * densities
-        ).mean(axis=0)
 
-    @staticmethod
-    def get_density_squared_mean(output: WormOutput) -> np.ndarray:
-        return (output.reshape_densities**2).mean(axis=0)
+@SimulationObservables.register("density_variance", ("Lx", "Ly"))
+def get_density_variance(output: SimulationOutput) -> np.ndarray:
+    return output.reshape_densities.var(axis=0)
+
+
+@SimulationObservables.register("density", ("Lx", "Ly"))
+def get_density_mean(output: SimulationOutput) -> np.ndarray:
+    return output.reshape_densities.mean(axis=0)
+
+
+@SimulationObservables.register("density_density_corr_0", ("Lx", "Ly"))
+def get_density_density_corr_0(output: SimulationOutput) -> np.ndarray:
+    return (
+        np.roll(output.reshape_densities, axis=1, shift=1) * output.reshape_densities
+    ).mean(axis=0)
+
+
+@SimulationObservables.register("density_density_corr_1", ("Lx", "Ly"))
+def get_density_density_corr_1(output: SimulationOutput) -> np.ndarray:
+    densities = output.reshape_densities
+    return (np.roll(densities, axis=2, shift=1) * densities).mean(axis=0)
+
+
+@SimulationObservables.register("density_density_corr_2", ("Lx", "Ly"))
+def get_density_density_corr_2(output: SimulationOutput) -> np.ndarray:
+    densities = output.reshape_densities
+    return (
+        np.roll(np.roll(densities, axis=1, shift=1), axis=2, shift=1) * densities
+    ).mean(axis=0)
+
+
+@SimulationObservables.register("density_density_corr_3", ("Lx", "Ly"))
+def get_density_density_corr_3(output: SimulationOutput) -> np.ndarray:
+    densities = output.reshape_densities
+    return (
+        np.roll(np.roll(densities, axis=1, shift=-1), axis=2, shift=1) * densities
+    ).mean(axis=0)
+
+
+@SimulationObservables.register("density_squared", ("Lx", "Ly"))
+def get_density_squared_mean(output: SimulationOutput) -> np.ndarray:
+    return (output.reshape_densities**2).mean(axis=0)
+
+
+@SimulationObservables.register("density_max", tuple())
+def get_density_max(output: SimulationOutput) -> np.ndarray:
+    return output.reshape_densities.max(axis=(-1, -2)).mean(axis=0)
+
+
+@SimulationObservables.register("density_min", tuple())
+def get_density_min(output: SimulationOutput) -> np.ndarray:
+    return output.reshape_densities.min(axis=(-1, -2)).mean(axis=0)

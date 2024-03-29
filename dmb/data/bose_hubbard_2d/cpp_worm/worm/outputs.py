@@ -1,27 +1,29 @@
 import json
 from collections import defaultdict
-from dataclasses import dataclass
+from attrs import define
 from pathlib import Path
 
 import h5py
 
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
 from dmb.utils import create_logger
+from dmb.data.bose_hubbard_2d.simulation import SimulationOutput
+import numpy as np
 
 log = create_logger(__name__)
 
 
-@dataclass
-class WormOutput:
+@define
+class WormOutput(SimulationOutput):
     out_file_path: Path
     input_parameters: WormInputParameters
 
     @property
-    def densities(self):
+    def densities(self) -> np.ndarray | None:
+
         if not self.out_file_path.exists():
             log.warning(f"File {self.out_file_path} does not exist.")
             return None
-
         try:
             with h5py.File(self.out_file_path, "r") as f:
                 densities = f["simulation"]["densities"][()]
@@ -90,31 +92,3 @@ class WormOutput:
         }
 
         return vector_observables
-
-
-class SimulationRecord(object):
-    def __init__(self, record_dir: Path):
-        self.record_file_path = record_dir / "record.json"
-
-        if self.record_file_path.exists():
-            with open(self.record_file_path, "r") as f:
-                self.record = json.load(f)
-        else:
-            self.record = {}
-
-    def save(self):
-        with open(self.record_file_path, "w") as f:
-            json.dump(self.record, f)
-
-    def update(self, record: dict):
-        self.record.update(record)
-
-        self.save()
-
-    def __getitem__(self, key: str):
-        return self.record.get(key, None)
-
-    def __setitem__(self, key: str, value):
-        self.record[key] = value
-
-        self.save()
