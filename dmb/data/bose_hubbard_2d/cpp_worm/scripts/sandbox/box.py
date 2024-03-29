@@ -36,22 +36,28 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
     parser.add_argument(
-        "--muU_min",
+        "--muU_offset",
         type=float,
         default=0.0,
-        help="minimum mu offset",
+        help="mu/U offset",
     )
     parser.add_argument(
-        "--muU_max",
+        "--muU_delta_min",
+        type=float,
+        default=0.0,
+        help="minimum mu/U delta",
+    )
+    parser.add_argument(
+        "--muU_delta_max",
         type=float,
         default=3.0,
-        help="maximum mu offset",
+        help="maximum mu/U delta",
     )
     parser.add_argument(
-        "--muU_num_steps",
+        "--muU_delta_num_steps",
         type=int,
         default=50,
-        help="number of mu offset steps",
+        help="Number of mu/U delta steps",
     )
     parser.add_argument(
         "--ztU",
@@ -68,7 +74,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--L",
         type=int,
-        default=16,
+        default=41,
         help="lattice size",
     )
     parser.add_argument(
@@ -80,9 +86,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    os.environ["WORM_JOB_NAME"] = "mu_cut"
+    os.environ["WORM_JOB_NAME"] = "box"
 
-    target_dir = REPO_DATA_ROOT / f"mu_cut/{args.zVU}/{args.ztU}/{args.L}"
+    target_dir = REPO_DATA_ROOT / f"box/{args.zVU}/{args.ztU}/{args.L}"
     target_dir.mkdir(parents=True, exist_ok=True)
 
     L_out, ztU_out, zVU_out, muU_out = get_missing_samples(
@@ -90,7 +96,11 @@ if __name__ == "__main__":
         L=args.L,
         ztU=args.ztU,
         zVU=args.zVU,
-        muU=list(np.linspace(args.muU_min, args.muU_max, args.muU_num_steps)),
+        muU=list(
+            np.linspace(
+                args.muU_delta_min, args.muU_delta_max, args.muU_delta_num_steps
+            )
+        ),
         tolerance_ztU=0,
         tolerance_zVU=0,
         tolerance_muU=0,
@@ -103,13 +113,17 @@ if __name__ == "__main__":
         async with semaphore:
             await simulate(
                 parent_dir=target_dir,
-                simulation_name="mu_cut_{}_{:.3f}_{}".format(
+                simulation_name="box_{}_{:.3f}_{}".format(
                     args.zVU, muU_out[sample_id], sample_id
                 ),
                 L=args.L,
-                U_on=U_on,
-                V_nn=args.zVU * U_on / 4,
-                mu=np.ones((args.L, args.L)) * muU_out[sample_id] * U_on,
+                mu=get_square_mu(
+                    base_mu=0.0,
+                    delta_mu=muU_out[sample_id],
+                    square_size=22,
+                    lattice_size=args.L,
+                )
+                * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
                 U_on_array=np.ones((args.L, args.L)) * U_on,
                 V_nn_array=np.ones((2, args.L, args.L)) * args.zVU * U_on / 4,
@@ -117,7 +131,9 @@ if __name__ == "__main__":
                 mu_offset=muU_out[sample_id] * U_on,
             )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     loop.run_until_complete(
         asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))])
     )
