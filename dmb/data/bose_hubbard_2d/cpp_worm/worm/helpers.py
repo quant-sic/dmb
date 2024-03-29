@@ -78,20 +78,39 @@ async def call_sbatch_and_wait(script_path: Path, timeout: int = 48 * 60 * 60):
 
     # wait for job to finish with added timeout
     start_time = time.time()
-    while True:
-        p = subprocess.run(
-            "squeue -j " + job_id,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        if len(p.stdout.decode("utf-8").split("\n")) == 2:
-            break
-        await asyncio.sleep(1)
-        if time.time() - start_time > timeout:
-            raise TimeoutError("Job did not finish in time")
+    counter = 0
+    try:
+        while True:
+            counter += 1
+            process = subprocess.run(
+                ["squeue", "-j", job_id, "-h", "-o", "%T"],
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
 
-    log.debug(f"Job {job_id} finished")
+            job_state = process.stdout.decode("utf-8").strip()
+
+            if process.returncode != 0:
+                log.info(f"Error executing squeue: {process.stderr.decode('utf-8')}")
+                break
+
+            if not job_state in ("RUNNING", "PENDING"):
+                log.info(f"Job {job_id} ended {job_state}")
+                break
+
+            log.info(f"Job {job_id} is {job_state} ({counter})")
+            await asyncio.sleep(1)
+            print(time.time() - start_time)
+
+            if time.time() - start_time > timeout:
+                print(time.time() - start_time)
+                raise TimeoutError("Job did not finish in time")
+
+    except Exception as e:
+        log.error(f"Error: {e}")
+        raise e
+
+    log.info(f"Job {job_id} finished")
 
     # check if job was successful
 

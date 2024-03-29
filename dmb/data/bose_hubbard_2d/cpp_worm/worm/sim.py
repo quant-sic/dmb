@@ -6,7 +6,8 @@ from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
-
+from threading import Thread
+import concurrent.futures
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
@@ -169,6 +170,15 @@ class SimulationResult:
         if self.output.densities is None:
             results = None
         else:
+
+            if hasattr(self, "_densities_for_output") and np.array_equal(
+                self.output.densities, self._densities_for_output
+            ):
+                self.file_logger.debug("Using cached density error analysis.")
+                return self._density_error_analysis
+
+            self._densities_for_output = self.output.densities
+
             analysis = PrimaryAnalysis(
                 self.output.densities.reshape(1, *self.output.densities.shape),
                 rep_sizes=[len(self.output.densities)],
@@ -179,11 +189,27 @@ class SimulationResult:
             )
             analysis.mean()
 
+            timeout = 90  # seconds
             try:
-                results = analysis.errors()
+
+                def run_analysis():
+                    return analysis.errors()
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_analysis)
+                    results = future.result(timeout=timeout)
+
             except GammaPathologicalError as e:
                 self.file_logger.warning(f"GammaPathologicalError: {e}")
                 results = None
+
+            except concurrent.futures.TimeoutError:
+                self.file_logger.warning(
+                    f"TimeoutError: The Ulli Wolff Error analysis timed out after {timeout} seconds."
+                )
+                results = None
+
+            self._density_error_analysis = results
 
         return results
 

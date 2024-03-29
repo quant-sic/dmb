@@ -243,9 +243,9 @@ class WormSimulationRunner:
             parent_sim.save_parameters()
 
             # save uncorrected density error for final run
-            tune_sim.record[
-                "uncorrected_max_density_error"
-            ] = tune_sim.uncorrected_max_density_error
+            tune_sim.record["uncorrected_max_density_error"] = (
+                tune_sim.uncorrected_max_density_error
+            )
 
         tune_simulation = self.worm_simulation.tune_simulation
 
@@ -300,9 +300,11 @@ class WormSimulationRunner:
             tune_simulation.input_parameters.Nmeasure = Nmeasure
 
             tune_runner = WormSimulationRunner(worm_simulation=tune_simulation)
+
             try:
                 await tune_runner.run()
-            except RuntimeError:
+            except RuntimeError as e:
+                log.error(f"Error {e} running tune simulation.")
                 continue
 
             tune_simulation.record["steps"].append(
@@ -310,17 +312,27 @@ class WormSimulationRunner:
                     "sweeps": sweeps,
                     "thermalization": thermalization,
                     "Nmeasure2": Nmeasure2,
-                    "tau_max": float(tune_simulation.max_tau_int)
-                    if tune_simulation.max_tau_int is not None
-                    else None,
-                    "max_density_error": float(tune_simulation.max_density_error)
-                    if tune_simulation.max_density_error is not None
-                    else None,
+                    "tau_max": (
+                        float(tune_simulation.max_tau_int)
+                        if tune_simulation.max_tau_int is not None
+                        else None
+                    ),
+                    "max_density_error": (
+                        float(tune_simulation.max_density_error)
+                        if tune_simulation.max_density_error is not None
+                        else None
+                    ),
                 }
             )
 
-            tune_simulation.plot_observables()
+            if (
+                tune_simulation.max_density_error is None
+                or tune_simulation.max_density_error < 0
+            ):
+                # adjust seed
+                tune_simulation.input_parameters.seed = np.random.randint(0, 2**16)
 
+            tune_simulation.plot_observables()
             tau_max_values = get_tau_max_values(tune_simulation.record["steps"])
 
             # plot all tau values

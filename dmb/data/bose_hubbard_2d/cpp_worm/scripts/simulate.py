@@ -126,8 +126,6 @@ async def simulate(
     parent_dir: Path,
     simulation_name: str,
     L: int,
-    U_on: float,
-    V_nn: float,
     mu: float,
     t_hop_array: np.ndarray,
     U_on_array: np.ndarray,

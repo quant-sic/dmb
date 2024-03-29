@@ -117,8 +117,6 @@ if __name__ == "__main__":
                     args.zVU, muU_out[sample_id], sample_id
                 ),
                 L=args.L,
-                U_on=U_on,
-                V_nn=args.zVU * U_on / 4,
                 mu=get_quadratic_mu(
                     [args.coefficient, args.coefficient],
                     args.L,

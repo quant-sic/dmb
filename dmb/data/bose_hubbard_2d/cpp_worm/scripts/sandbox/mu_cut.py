@@ -58,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--number_of_concurrent_jobs",
         type=int,
-        default=1,
+        default=10,
         help="number of concurrent jobs",
     )
 
@@ -91,8 +91,6 @@ if __name__ == "__main__":
                     args.zVU, muU_out[sample_id], sample_id
                 ),
                 L=args.L,
-                U_on=U_on,
-                V_nn=args.zVU * U_on / 4,
                 mu=np.ones((args.L, args.L)) * muU_out[sample_id] * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
                 U_on_array=np.ones((args.L, args.L)) * U_on,
