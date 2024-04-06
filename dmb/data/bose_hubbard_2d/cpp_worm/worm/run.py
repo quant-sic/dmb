@@ -6,28 +6,46 @@ import numpy as np
 from tqdm import tqdm
 from typing import List, Dict
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import (
+    WormSimulation,
+)
 from dmb.utils import create_logger
 
 log = create_logger(__name__)
 
 
+def sync_async(func):
+    def wrapper(*args, **kwargs):
+        return asyncio.run(func(*args, **kwargs))
+
+    return wrapper
+
+
 class WormSimulationRunner:
+    """Class to run worm simulation."""
+
     def __init__(self, worm_simulation: WormSimulation):
         self.worm_simulation = worm_simulation
 
-    async def run(self, num_restarts: int = 1):
+        run_iterative_until_converged_sync = sync_async(
+            self.run_iterative_until_converged
+        )
+        tune_nmeasure2_sync = sync_async(self.tune_nmeasure2)
+
+    async def _run(self):
+        """Run worm simulation."""
         self.worm_simulation.save_parameters()
         try:
-            await self.worm_simulation.execute_worm(num_restarts=num_restarts)
+            await self.worm_simulation.execute_worm()
         except RuntimeError as e:
             self.worm_simulation.file_logger.error(e)
             raise e
 
-    async def run_continue(self, num_restarts: int = 1):
+    async def _run_continue(self):
+        """Continue worm simulation."""
         self.worm_simulation.save_parameters()
         try:
-            await self.worm_simulation.execute_worm_continue(num_restarts=num_restarts)
+            await self.worm_simulation.execute_worm_continue()
         except RuntimeError as e:
             self.worm_simulation.file_logger.error(e)
             raise e
@@ -39,9 +57,18 @@ class WormSimulationRunner:
         num_sweep_increments: int = 35,
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
-        num_restarts: int = 1,
         restart: bool = False,
     ) -> None:
+        """Run worm simulation iteratively until converged.
+
+        Args:
+            max_num_measurements_per_nmeasure2: Maximum number of measurements per Nmeasure2.
+            min_num_measurements_per_nmeasure2: Minimum number of measurements per Nmeasure2.
+            num_sweep_increments: Number of sweep increments.
+            sweeps_to_thermalization_ratio: Ratio of sweeps to thermalization.
+            max_abs_error_threshold: Maximum absolute error threshold.
+            restart: Restart simulation.
+        """
         try:
             expected_required_num_measurements = (
                 2
@@ -88,6 +115,12 @@ class WormSimulationRunner:
                 for i in range(num_sweep_increments)
             ]
         )
+        self.worm_simulation.file_logger.info(
+            f"""Will iterate over {num_sweep_increments} steps with sweeps values: {num_sweeps_values} \n\n"""
+        )
+        self.worm_simulation.input_parameters.sweeps = num_sweeps_values[0]
+        self.worm_simulation.save_parameters()
+
         # set thermalization
         self.worm_simulation.input_parameters.thermalization = int(
             num_sweeps_values[0] / sweeps_to_thermalization_ratio
@@ -122,9 +155,9 @@ class WormSimulationRunner:
             start_time = time.perf_counter()
             try:
                 if step_idx > 0 and checkpoint_produced:
-                    await self.run_continue(num_restarts=num_restarts)
+                    await self._run_continue()
                 else:
-                    await self.run(num_restarts=num_restarts)
+                    await self._run()
             except RuntimeError as e:
                 self.worm_simulation.file_logger.error(e)
                 continue
@@ -158,28 +191,6 @@ class WormSimulationRunner:
             if error is not None and error < max_abs_error_threshold and error > 0:
                 break
 
-    def run_iterative_until_converged_sync(
-        self,
-        max_num_measurements_per_nmeasure2: int = 250000,
-        min_num_measurements_per_nmeasure2: int = 15000,
-        num_sweep_increments: int = 25,
-        sweeps_to_thermalization_ratio: int = 10,
-        max_abs_error_threshold: int = 0.015,
-        num_restarts: int = 1,
-        restart: bool = False,
-    ) -> None:
-        asyncio.run(
-            self.run_iterative_until_converged(
-                max_num_measurements_per_nmeasure2=max_num_measurements_per_nmeasure2,
-                min_num_measurements_per_nmeasure2=min_num_measurements_per_nmeasure2,
-                num_sweep_increments=num_sweep_increments,
-                sweeps_to_thermalization_ratio=sweeps_to_thermalization_ratio,
-                max_abs_error_threshold=max_abs_error_threshold,
-                num_restarts=num_restarts,
-                restart=restart,
-            )
-        )
-
     async def tune_nmeasure2(
         self,
         max_nmeasure2: int = 250000,
@@ -192,6 +203,20 @@ class WormSimulationRunner:
         max_nmeasure: int = 10000,
         min_nmeasure: int = 1,
     ) -> None:
+        """Tune Nmeasure2.
+
+        Args:
+            max_nmeasure2: Maximum Nmeasure2.
+            min_nmeasure2: Minimum Nmeasure2.
+            num_measurements_per_nmeasure2: Number of measurements per Nmeasure2.
+            tau_threshold: Tau threshold.
+            step_size_multiplication_factor: Step size multiplication factor.
+            sweeps_to_thermalization_ratio: Ratio of sweeps to thermalization.
+            nmeasure2_to_nmeasure_ratio: Ratio of Nmeasure2 to Nmeasure.
+            max_nmeasure: Maximum Nmeasure.
+            min_nmeasure: Minimum Nmeasure.
+        """
+
         def get_tau_max_keys(steps: List[Dict]) -> List[str]:
             # get tau_max key
             tau_max_keys_steps = [
@@ -226,9 +251,7 @@ class WormSimulationRunner:
             # get tau_max key
             tau_max_values = get_tau_max_values(tune_simulation.record["steps"])
 
-            if (tau_max_values[-1:] < tau_threshold).all() and (
-                tau_max_values[-1:] > 0
-            ).all():
+            if tau_max_values[-1] < tau_threshold and (tau_max_values[-1] > 0):
                 return True
 
         def finalize_tuning(
@@ -302,9 +325,11 @@ class WormSimulationRunner:
             tune_runner = WormSimulationRunner(worm_simulation=tune_simulation)
 
             try:
-                await tune_runner.run()
+                await tune_runner._run()
             except RuntimeError as e:
-                log.error(f"Error {e} running tune simulation.")
+                self.worm_simulation.file_logger.error(
+                    f"Error {e} running tune simulation."
+                )
                 continue
 
             tune_simulation.record["steps"].append(
@@ -312,16 +337,8 @@ class WormSimulationRunner:
                     "sweeps": sweeps,
                     "thermalization": thermalization,
                     "Nmeasure2": Nmeasure2,
-                    "tau_max": (
-                        float(tune_simulation.max_tau_int)
-                        if tune_simulation.max_tau_int is not None
-                        else None
-                    ),
-                    "max_density_error": (
-                        float(tune_simulation.max_density_error)
-                        if tune_simulation.max_density_error is not None
-                        else None
-                    ),
+                    "tau_max": tune_simulation.max_tau_int,
+                    "max_density_error": tune_simulation.max_density_error,
                 }
             )
 
@@ -351,34 +368,13 @@ class WormSimulationRunner:
 
             if break_condition(tune_simulation):
                 finalize_tuning(self.worm_simulation, tune_simulation)
+                self.worm_simulation.file_logger.info(
+                    "Tuning finished at: \n Nmeasure2: {}, tau_max: {}, max_density_error: {}.".format(
+                        Nmeasure2, tau_max_values[-1], tune_simulation.max_density_error
+                    )
+                )
                 break
 
             # get biggest smaller 2**x value
             if tau_max_values[-1] > 0 and not tau_max_values[-1] is None:
                 skip_next_counter = int(np.log2(tau_max_values[-1])) - 2
-
-    def tune_nmeasure2_sync(
-        self,
-        max_nmeasure2: int = 250000,
-        min_nmeasure2: int = 35,
-        num_measurements_per_nmeasure2: int = 15000,
-        tau_threshold: int = 10,
-        step_size_multiplication_factor: float = 1.8,
-        sweeps_to_thermalization_ratio: int = 10,
-        nmeasure2_to_nmeasure_ratio: int = 10,
-        max_nmeasure: int = 10000,
-        min_nmeasure: int = 1,
-    ) -> None:
-        asyncio.run(
-            self.tune_nmeasure2(
-                max_nmeasure2=max_nmeasure2,
-                min_nmeasure2=min_nmeasure2,
-                num_measurements_per_nmeasure2=num_measurements_per_nmeasure2,
-                tau_threshold=tau_threshold,
-                step_size_multiplication_factor=step_size_multiplication_factor,
-                sweeps_to_thermalization_ratio=sweeps_to_thermalization_ratio,
-                nmeasure2_to_nmeasure_ratio=nmeasure2_to_nmeasure_ratio,
-                max_nmeasure=max_nmeasure,
-                min_nmeasure=min_nmeasure,
-            )
-        )

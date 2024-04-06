@@ -479,6 +479,32 @@ class Analysis(object):
         return self.results
 
 
+def gamma_with_error_handling(
+    fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False
+):
+    try:
+        return gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau, rep_equal)
+    except NoFluctuationsError:
+        logger.debug("Data without fluctuations")
+        return {
+            "flag": False,
+            "t_max": 0,
+            "w_opt": 0,
+            "value": fbb,
+            "variance": 0,
+            "dvalue": 0,
+            "ddvalue": 0,
+            "naive_err": 0,
+            "tau_int": -1,
+            "dtau_int": 0,
+            "tau_int_fbb": np.zeros(1),
+            "dtau_int_fbb": np.zeros(1),
+            "rho": np.zeros(1),
+            "drho": np.zeros(1),
+            "qval": 0,
+        }
+
+
 class PrimaryAnalysis(Analysis):
     def __init__(self, data, rep_sizes, name=None):
         super(PrimaryAnalysis, self).__init__(
@@ -512,36 +538,17 @@ class PrimaryAnalysis(Analysis):
         for alpha in range(n_alpha):
             logger.debug("Computing errors for %s", self.name[alpha])
 
-            try:
-                res = gamma(
-                    fbb[alpha],
-                    fbr[:, alpha],
-                    fb[alpha],
-                    delpro[:, :, alpha],
-                    r,
-                    n,
-                    n_rep,
-                    stau,
-                    self.rep_equal,
-                )
-            except NoFluctuationsError:
-                res = {
-                    "flag": False,
-                    "t_max": 0,
-                    "w_opt": 0,
-                    "value": fbb[alpha],
-                    "variance": 0,
-                    "dvalue": 0,
-                    "ddvalue": 0,
-                    "naive_err": 0,
-                    "tau_int": -1,
-                    "dtau_int": 0,
-                    "tau_int_fbb": np.zeros(1),
-                    "dtau_int_fbb": np.zeros(1),
-                    "rho": np.zeros(1),
-                    "drho": np.zeros(1),
-                    "qval": 0,
-                }
+            res = gamma_with_error_handling(
+                fbb[alpha],
+                fbr[:, alpha],
+                fb[alpha],
+                delpro[:, :, alpha],
+                r,
+                n,
+                n_rep,
+                stau,
+                self.rep_equal,
+            )
 
             if res["flag"]:
                 logger.warning(
@@ -611,7 +618,9 @@ class DerivedAnalysis(Analysis):
         fb = self.applied.rep_mean
         delpro = self.applied.deviation
 
-        res = gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau, self.rep_equal)
+        res = gamma_with_error_handling(
+            fbb, fbr, fb, delpro, r, n, n_rep, stau, self.rep_equal
+        )
 
         if res["flag"]:
             if self.name is not None:

@@ -12,49 +12,43 @@ from dmb.utils import create_logger
 from dmb.utils import ProgressParallel
 from joblib import delayed
 from functools import partial
-
+from attrs import define
 from tqdm import tqdm
-
+import numpy as np
+import shutil
 
 log = create_logger(__name__)
 
 
+@define
 class BoseHubbardDataset(Dataset):
     """Dataset for the Bose-Hubbard model."""
 
-    def __init__(
-        self,
-        data_dir: Union[str, Path],
-        observables: List[str] = [
-            "density",
-            "density_variance",
-            "density_density_corr_0",
-            "density_density_corr_1",
-            "density_density_corr_2",
-            "density_density_corr_3",
-            "density_squared",
-        ],
-        base_transforms=None,
-        train_transforms=None,
-        clean=True,
-        reload=False,
-        verbose=False,
-        max_density_error: float = 0.015,
-        include_tune_dirs: bool = False,
-    ):
-        self.data_dir = Path(data_dir).resolve()
-        self.observables = observables
+    data_dir: Path | str
+    observables: list[str] = [
+        "density",
+        "density_density_corr_0",
+        "density_density_corr_1",
+        "density_density_corr_2",
+        "density_density_corr_3",
+        "density_squared",
+        "density_max",
+        "density_min",
+        "density_variance",
+    ]
+    base_transforms: Optional[callable] = None
+    train_transforms: Optional[callable] = None
+    clean: bool = True
+    reload: bool = False
+    verbose: bool = False
+    max_density_error: float = 0.015
+    include_tune_dirs: bool = False
+    recalculate_errors: bool = False
+    delete_unreadable: bool = False
 
+    def __attrs_post_init__(self):
+        self.data_dir = Path(self.data_dir).resolve()
         log.info(f"Loading {self.__class__.__name__} dataset from {self.data_dir}")
-
-        self.base_transforms = base_transforms
-        self.train_transforms = train_transforms
-        self.max_density_error = max_density_error
-
-        self.clean = clean
-        self.reload = reload
-        self.verbose = verbose
-        self.include_tune_dirs = include_tune_dirs
 
     @cached_property
     def sim_dirs(self):
@@ -71,6 +65,8 @@ class BoseHubbardDataset(Dataset):
                 redo=self.reload,
                 verbose=self.verbose,
                 max_density_error=self.max_density_error,
+                recalculate_errors=self.recalculate_errors,
+                delete_unreadable=self.delete_unreadable,
             )
 
         return sim_dirs
@@ -81,13 +77,20 @@ class BoseHubbardDataset(Dataset):
         sim_dirs,
         redo=False,
         verbose=False,
-        max_density_error: Optional[float] = None,
+        max_density_error: float | None = None,
+        recalculate_errors: bool = False,
+        delete_unreadable: bool = False,
     ):
+        def log_verbose(msg, level="info"):
+            if verbose:
+                getattr(log, level)(msg)
+
         def filter_fn(sim_dir):
             try:
                 sim = WormSimulation.from_dir(sim_dir)
             except (OSError, KeyError):
-                log.error("Could not load simulation from %s.", sim_dir)
+                log_verbose(f"Could not load simulation from {sim_dir}", "error")
+
                 return False
 
             if "clean" in sim.record and not sim.record["clean"] and not redo:
@@ -95,24 +98,20 @@ class BoseHubbardDataset(Dataset):
             elif "clean" in sim.record and sim.record["clean"] and not redo:
                 valid = True
             else:
-                try:
-                    sim.output.accumulator_observables["Density_Distribution"]["mean"][
-                        "value"
-                    ]
-                    if sim.output.reshape_densities is None:
-                        raise KeyError
-
-                except (OSError, KeyError, TypeError, AttributeError):
-                    log.error("Could not load density distribution from %s.", sim_dir)
+                if sim.output.densities is None:
+                    log_verbose(
+                        f"Could not load density distribution from {sim_dir}", "error"
+                    )
                     valid = False
+
                 else:
                     valid = True
-                finally:
-                    sim.record["clean"] = valid
 
-                    # after saving the record, return if not valid
-                    if not valid:
-                        return False
+                sim.record["clean"] = valid
+
+                # after saving the record, return if not valid
+                if not valid:
+                    return False
 
             # general purpose validation
             sim.record["clean"] = valid
@@ -123,34 +122,43 @@ class BoseHubbardDataset(Dataset):
             try:
                 sim = WormSimulation.from_dir(sim_dir)
             except (OSError, KeyError):
-                log.error("Could not load simulation from %s.", sim_dir)
+                log_verbose(f"Could not load simulation from {sim_dir}", "error")
                 return False
 
             try:
-                # if not sim.record["steps"][-1]["error"] == sim.max_density_error:
-                #     log.warning(
-                #         "max_density_error in record does not match sim.max_density_error. "
-                #     )
-                #     # sim.record["steps"][-1]["error"] = sim.max_density_error
-                # return (
-                #     sim.max_density_error <= max_density_error and sim.max_tau_int > 0
-                # )
+                if recalculate_errors:
+                    log_verbose(f"Recalculating errors for {sim_dir}", "info")
+                    if not "steps" in sim.record or len(sim.record["steps"]) == 0:
+                        sim.record["steps"] = [{"error": None, "tau_max": None}]
+
+                    sim.record["steps"][-1]["error"] = sim.max_density_error
+                    sim.record["steps"][-1]["tau_max"] = sim.max_tau_int
+
                 return (sim.record["steps"][-1]["error"] <= max_density_error) and (
                     sim.record["steps"][-1]["tau_max"] > 0
                 )
-            except (IndexError, TypeError, KeyError):
+            except (IndexError, TypeError, KeyError) as e:
+                log_verbose(f"Error {e} During error filtering for {sim_dir}", "error")
                 return False
+
+        valid_sim_dirs = ProgressParallel(
+            n_jobs=10,
+            total=len(sim_dirs),
+            desc="Filtering Dataset",
+            use_tqdm=verbose,
+        )(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs)
+
+        if delete_unreadable:
+            for sim_dir, valid in zip(sim_dirs, valid_sim_dirs):
+                if not valid:
+                    log_verbose(f"Deleting {sim_dir}")
+                    shutil.rmtree(sim_dir)
 
         sim_dirs = list(
             itertools.compress(
                 sim_dirs,
                 # [filter_fn(sim_dir) for sim_dir in sim_dirs]
-                ProgressParallel(
-                    n_jobs=10,
-                    total=len(sim_dirs),
-                    desc="Filtering Dataset",
-                    use_tqdm=verbose,
-                )(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs),
+                valid_sim_dirs,
             )
         )
 
@@ -196,13 +204,29 @@ class BoseHubbardDataset(Dataset):
             if not inputs_path.exists() or not outputs_path.exists() or reload:
                 sim = WormSimulation.from_dir(sim_dir)
 
-                saved_observables = sim.observables.observables_names
+                saved_observables = (
+                    sim.observables.observable_names["primary"]
+                    + sim.observables.observable_names["derived"]
+                )
 
+                primary_observables = [
+                    sim.observables.get_expectation_value("primary", obs_name)
+                    for obs_name in sim.observables.observable_names["primary"]
+                ]
+                derived_observables = [
+                    np.full(
+                        shape=primary_observables[0].shape,
+                        fill_value=sim.observables.get_expectation_value(
+                            "derived", obs_name
+                        ),
+                    )
+                    for obs_name in sim.observables.observable_names["derived"]
+                ]
                 # stack observables
                 outputs = torch.stack(
                     [
-                        torch.from_numpy(sim.observables[obs]).float()
-                        for obs in saved_observables
+                        torch.from_numpy(obs)
+                        for obs in primary_observables + derived_observables
                     ],
                     dim=0,
                 )
@@ -212,7 +236,9 @@ class BoseHubbardDataset(Dataset):
                     sim.input_parameters.U_on,
                     sim.input_parameters.V_nn,
                     cb_projection=True,
-                    target_density=sim.observables["density"],
+                    target_density=sim.observables.get_expectation_value(
+                        "primary", "density"
+                    ),
                 )
 
                 # save to .npy files
@@ -333,3 +359,27 @@ class BoseHubbardDataset(Dataset):
                 return True
 
         return False
+
+    def get_phase_diagram_sample(
+        self,
+        ztU: float,
+        muU: float,
+        zVU: float,
+        L: int,
+        ztU_tol: float = 0.01,
+        muU_tol: float = 0.01,
+        zVU_tol: float = 0.01,
+    ):
+        for idx, _ in enumerate(self):
+            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
+            L_i = self.get_parameters(idx).Lx
+
+            if (
+                abs(ztU_i - ztU) <= ztU_tol
+                and abs(muU_i - muU) <= muU_tol
+                and abs(zVU_i - zVU) <= zVU_tol
+                and L_i == L
+            ):
+                return self[idx]
+
+        return None

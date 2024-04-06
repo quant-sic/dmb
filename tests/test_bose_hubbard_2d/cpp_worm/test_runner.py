@@ -5,14 +5,12 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm import (
-    WormInputParameters,
-    WormSimulation,
-    WormSimulationRunner,
-)
+from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormInputParameters, \
+    WormSimulation, WormSimulationRunner
 
 
 class FakeSimulation:
+
     def __init__(self, save_dir: Path) -> None:
         self.record = MagicMock()
         self.save_dir = save_dir

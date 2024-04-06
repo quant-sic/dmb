@@ -13,6 +13,11 @@ from dmb.data.bose_hubbard_2d.phase_diagram import (
 )
 from pathlib import Path
 import matplotlib.pyplot as plt
+from dmb.data.bose_hubbard_2d.plots import (
+    create_wedding_cake_plot,
+    create_box_plot,
+    create_box_cuts_plot,
+)
 import itertools
 
 log = create_logger(__name__)
@@ -157,6 +162,11 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
             ("density", "max-min"),
             ("density_variance", "mean"),
             ("mu_cut",),
+            ("wedding_cake", "2.67"),
+            ("wedding_cake", "1.33"),
+            ("wedding_cake", "2.0"),
+            ("box", "1.71"),
+            ("box_cuts",),
         ],
         zVUs: List[float] = (1.0, 1.5),
         ztUs: List[float] = (0.1, 0.25),
@@ -164,6 +174,9 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         # mu,ztU,out = model_predict(net,batch_size=512)
         for zVU, ztU in itertools.product(zVUs, ztUs):
             for figures in (
+                create_box_cuts_plot(self, zVU=zVU, ztU=ztU),
+                create_box_plot(self, zVU=zVU, ztU=ztU),
+                create_wedding_cake_plot(self, zVU=zVU, ztU=ztU),
                 plot_phase_diagram(self, n_samples=resolution, zVU=zVU),
                 plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
                 plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
@@ -179,16 +192,18 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
                     else:
                         yield path, obj
 
-                print(figures)
-
                 # recursively visit all figures
                 for path, figure in recursive_iter((), figures):
 
-                    print(path)
-                    if not any([path == check_ for check_ in check]):
+                    # * is a wildcard
+                    if not any(
+                        all(
+                            a == b or a == "*" or b == "*" for a, b in zip(check_, path)
+                        )
+                        and len(check_) == len(path)
+                        for check_ in check
+                    ):
                         continue
-
-                    print(path)
 
                     if isinstance(figure, plt.Figure):
                         save_path = Path(save_dir) / (

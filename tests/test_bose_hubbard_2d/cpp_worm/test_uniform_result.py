@@ -4,7 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
+    WormInputParameters
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.run import WormSimulationRunner
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 
@@ -12,8 +13,7 @@ from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 
 
 def check_mean_density_validity_assuming_uniform_input(
-    mean_density: np.ndarray, num_unique_values: int = 2
-):
+        mean_density: np.ndarray, num_unique_values: int = 2):
     if not ((mean_density >= 0).all() and (mean_density <= 1).all()):
         raise ValueError(
             f"mean_density must be between 0 and 1. mean_density: {mean_density}"
@@ -30,10 +30,10 @@ def check_mean_density_validity_assuming_uniform_input(
         )
 
 
-def test_check_mean_density_validity_assuming_uniform_input(tmp_path: Path) -> None:
-    for L, muU, ztU in itertools.product(
-        [4, 6, 8], [0.5, 1.0, 1.5, 2.0, 2.5], [0.1, 0.4]
-    ):
+def test_check_mean_density_validity_assuming_uniform_input(
+        tmp_path: Path) -> None:
+    for L, muU, ztU in itertools.product([4, 6, 8], [0.5, 1.0, 1.5, 2.0, 2.5],
+                                         [0.1, 0.4]):
         U_on = np.full(shape=(L, L), fill_value=4 / ztU)
 
         mu = np.ones((L, L)) * (muU * U_on)

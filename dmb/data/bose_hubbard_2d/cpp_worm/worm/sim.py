@@ -1,35 +1,33 @@
-import asyncio
 import datetime
-import os
 import subprocess
-from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
-from threading import Thread
-import concurrent.futures
+
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from auto_correlation import GammaPathologicalError, PrimaryAnalysis
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.helpers import (
-    call_sbatch_and_wait,
-    check_if_slurm_is_installed_and_running,
-    write_sbatch_script,
-)
+
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.observables import SimulationObservables
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
 from dmb.utils import REPO_DATA_ROOT, create_logger
 from dmb.utils.syjson import SyJson
 import logging
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.dispatching import AutoDispatcher
 
+__all__ = [
+    "WormSimulation",
+    "plot_sim_observables",
+    "plot_sim_inputs",
+    "plot_sim_phase_diagram_inputs",
+]
 
 log = create_logger(__name__)
 
 
-class SimulationExecution:
+class _SimulationExecution:
     @property
     def executable(self):
         if not hasattr(self, "_executable") or self._executable is None:
@@ -48,10 +46,13 @@ class SimulationExecution:
 
         self._executable = executable
 
+    @property
+    def dispatcher(self):
+        return AutoDispatcher()
+
     async def execute_worm(
         self,
-        input_file: Optional[Path] = None,
-        num_restarts: int = 1,
+        input_file_path: Optional[Path] = None,
     ):
         self.file_logger.info(
             f"""Running simulation with:
@@ -59,96 +60,39 @@ class SimulationExecution:
             Nmeasure2: {self.input_parameters.Nmeasure2},
             Nmeasure: {self.input_parameters.Nmeasure},
             thermalization: {self.input_parameters.thermalization}
-            Restarts: {num_restarts}
             Executable: {self.executable}
+            Input file Path: {input_file_path}
+            Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}
             """
         )
 
-        errors = []
-        for run_idx in range(num_restarts):
-            try:
-                await self.execute_worm_single_try(input_file=input_file)
-            except subprocess.CalledProcessError as e:
-                self.file_logger.error(
-                    f"Restarting worm calculation... run {run_idx} failed!"
-                )
-                errors.append(e)
-
-                if run_idx == num_restarts - 1:
-                    raise RuntimeError(
-                        f"""Worm calculation failed {num_restarts} times.
-                        Errors: {errors}. Aborting."""
-                    )
-                continue
-            else:
-                break
+        try:
+            await self.dispatcher.dispatch(
+                task=[
+                    "mpirun",
+                    "--use-hwthread-cpus",
+                    str(self.executable),
+                    str(input_file_path or self.input_parameters.ini_path),
+                ],
+                job_name="worm",
+                work_directory=self.save_dir,
+                pipeout_dir=self.save_dir / "pipe_out",
+                timeout=60 * 60 * 24,
+            )
+        except subprocess.CalledProcessError as e:
+            self.file_logger.error(
+                f"Worm calculation failed with error code {e.returncode}."
+            )
 
     async def execute_worm_continue(
         self,
-        num_restarts: int = 1,
     ):
         await self.execute_worm(
-            input_file=self.input_parameters.checkpoint,
-            num_restarts=num_restarts,
+            input_file_path=self.input_parameters.checkpoint,
         )
 
-    async def execute_worm_single_try(self, input_file: Optional[Path] = None):
-        if input_file is None:
-            input_file = self.input_parameters.ini_path
 
-        pipeout_dir = self.save_dir / "pipe_out"
-        pipeout_dir.mkdir(parents=True, exist_ok=True)
-
-        # determine scheduler
-        if check_if_slurm_is_installed_and_running():
-            write_sbatch_script(
-                script_path=self.save_dir / "run.sh",
-                worm_executable_path=self.executable,
-                parameters_path=input_file,
-                pipeout_dir=pipeout_dir,
-            )
-
-            # submit job
-            await call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
-
-        else:
-            env = os.environ.copy()
-            env["TMPDIR"] = "/tmp"
-
-            cmd = [
-                "mpirun",
-                "--use-hwthread-cpus",
-                str(self.executable),
-                str(input_file),
-            ]
-            self.file_logger.info(f"Running command: {' '.join(cmd)}")
-            p = await asyncio.create_subprocess_exec(
-                *cmd,
-                env=env,
-                stderr=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-            )
-
-            stdout, stderr = await p.communicate()
-
-            # write output to file
-            now = datetime.datetime.now()
-            with open(pipeout_dir / f"stdout_{now}.txt", "w") as f:
-                f.write(stdout.decode("utf-8"))
-            with open(pipeout_dir / f"stderr_{now}.txt", "w") as f:
-                f.write(stderr.decode("utf-8"))
-
-            # if job failed, raise error
-            if p.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    returncode=p.returncode,
-                    cmd=cmd,
-                    output=stdout,
-                    stderr=stderr,
-                )
-
-
-class SimulationResult:
+class _SimulationResult:
     @property
     def output(self):
         if self.input_parameters.outputfile_relative is None:
@@ -160,144 +104,85 @@ class SimulationResult:
             out_file_path = self.save_dir / self.input_parameters.outputfile_relative
 
         _output = WormOutput(
-            out_file_path=out_file_path, input_parameters=self.input_parameters
+            out_file_path=out_file_path,
+            input_parameters=self.input_parameters,
+            logging_instance=self.file_logger,
         )
 
         return _output
-
-    @property
-    def density_error_analysis(self):
-        if self.output.densities is None:
-            results = None
-        else:
-
-            if hasattr(self, "_densities_for_output") and np.array_equal(
-                self.output.densities, self._densities_for_output
-            ):
-                self.file_logger.debug("Using cached density error analysis.")
-                return self._density_error_analysis
-
-            self._densities_for_output = self.output.densities
-
-            analysis = PrimaryAnalysis(
-                self.output.densities.reshape(1, *self.output.densities.shape),
-                rep_sizes=[len(self.output.densities)],
-                name=[
-                    f"{int(idx/self.input_parameters.Lx)}{idx%self.input_parameters.Lx}"
-                    for idx in range(self.input_parameters.Lx**2)
-                ],
-            )
-            analysis.mean()
-
-            timeout = 90  # seconds
-            try:
-
-                def run_analysis():
-                    return analysis.errors()
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(run_analysis)
-                    results = future.result(timeout=timeout)
-
-            except GammaPathologicalError as e:
-                self.file_logger.warning(f"GammaPathologicalError: {e}")
-                results = None
-
-            except concurrent.futures.TimeoutError:
-                self.file_logger.warning(
-                    f"TimeoutError: The Ulli Wolff Error analysis timed out after {timeout} seconds."
-                )
-                results = None
-
-            self._density_error_analysis = results
-
-        return results
-
-    @property
-    def density_error(self) -> Optional[np.ndarray]:
-        return (
-            self.density_error_analysis.dvalue
-            if self.density_error_analysis is not None
-            else None
-        )
-
-    @property
-    def density_variance(self) -> Optional[np.ndarray]:
-        return (
-            np.var(self.output.densities, axis=0)
-            if self.densities is not None
-            else None
-        )
-
-    @property
-    def max_density_error(self) -> Optional[float]:
-        return (
-            float(np.max(self.density_error_analysis.dvalue))
-            if self.density_error_analysis is not None
-            else None
-        )
-
-    @property
-    def uncorrected_max_density_error(self) -> float:
-        return float(np.max(self.output.densities.std(axis=0)))
-
-    @property
-    def max_tau_int(self) -> float:
-        return (
-            float(np.max(self.density_error_analysis.tau_int))
-            if self.density_error_analysis is not None
-            else -1
-        )
 
     @property
     def observables(self):
         return SimulationObservables(output=self.output)
 
     @property
-    def convergence_stats(self):
-        ABSOLUTE_THRESHOLD: float = 0.01
-        TAU_THRESHOLD: float = 5
+    def max_tau_int(self) -> float | None:
+        tau_int = self.observables.get_error_analysis("primary", "density")["tau_int"]
+        return float(np.max(tau_int)) if tau_int is not None else None
 
-        observables = self.output.accumulator_vector_observables
+    @property
+    def uncorrected_max_density_error(self) -> float | None:
+        naive_error = self.observables.get_error_analysis("primary", "density")[
+            "naive_error"
+        ]
+        return float(np.max(naive_error)) if naive_error is not None else None
 
-        stats_dict = defaultdict(dict)
-        converged_dict = defaultdict(dict)
-        for obs in observables:
-            converged_dict[obs]["absolute_error"] = (
-                observables[obs]["mean"]["error"] < ABSOLUTE_THRESHOLD
-            ).all()
-            stats_dict[obs]["absolute_error"] = float(
-                (observables[obs]["mean"]["error"]).max()
+    @property
+    def max_density_error(self) -> float | None:
+        error = self.observables.get_error_analysis("primary", "density")["error"]
+        return float(np.max(error)) if error is not None else None
+
+    def plot_observables(self, observable_names: list[str] = ["density"]):
+        """
+        Plot the results of the worm calculation.
+        """
+
+        inputs = self.input_parameters.mu
+
+        for obs in observable_names:
+            fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+            plt.subplots_adjust(wspace=0.5)
+
+            error_analysis = self.observables.get_error_analysis("primary", obs)
+
+            value_plot = ax[0].imshow(error_analysis["expectation_value"])
+            ax[0].set_title(obs)
+            fig.colorbar(value_plot, ax=ax[0])
+
+            error_plot = ax[1].imshow(error_analysis["error"])
+            ax[1].set_title("Error")
+            fig.colorbar(error_plot, ax=ax[1])
+
+            chem_pot_plot = ax[2].imshow(
+                inputs.reshape(self.input_parameters.Lx, self.input_parameters.Ly)
             )
+            ax[2].set_title("Chemical Potential")
+            fig.colorbar(chem_pot_plot, ax=ax[2])
 
-            stats_dict[obs]["error_std"] = float(
-                (observables[obs]["mean"]["error"]).std()
-            )
-            stats_dict[obs]["num_samples"] = int(observables[obs]["count"])
+            for a in ax:
+                a.set_xticks([])
+                a.set_yticks([])
 
-            # # get max tau without nans
-            if np.isnan(observables[obs]["tau"]).all():
-                tau_max = np.nan
-                self.file_logger.debug("All tau values are nan")
-            else:
-                tau_max = np.nanmax(observables[obs]["tau"])
+            # save figure. append current time formatted to avoid overwriting
+            # plots dir
+            plots_dir = self.get_plot_dir(self.save_dir) / obs
+            plots_dir.mkdir(parents=True, exist_ok=True)
 
-            converged_dict[obs]["tau_max"] = tau_max < TAU_THRESHOLD
-            stats_dict[obs]["tau_max"] = float(tau_max)
+            now = datetime.datetime.now()
+            now = now.strftime("%Y-%m-%d_%H-%M-%S")
+            fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
+            plt.close()
 
-        # get tau with ulli wolff method
-        try:
-            stats_dict["uw_tau_max_density"] = self.max_tau_int
-            stats_dict["uw_dmax_density"] = self.max_density_error
-        except GammaPathologicalError as e:
-            self.file_logger.info(e)
-            stats_dict["uw_tau_max_density"] = -1
-            stats_dict["uw_dmax_density"] = -1
+    def plot_inputs(self):
+        self.input_parameters.plot_inputs(plots_dir=self.get_plot_dir(self.save_dir))
 
-        return stats_dict
+    def plot_phase_diagram_inputs(self):
+        self.input_parameters.plot_phase_diagram_inputs(
+            plots_dir=self.get_plot_dir(self.save_dir)
+        )
 
 
-class WormSimulation(SimulationExecution, SimulationResult):
+class WormSimulation(_SimulationExecution, _SimulationResult):
     """Class to manage worm simulations."""
 
     def __init__(
@@ -397,72 +282,18 @@ class WormSimulation(SimulationExecution, SimulationResult):
                 except KeyError:
                     f["parameters/extension_sweeps"] = extension_sweeps
 
+    def get_extension_sweeps_from_checkpoints(self):
+        extension_sweeps = None
+        for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
+            with h5py.File(checkpoint_file, "r") as f:
+                try:
+                    extension_sweeps = f["parameters/extension_sweeps"][()]
+                except KeyError:
+                    pass
+        return extension_sweeps
+
     @staticmethod
     def get_plot_dir(save_dir: Path):
         plot_dir = save_dir / "plots"
         plot_dir.mkdir(parents=True, exist_ok=True)
         return plot_dir
-
-    def plot_observables(self):
-        """
-        Plot the results of the worm calculation.
-        """
-
-        inputs = self.input_parameters.mu
-        outputs = self.output.accumulator_vector_observables
-
-        if outputs is None:
-            self.file_logger.warning(
-                f"No outputs found. Skipping plotting for this simulation {self.save_dir}"
-            )
-            return
-
-        for obs_idx, (obs, obs_dict) in enumerate(outputs.items()):
-            fig, ax = plt.subplots(1, 3, figsize=(12, 4))
-            plt.subplots_adjust(wspace=0.5)
-
-            value_plot = ax[0].imshow(
-                obs_dict["mean"]["value"].reshape(
-                    int(np.sqrt(len(obs_dict["mean"]["value"]))),
-                    -1,
-                )
-            )
-            ax[0].set_title(obs)
-            fig.colorbar(value_plot, ax=ax[0])
-
-            error_plot = ax[1].imshow(
-                obs_dict["mean"]["error"].reshape(
-                    int(np.sqrt(len(obs_dict["mean"]["error"]))),
-                    -1,
-                )
-            )
-            ax[1].set_title("Error")
-            fig.colorbar(error_plot, ax=ax[1])
-
-            chem_pot_plot = ax[2].imshow(
-                inputs.reshape(self.input_parameters.Lx, self.input_parameters.Ly)
-            )
-            ax[2].set_title("Chemical Potential")
-            fig.colorbar(chem_pot_plot, ax=ax[2])
-
-            for a in ax:
-                a.set_xticks([])
-                a.set_yticks([])
-
-            # save figure. append current time formatted to avoid overwriting
-            # plots dir
-            plots_dir = self.get_plot_dir(self.save_dir) / obs
-            plots_dir.mkdir(parents=True, exist_ok=True)
-
-            now = datetime.datetime.now()
-            now = now.strftime("%Y-%m-%d_%H-%M-%S")
-            fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
-            plt.close()
-
-    def plot_inputs(self):
-        self.input_parameters.plot_inputs(plots_dir=self.get_plot_dir(self.save_dir))
-
-    def plot_phase_diagram_inputs(self):
-        self.input_parameters.plot_phase_diagram_inputs(
-            plots_dir=self.get_plot_dir(self.save_dir)
-        )

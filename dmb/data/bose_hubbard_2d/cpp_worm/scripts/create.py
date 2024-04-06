@@ -149,11 +149,11 @@ async def simulate(
     )
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
-    try:
-        await sim_run.tune_nmeasure2()
-        await sim_run.run_iterative_until_converged()
-    except Exception as e:
-        log.error(f"Exception occured: {e}")
+    # try:
+    await sim_run.tune_nmeasure2()
+    await sim_run.run_iterative_until_converged()
+    # except Exception as e:
+    #     log.error(f"Exception occured: {e}")
 
 
 if __name__ == "__main__":
@@ -214,7 +214,9 @@ if __name__ == "__main__":
                 mu_offset_max=args.mu_offset_max,
             )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     loop.run_until_complete(
         asyncio.gather(
             *[run_sample(sample_id) for sample_id in range(args.number_of_samples)]

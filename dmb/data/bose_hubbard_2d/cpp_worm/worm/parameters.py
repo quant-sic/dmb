@@ -1,4 +1,11 @@
-from dataclasses import dataclass
+"""Module for the worm input parameters."""
+
+__all__ = [
+    "WormInputParameters",
+    "plot_worm_input_parameters",
+    "plot_phase_diagram_worm_input_parameters",
+]
+
 from pathlib import Path
 from typing import Optional, Union
 
@@ -9,12 +16,16 @@ from functools import partial
 
 from dmb.utils import create_logger
 import os
+from attrs import define
+from dataclasses import dataclass
 
 log = create_logger(__name__)
 
 
 @dataclass
 class WormInputParameters:
+    """Class for the input parameters of the worm simulation."""
+
     mu: Union[np.ndarray, float]
     t_hop: Union[np.ndarray, float] = 1.0
     U_on: Union[np.ndarray, float] = 4.0
@@ -161,7 +172,7 @@ class WormInputParameters:
         # if checkpoints already exist, edit the checkpoint path
         if reset_paths:
             try:
-                self.update_paths_in_checkpoint()               
+                self.update_paths_in_checkpoint()
             except OSError as e:
                 log.warning(f"Exception occured during checkpoint editing: {e}")
 
@@ -261,56 +272,79 @@ class WormInputParameters:
         self.save(save_dir_path)
         self.save_h5()
 
-    def plot_inputs(self, plots_dir: Path):
-        # create parent directory if it does not exist
-        plots_dir.mkdir(parents=True, exist_ok=True)
 
-        fig, ax = plt.subplots(1, 4, figsize=(20, 5))
-        ax[0].imshow(self.mu.reshape(self.Lx, self.Ly))
-        ax[0].set_title("mu")
-        ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0])
-        ax[1].set_title("t_hop")
-        ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly))
-        ax[2].set_title("U_on")
-        ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0])
-        ax[3].set_title("V_nn")
+def plot_worm_input_parameters(
+    parameters: WormInputParameters, plots_dir: Path
+) -> None:
+    """Plot the input parameters of the worm simulation."""
+    plots_dir.mkdir(parents=True, exist_ok=True)
 
-        # set axes off
-        for ax_ in ax:
-            ax_.axis("off")
+    fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+    ax[0].imshow(parameters.mu.reshape(parameters.Lx, parameters.Ly))
+    ax[0].set_title("mu")
+    ax[1].imshow(parameters.t_hop.reshape(2, parameters.Lx, parameters.Ly)[0])
+    ax[1].set_title("t_hop")
+    ax[2].imshow(parameters.U_on.reshape(parameters.Lx, parameters.Ly))
+    ax[2].set_title("U_on")
+    ax[3].imshow(parameters.V_nn.reshape(2, parameters.Lx, parameters.Ly)[0])
+    ax[3].set_title("V_nn")
 
-        # set colorbars
-        fig.colorbar(ax[0].imshow(self.mu.reshape(self.Lx, self.Ly)), ax=ax[0])
-        fig.colorbar(ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0]), ax=ax[1])
-        fig.colorbar(ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly)), ax=ax[2])
-        fig.colorbar(ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0]), ax=ax[3])
+    # set axes off
+    for ax_ in ax:
+        ax_.axis("off")
 
-        plt.savefig(plots_dir / "inputs.png")
-        plt.close()
+    # set colorbars
+    fig.colorbar(
+        ax[0].imshow(parameters.mu.reshape(parameters.Lx, parameters.Ly)),
+        ax=ax[0],
+    )
+    fig.colorbar(
+        ax[1].imshow(parameters.t_hop.reshape(2, parameters.Lx, parameters.Ly)[0]),
+        ax=ax[1],
+    )
+    fig.colorbar(
+        ax[2].imshow(parameters.U_on.reshape(parameters.Lx, parameters.Ly)),
+        ax=ax[2],
+    )
+    fig.colorbar(
+        ax[3].imshow(parameters.V_nn.reshape(2, parameters.Lx, parameters.Ly)[0]),
+        ax=ax[3],
+    )
 
-    def plot_phase_diagram_inputs(self, plots_dir: Path):
-        muU = self.mu / self.U_on
-        ztU = 4 * self.t_hop / self.U_on[None, ...]
-        zVU = 4 * self.V_nn / self.U_on[None, ...]
+    plt.savefig(plots_dir / "inputs.png")
+    plt.close()
 
-        fig, ax = plt.subplots(1, 3, figsize=(15, 5))
-        ax[0].imshow(muU.reshape(self.Lx, self.Ly))
-        ax[0].set_title("muU")
 
-        ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0])
-        ax[1].set_title("ztU")
+def plot_phase_diagram_worm_input_parameters(
+    parameters: WormInputParameters, plots_dir: Path
+):
+    """Plot the phase diagram input parameters of the worm simulation."""
+    muU = parameters.mu / parameters.U_on
+    ztU = 4 * parameters.t_hop / parameters.U_on[None, ...]
+    zVU = 4 * parameters.V_nn / parameters.U_on[None, ...]
 
-        ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0])
-        ax[2].set_title("zVU")
+    fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+    ax[0].imshow(muU.reshape(parameters.Lx, parameters.Ly))
+    ax[0].set_title("muU")
 
-        # set axes off
-        for ax_ in ax:
-            ax_.axis("off")
+    ax[1].imshow(ztU.reshape(2, parameters.Lx, parameters.Ly)[0])
+    ax[1].set_title("ztU")
 
-        # set colorbars
-        fig.colorbar(ax[0].imshow(muU.reshape(self.Lx, self.Ly)), ax=ax[0])
-        fig.colorbar(ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0]), ax=ax[1])
-        fig.colorbar(ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0]), ax=ax[2])
+    ax[2].imshow(zVU.reshape(2, parameters.Lx, parameters.Ly)[0])
+    ax[2].set_title("zVU")
 
-        plt.savefig(plots_dir / "phase_diagram_inputs.png")
-        plt.close()
+    # set axes off
+    for ax_ in ax:
+        ax_.axis("off")
+
+    # set colorbars
+    fig.colorbar(ax[0].imshow(muU.reshape(parameters.Lx, parameters.Ly)), ax=ax[0])
+    fig.colorbar(
+        ax[1].imshow(ztU.reshape(2, parameters.Lx, parameters.Ly)[0]), ax=ax[1]
+    )
+    fig.colorbar(
+        ax[2].imshow(zVU.reshape(2, parameters.Lx, parameters.Ly)[0]), ax=ax[2]
+    )
+
+    plt.savefig(plots_dir / "phase_diagram_inputs.png")
+    plt.close()

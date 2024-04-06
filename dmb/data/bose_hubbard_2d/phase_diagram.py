@@ -251,15 +251,6 @@ def plot_phase_diagram_mu_cut(
     ds = BoseHubbardDataset(
         data_dir=path,
         clean=True,
-        observables=[
-            "density",
-            "density_variance",
-            "density_density_corr_0",
-            "density_density_corr_1",
-            "density_density_corr_2",
-            "density_density_corr_3",
-            "density_squared",
-        ],
         max_density_error=0.015,
         reload=True,
         verbose=False,
