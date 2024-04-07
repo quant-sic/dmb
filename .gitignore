@@ -17,5 +17,6 @@ dmb_old
 /logs
 
 .venv
+.trunk
 
 .ipynb_checkpoints/**/ */
