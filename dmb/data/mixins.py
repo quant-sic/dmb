@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.transforms.transforms import Compose
 
 from dmb.data.utils import random_seeded_split
-from dmb.utils import create_logger
+from dmb.logging import create_logger
 
 log = create_logger(__name__)
 

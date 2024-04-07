@@ -8,8 +8,9 @@ from attrs import define
 from auto_correlation import DerivedAnalysis, GammaPathologicalError, \
     PrimaryAnalysis
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
-from dmb.utils import create_logger
+from dmb.logging import create_logger
+
+from .outputs import WormOutput
 
 log = create_logger(__name__)
 
@@ -20,14 +21,14 @@ def reshape_if_not_none(results, attribute, shape):
         return None
 
     attribute_value = np.array(getattr(results, attribute))
+
     if attribute_value is None:
         return None
 
-    out = attribute_value.reshape(shape)
-    if shape == (1, ):
-        return float(out)
-
-    return out
+    if np.prod(attribute_value.shape) == np.prod(shape):
+        return attribute_value.reshape(shape)
+    else:
+        return attribute_value
 
 
 def ulli_wolff_mc_error_analysis(
@@ -35,7 +36,7 @@ def ulli_wolff_mc_error_analysis(
     timeout: int = 300,
     logging_instance: Logger = log,
     derived_quantity: callable = None,
-) -> dict[str, np.ndarray] | None:
+) -> dict[str, np.ndarray | None]:
     """Perform the Ulli Wolff Monte Carlo error analysis on the given samples.
 
     Args:
@@ -49,41 +50,46 @@ def ulli_wolff_mc_error_analysis(
     Returns:
         The errors of the observable, or None if the analysis failed.
     """
-    Lx, Ly = samples.shape[1:]
-
-    def function_shape_adjuster(function):
-
-        def wrapper(data):
-            return function(data.reshape(*data.shape[:-1], Lx, Ly))
-
-        return wrapper
+    sample_shape = samples.shape[1:]
+    number_individual_observables = int(np.prod(sample_shape))
+    individual_observable_names = [
+        "".join([f"{int(idx/shape_i)}" for shape_i in sample_shape[:-1]] +
+                [f"{idx% sample_shape[-1]}"])
+        for idx in range(number_individual_observables)
+    ] if number_individual_observables > 1 else ["0"]
 
     samples_reshaped = samples.reshape(1, samples.shape[0],
-                                       samples.shape[1] * samples.shape[2])
+                                       number_individual_observables)
+
+    def function_shape_adjuster(function):
+        """Adjust the shape of input data to the function."""
+
+        def wrapper(data):
+            return function(data.reshape(*data.shape[:-1], *sample_shape))
+
+        return wrapper
 
     if derived_quantity is None:
         analysis = PrimaryAnalysis(
             data=samples_reshaped,
             rep_sizes=[len(samples)],
-            name=[f"{int(idx/Lx)}{idx%Ly}" for idx in range(Lx * Ly)],
+            name=individual_observable_names,
         )
         # calculate the mean of the observable
         mean_analysis_results = analysis.mean()
-        out_shape = (Lx, Ly)
-        variance = samples.var(axis=0).reshape(*out_shape)
+        variance = np.array(samples.var(axis=0))
 
     else:
         analysis = DerivedAnalysis(
             data=samples_reshaped,
             rep_sizes=[len(samples)],
-            name=[f"{int(idx/Lx)}{idx%Ly}" for idx in range(Lx * Ly)],
+            name=individual_observable_names,
         )
         # calculate the mean of the observable
         analysis.mean()
         mean_analysis_results = analysis.apply(
             function_shape_adjuster(derived_quantity))
-        out_shape = (1, )
-        variance = derived_quantity(samples).var(axis=0)
+        variance = np.array(derived_quantity(samples).var(axis=0))
 
     try:
 
@@ -105,16 +111,17 @@ def ulli_wolff_mc_error_analysis(
         error_analysis_results = None
 
     expectation_value = reshape_if_not_none(mean_analysis_results, "value",
-                                            out_shape)
+                                            sample_shape)
 
-    error = reshape_if_not_none(error_analysis_results, "dvalue", out_shape)
+    error = reshape_if_not_none(error_analysis_results, "dvalue", sample_shape)
     naive_error = reshape_if_not_none(error_analysis_results, "naive_err",
-                                      out_shape)
-    tau_int = reshape_if_not_none(error_analysis_results, "tau_int", out_shape)
+                                      sample_shape)
+    tau_int = reshape_if_not_none(error_analysis_results, "tau_int",
+                                  sample_shape)
     tau_int_error = reshape_if_not_none(error_analysis_results, "dtau_int",
-                                        out_shape)
+                                        sample_shape)
     error_on_error = reshape_if_not_none(error_analysis_results, "ddvalue",
-                                         out_shape)
+                                         sample_shape)
 
     return {
         "expectation_value": expectation_value,
@@ -147,8 +154,7 @@ class DensityDerivedObservable:
 
         return samples
 
-    def expectation_value(self,
-                          output: WormOutput) -> np.ndarray | float | None:
+    def expectation_value(self, output: WormOutput) -> np.ndarray | None:
         """Return the expectation value of the observable."""
         densities = output.densities
 
@@ -161,10 +167,11 @@ class DensityDerivedObservable:
                           if self.sample_function else samples)
         derived_quantity = (self.derived_quantity(mapped_samples)
                             if self.derived_quantity else mapped_samples)
-        return derived_quantity.mean(axis=0)
 
-    def error_analysis(
-            self, output: WormOutput) -> dict[str, np.ndarray | float | None]:
+        return np.array(derived_quantity.mean(axis=0))
+
+    def error_analysis(self,
+                       output: WormOutput) -> dict[str, np.ndarray | None]:
         """Return the error of the observable."""
         densities = output.densities
 
@@ -321,6 +328,6 @@ def get_density_min(samples: np.ndarray) -> float:
     return samples.min(axis=(-1, -2))
 
 
-@SimulationObservables.register_primaryy("density_variance")
+@SimulationObservables.register_primary("density_variance")
 def get_variance(samples: np.ndarray) -> float:
     return samples.var(axis=(-1, -2))

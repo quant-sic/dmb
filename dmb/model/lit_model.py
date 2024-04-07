@@ -20,8 +20,8 @@ from dmb.data.bose_hubbard_2d.phase_diagram import plot_phase_diagram, \
     plot_phase_diagram_mu_cut
 from dmb.data.bose_hubbard_2d.plots import create_box_cuts_plot, \
     create_box_plot, create_wedding_cake_plot
+from dmb.logging import create_logger
 from dmb.model.mixins import LitModelMixin
-from dmb.utils import create_logger
 
 log = create_logger(__name__)
 

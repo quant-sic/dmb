@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
-from dmb.utils import create_logger
+from dmb.logging import create_logger
+
+from .sim import WormSimulation
 
 log = create_logger(__name__)
 

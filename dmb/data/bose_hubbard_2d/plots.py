@@ -13,7 +13,7 @@ from dmb.data.bose_hubbard_2d.cpp_worm.scripts.sandbox.wedding_cake import \
 from dmb.data.bose_hubbard_2d.network_input import \
     net_input_dimless_const_parameters
 from dmb.data.bose_hubbard_2d.phase_diagram import model_predict
-from dmb.utils import REPO_DATA_ROOT
+from dmb.paths import REPO_DATA_ROOT
 
 
 def colorbar(mappable):

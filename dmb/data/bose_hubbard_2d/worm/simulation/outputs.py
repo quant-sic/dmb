@@ -1,4 +1,3 @@
-import json
 from collections import defaultdict
 from logging import Logger
 from pathlib import Path
@@ -7,9 +6,9 @@ import h5py
 import numpy as np
 from attrs import define, field
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
-    WormInputParameters
-from dmb.utils import create_logger
+from dmb.logging import create_logger
+
+from .parameters import WormInputParameters
 
 logger = create_logger(__name__)
 

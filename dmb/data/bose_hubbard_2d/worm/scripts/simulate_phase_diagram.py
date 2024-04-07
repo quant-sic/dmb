@@ -12,8 +12,8 @@ from dmb.data.bose_hubbard_2d.cpp_worm.scripts.create import \
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
     WormInputParameters
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
-from dmb.utils import create_logger
-from dmb.utils.io import ProgressParallel
+from dmb.io import ProgressParallel
+from dmb.logging import create_logger
 
 log = create_logger(__name__)
 

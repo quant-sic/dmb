@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormInputParameters, \
     WormSimulation, WormSimulationRunner
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.utils import REPO_DATA_ROOT, create_logger
+from dmb.logging import create_logger
+from dmb.paths import REPO_DATA_ROOT
 
 log = create_logger(__name__)
 

@@ -11,7 +11,7 @@ from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
 from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormInputParameters, \
     WormSimulation, WormSimulationRunner
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.utils.io import create_logger
+from dmb.io import create_logger
 
 log = create_logger(__name__)
 

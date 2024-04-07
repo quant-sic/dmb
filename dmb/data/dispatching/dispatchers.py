@@ -12,8 +12,8 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, \
 
 from dmb.data.dispatching.helpers import call_sbatch_and_wait, \
     check_if_slurm_is_installed_and_running
-from dmb.utils.io import create_logger
-from dmb.utils.paths import REPO_ROOT
+from dmb.logging import create_logger
+from dmb.paths import REPO_ROOT
 
 logger = create_logger(__name__)
 

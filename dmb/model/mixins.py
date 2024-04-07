@@ -4,8 +4,8 @@ from typing import Literal, Optional
 import torch
 from torchmetrics import MetricCollection
 
+from dmb.logging import create_logger
 from dmb.model.utils import MaskedMSE
-from dmb.utils import create_logger
 
 log = create_logger(__name__)
 

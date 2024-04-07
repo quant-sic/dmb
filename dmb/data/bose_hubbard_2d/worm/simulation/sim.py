@@ -9,15 +9,15 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from attrs import define
+from syjson import SyJson
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.observables import \
-    SimulationObservables
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
-    WormInputParameters
 from dmb.data.dispatching import Dispatcher
-from dmb.utils import REPO_DATA_ROOT, create_logger
-from dmb.utils.syjson import SyJson
+from dmb.logging import create_logger
+from dmb.paths import REPO_DATA_ROOT
+
+from .observables import SimulationObservables
+from .outputs import WormOutput
+from .parameters import WormInputParameters
 
 __all__ = [
     "WormSimulation",
@@ -197,48 +197,22 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
         cls,
         dir_path: Path,
         dispatcher: Dispatcher,
-        worm_executable: Optional[Path] = None,
-        check_tune_dir: bool = True,
+        executable: Optional[Path],
     ):
-        try:
-            # Read in parameters
-            input_parameters = WormInputParameters.from_dir(
-                save_dir_path=dir_path)
-        except FileNotFoundError:
-            if check_tune_dir:
-                tune_dir = cls.get_tune_dir(save_dir=dir_path)
-                if tune_dir.is_dir():
-                    log.info(
-                        f"Parameters are loaded from tune_dir {tune_dir}.")
-                    loaded_simulation = cls.from_dir(
-                        dir_path=tune_dir,
-                        worm_executable=worm_executable,
-                        check_tune_dir=False,
-                        dispatcher=dispatcher,
-                    )
-                    loaded_simulation.input_parameters.save_parameters(
-                        save_dir_path=dir_path)
-                    loaded_simulation.save_dir = dir_path
-                    return loaded_simulation
-
-            raise FileNotFoundError(
-                f"Could not find input parameters in {dir_path}.")
-
-        # Create simulation
+        input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
         return cls(
             input_parameters=input_parameters,
             save_dir=dir_path,
-            worm_executable=worm_executable,
-            reloaded_from_dir=True,
+            executable=executable,
             dispatcher=dispatcher,
         )
 
     @staticmethod
-    def get_tune_dir(save_dir: Path):
+    def get_tune_dir_path(save_dir: Path) -> Path:
         return save_dir / "tune"
 
     @staticmethod
-    def get_plot_dir(save_dir: Path):
+    def get_plot_dir_path(save_dir: Path) -> Path:
         plot_dir = save_dir / "plots"
         plot_dir.mkdir(parents=True, exist_ok=True)
         return plot_dir
@@ -264,10 +238,13 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
         return tune_simulation
 
     def save_parameters(self):
-        self.input_parameters.save_parameters(save_dir_path=self.save_dir)
+        self.input_parameters.save(save_dir=self.save_dir)
 
     def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
-        for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
+        checkpoint_path = self.input_parameters.get_checkpoint_path(
+            self.save_dir)
+        for checkpoint_file in checkpoint_path.glob(
+                f"{checkpoint_path.name}*"):
             with h5py.File(checkpoint_file, "r+") as f:
                 try:
                     f["parameters/extension_sweeps"][...] = extension_sweeps
@@ -276,7 +253,10 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
 
     def get_extension_sweeps_from_checkpoints(self):
         extension_sweeps = None
-        for checkpoint_file in self.save_dir.glob("checkpoint.h5*"):
+        checkpoint_path = self.input_parameters.get_checkpoint_path(
+            self.save_dir)
+        for checkpoint_file in checkpoint_path.glob(
+                f"{checkpoint_path.name}*"):
             with h5py.File(checkpoint_file, "r") as f:
                 try:
                     extension_sweeps = f["parameters/extension_sweeps"][()]

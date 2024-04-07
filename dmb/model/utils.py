@@ -5,7 +5,7 @@ from typing import Any, List, Literal, Optional, Union
 import torch
 import torchmetrics
 
-from dmb.utils import create_logger
+from dmb.logging import create_logger
 
 log = create_logger(__name__)
 

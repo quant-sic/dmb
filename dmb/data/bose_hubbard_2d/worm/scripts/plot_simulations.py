@@ -3,7 +3,7 @@ import numpy as np
 from tqdm.auto import tqdm
 
 from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
-from dmb.utils.paths import REPO_DATA_ROOT
+from dmb.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":
     ds = BoseHubbardDataset(data_dir=REPO_DATA_ROOT / "bose_hubbard_2d")

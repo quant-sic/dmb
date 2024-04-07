@@ -1,10 +1,9 @@
 import logging
-
 import numpy as np
 from scipy.special import gammainc
 from tqdm import tqdm
 
-from dmb.utils import create_logger
+from dmb.logging import create_logger
 
 
 logger = create_logger(__name__)

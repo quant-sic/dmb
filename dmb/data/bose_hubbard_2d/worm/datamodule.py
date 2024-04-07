@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List, Optional
 from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
 from dmb.data.mixins import DataModuleMixin
 from dmb.data.utils import chain_fns, collate_sizes
-from dmb.utils import create_logger
+from dmb.logging import create_logger
 
 log = create_logger(__name__)
 

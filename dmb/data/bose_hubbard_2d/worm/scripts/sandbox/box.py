@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import \
     get_missing_samples, simulate
-from dmb.utils import REPO_DATA_ROOT
+from dmb.paths import REPO_DATA_ROOT
 
 
 def get_square_mu(base_mu, delta_mu, square_size, lattice_size):

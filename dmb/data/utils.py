@@ -1,17 +1,15 @@
 from functools import reduce
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, \
-    Tuple, Union
+from typing import Any, Iterable
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, Subset, random_split
 
-from dmb.utils import create_logger
+from dmb.logging import create_logger
 
 log = create_logger(__name__)
 
 
-def chain_fns(fns: Iterable[Callable[[Any], Any]]) -> Callable[[Any], Any]:
+def chain_fns(fns: Iterable[callable[[Any], Any]]) -> callable[[Any], Any]:
     return reduce(lambda f, g: lambda x: g(f(x)), fns)
 
 

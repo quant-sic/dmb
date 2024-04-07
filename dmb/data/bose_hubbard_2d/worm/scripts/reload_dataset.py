@@ -4,8 +4,9 @@ from joblib import delayed
 from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.cpp_worm.datamodule import BoseHubbardDataModule
-from dmb.utils import REPO_DATA_ROOT, create_logger
-from dmb.utils.io import ProgressParallel
+from dmb.io import ProgressParallel
+from dmb.logging import create_logger
+from dmb.paths import REPO_DATA_ROOT
 
 log = create_logger(__name__)
 

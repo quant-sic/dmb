@@ -4,7 +4,7 @@ import time
 from logging import Logger
 from pathlib import Path
 
-from dmb.utils.io import create_logger
+from dmb.logging import create_logger
 
 logger = create_logger(__name__)
 
