@@ -1,32 +1,27 @@
-import numpy as np
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import (
-    simulate,
-    get_missing_samples,
-)
-from pathlib import Path
 import argparse
-import os
-from dotenv import load_dotenv
-from dmb.utils import REPO_DATA_ROOT
 import asyncio
-from tqdm import tqdm
-import numpy as np
-from typing import List
 import itertools
+import os
+from pathlib import Path
+from typing import List
+
+import numpy as np
+from dotenv import load_dotenv
+from tqdm import tqdm
+
+from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import \
+    get_missing_samples, simulate
+from dmb.utils import REPO_DATA_ROOT
 
 
 def get_square_mu(base_mu, delta_mu, square_size, lattice_size):
     mu = np.full(shape=(lattice_size, lattice_size), fill_value=base_mu)
     mu[
-        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
-            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
-        ),
-        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
-            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
-        ),
-    ] = (
-        base_mu + delta_mu
-    )
+        int(float(lattice_size) / 2 - float(square_size) /
+            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
+        int(float(lattice_size) / 2 - float(square_size) /
+            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
+    ] = (base_mu + delta_mu)
 
     return mu
 
@@ -34,7 +29,8 @@ def get_square_mu(base_mu, delta_mu, square_size, lattice_size):
 if __name__ == "__main__":
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(
+        description="Run worm simulation for 2D BH model")
     parser.add_argument(
         "--muU_offset",
         type=float,
@@ -97,10 +93,8 @@ if __name__ == "__main__":
         ztU=args.ztU,
         zVU=args.zVU,
         muU=list(
-            np.linspace(
-                args.muU_delta_min, args.muU_delta_max, args.muU_delta_num_steps
-            )
-        ),
+            np.linspace(args.muU_delta_min, args.muU_delta_max,
+                        args.muU_delta_num_steps)),
         tolerance_ztU=0,
         tolerance_zVU=0,
         tolerance_muU=0,
@@ -114,16 +108,14 @@ if __name__ == "__main__":
             await simulate(
                 parent_dir=target_dir,
                 simulation_name="box_{}_{:.3f}_{}".format(
-                    args.zVU, muU_out[sample_id], sample_id
-                ),
+                    args.zVU, muU_out[sample_id], sample_id),
                 L=args.L,
                 mu=get_square_mu(
                     base_mu=0.0,
                     delta_mu=muU_out[sample_id],
                     square_size=22,
                     lattice_size=args.L,
-                )
-                * U_on,
+                ) * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
                 U_on_array=np.ones((args.L, args.L)) * U_on,
                 V_nn_array=np.ones((2, args.L, args.L)) * args.zVU * U_on / 4,
@@ -135,6 +127,6 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     loop.run_until_complete(
-        asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))])
-    )
+        asyncio.gather(
+            *[run_sample(sample_id) for sample_id in range(len(muU_out))]))
     loop.close()

@@ -11,13 +11,12 @@ log = create_logger(__name__)
 
 
 class LitModelMixin:
+
     @property
     def metrics(self) -> MetricCollection:
-        metric_collection = MetricCollection(
-            {
-                "mse": MaskedMSE(),
-            }
-        )
+        metric_collection = MetricCollection({
+            "mse": MaskedMSE(),
+        })
 
         module_device: torch.device = (
             self.model.parameters().__next__().device
@@ -76,14 +75,12 @@ class LitModelMixin:
 
             # log metric
             computed_metric = metric.compute()
-            log_dict = (
-                {metric_name: computed_metric}
-                if not isinstance(computed_metric, dict)
-                else {
-                    f"{metric_name}/{key}": value
-                    for key, value in computed_metric.items()
-                }
-            )
+            log_dict = ({
+                metric_name: computed_metric
+            } if not isinstance(computed_metric, dict) else {
+                f"{metric_name}/{key}": value
+                for key, value in computed_metric.items()
+            })
 
             # log on step only for training
             log_on_step = stage == "train"

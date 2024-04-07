@@ -1,24 +1,23 @@
-import numpy as np
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import (
-    simulate,
-    get_missing_samples,
-)
-from pathlib import Path
 import argparse
-import os
-from dotenv import load_dotenv
-from dmb.utils import REPO_DATA_ROOT
 import asyncio
-from tqdm import tqdm
-import numpy as np
-from typing import List
 import itertools
+import os
+from pathlib import Path
+from typing import List
 
+import numpy as np
+from dotenv import load_dotenv
+from tqdm import tqdm
+
+from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import \
+    get_missing_samples, simulate
+from dmb.utils import REPO_DATA_ROOT
 
 if __name__ == "__main__":
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(
+        description="Run worm simulation for 2D BH model")
     parser.add_argument(
         "--muU_min",
         type=float,
@@ -88,8 +87,7 @@ if __name__ == "__main__":
             await simulate(
                 parent_dir=target_dir,
                 simulation_name="mu_cut_{}_{:.3f}_{}".format(
-                    args.zVU, muU_out[sample_id], sample_id
-                ),
+                    args.zVU, muU_out[sample_id], sample_id),
                 L=args.L,
                 mu=np.ones((args.L, args.L)) * muU_out[sample_id] * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
@@ -101,6 +99,6 @@ if __name__ == "__main__":
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
-        asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))])
-    )
+        asyncio.gather(
+            *[run_sample(sample_id) for sample_id in range(len(muU_out))]))
     loop.close()

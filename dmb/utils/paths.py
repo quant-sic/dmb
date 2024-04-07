@@ -35,7 +35,6 @@ REPO_LOGS_ROOT.mkdir(parents=True, exist_ok=True)
 # resolve path
 REPO_LOGS_ROOT = REPO_LOGS_ROOT.resolve()
 
-
 # set environment variables
 os.environ["REPO_ROOT"] = str(REPO_ROOT)
 os.environ["REPO_DATA_ROOT"] = str(REPO_DATA_ROOT)

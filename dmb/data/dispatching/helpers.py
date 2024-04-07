@@ -1,10 +1,10 @@
 import asyncio
 import subprocess
 import time
+from logging import Logger
 from pathlib import Path
 
 from dmb.utils.io import create_logger
-from logging import Logger
 
 logger = create_logger(__name__)
 
@@ -66,8 +66,7 @@ async def call_sbatch_and_wait(
 
 
 def check_if_slurm_is_installed_and_running(
-    logging_instance: Logger = logger,
-) -> bool:
+    logging_instance: Logger = logger, ) -> bool:
 
     try:
         subprocess.run("sinfo", check=True, stdout=subprocess.PIPE)

@@ -43,19 +43,15 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
     # data transformations
     @property
     def base_transforms(self) -> Compose:
-        return (
-            hydra.utils.instantiate(self.hparams["base_transforms"])
-            if not isinstance(self.hparams["base_transforms"], Compose)
-            else self.hparams["base_transforms"]
-        )
+        return (hydra.utils.instantiate(self.hparams["base_transforms"])
+                if not isinstance(self.hparams["base_transforms"], Compose)
+                else self.hparams["base_transforms"])
 
     @property
     def train_transforms(self) -> Compose:
-        return (
-            hydra.utils.instantiate(self.hparams["train_transforms"])
-            if not isinstance(self.hparams["train_transforms"], Compose)
-            else self.hparams["train_transforms"]
-        )
+        return (hydra.utils.instantiate(self.hparams["train_transforms"])
+                if not isinstance(self.hparams["train_transforms"], Compose)
+                else self.hparams["train_transforms"])
 
     @property
     def num_classes(self) -> int:
@@ -74,7 +70,8 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
         """
 
         # load and split datasets only if not loaded already
-        if not len(self.split_datasets) == len(self.hparams["train_val_test_split"]):
+        if not len(self.split_datasets) == len(
+                self.hparams["train_val_test_split"]):
             self.dataset: Dataset = self.get_dataset()
 
             split_datasets = random_seeded_split(
@@ -82,24 +79,23 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
                 self.dataset,
                 seed=42,
                 num_split_versions=self.hparams["num_split_versions"]
-                if "num_split_versions" in self.hparams
-                else 1,
+                if "num_split_versions" in self.hparams else 1,
                 split_version_id=self.hparams["split_version_id"]
-                if "split_version_id" in self.hparams
-                else 0,
-                resplit=self.hparams["resplit"] if "resplit" in self.hparams else None,
+                if "split_version_id" in self.hparams else 0,
+                resplit=self.hparams["resplit"]
+                if "resplit" in self.hparams else None,
             )
 
             self.split_datasets = split_datasets
 
             # get expected number of split datasets. Right not only one layer of resplitting is supported
-            expected_num_split_datasets = len(self.hparams["train_val_test_split"])
+            expected_num_split_datasets = len(
+                self.hparams["train_val_test_split"])
             if self.hparams["resplit"] is not None:
                 for _resplit in self.hparams["resplit"]:
                     if _resplit is not None:
                         expected_num_split_datasets += (
-                            len(_resplit["train_val_test_split"]) - 1
-                        )
+                            len(_resplit["train_val_test_split"]) - 1)
 
             if not len(split_datasets) == expected_num_split_datasets:
                 raise RuntimeError(
@@ -110,11 +106,10 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
         if self.dataset is None:
             raise ValueError("Dataset is None.")
 
-        if any(
-            idx < 0 or idx > len(self.split_datasets)
-            for idx in self.hparams["split_usage"].values()
-        ):
-            raise ValueError(f"Invalid split usage: {self.hparams['split_usage']}")
+        if any(idx < 0 or idx > len(self.split_datasets)
+               for idx in self.hparams["split_usage"].values()):
+            raise ValueError(
+                f"Invalid split usage: {self.hparams['split_usage']}")
 
         self.data_train, self.data_val, self.data_test = (
             self.split_datasets[self.hparams["split_usage"]["train"]],
@@ -231,39 +226,34 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
             self._previous_split_ids = state_dict["split_ids"]
 
     def check_loaded_consistency(self):
-        if (
-            hasattr(self, "_previous_split_indices")
-            and self._previous_split_indices is not None
-        ):
+        if (hasattr(self, "_previous_split_indices")
+                and self._previous_split_indices is not None):
             for stage, dataset in zip(
                 ("train", "val", "test"),
                 (self.data_train, self.data_val, self.data_test),
             ):
                 if dataset is not None:
-                    if (
-                        hasattr(self, "_previous_split_indices")
-                        and self._previous_split_indices is not None
-                    ):
+                    if (hasattr(self, "_previous_split_indices")
+                            and self._previous_split_indices is not None):
                         if not np.array_equal(
-                            dataset.indices, self._previous_split_indices[stage]
-                        ):
+                                dataset.indices,
+                                self._previous_split_indices[stage]):
                             raise RuntimeError(
                                 f"Loaded indices for {stage} dataset are not consistent with previous ones."
                             )
 
-                    if (
-                        hasattr(self, "_previous_split_ids")
-                        and self._previous_split_ids is not None
-                    ):
+                    if (hasattr(self, "_previous_split_ids")
+                            and self._previous_split_ids is not None):
                         if not np.array_equal(
                             [
                                 dataset.dataset.get_dataset_id_from_index(idx)
                                 for idx in dataset.indices
                             ],
-                            self._previous_split_ids[stage],
+                                self._previous_split_ids[stage],
                         ):
                             raise RuntimeError(
                                 f"Loaded ids for {stage} dataset are not consistent with previous ones."
                             )
         else:
-            log.warning("No previous split indices found. Skipping consistency check.")
+            log.warning(
+                "No previous split indices found. Skipping consistency check.")

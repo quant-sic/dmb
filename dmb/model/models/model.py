@@ -2,10 +2,10 @@ from typing import Literal, Union
 
 import lightning.pytorch as pl
 import torch
-from dmb.misc import create_logger
 from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+from dmb.misc import create_logger
 from dmb.model.torch.loss import IndexMSELoss, WeightedMAE
 
 from .simple_resnet1d import ResNet1d
@@ -15,10 +15,11 @@ logger = create_logger(__name__)
 
 
 def combined_loss_criterion(loss, val_loss, alpha=1):
-    return val_loss + abs(val_loss - loss) ** alpha
+    return val_loss + abs(val_loss - loss)**alpha
 
 
 class Model1d(nn.Module):
+
     def __init__(
         self,
         number_of_filters,
@@ -45,8 +46,7 @@ class Model1d(nn.Module):
                 padding=kernel_size_first // 2,  # for dilation 1
                 padding_mode="circular",
                 bias=not use_batch_norm,
-            )
-        )
+            ))
         if use_batch_norm:
             layers.append(nn.BatchNorm1d(number_of_filters))
 
@@ -61,8 +61,7 @@ class Model1d(nn.Module):
                     padding=kernel_size_rest // 2,  # for dilation 1
                     padding_mode="circular",
                     bias=not use_batch_norm,
-                )
-            )
+                ))
             if use_batch_norm:
                 layers.append(nn.BatchNorm1d(number_of_filters))
             layers.append(activation_func())
@@ -76,8 +75,7 @@ class Model1d(nn.Module):
                 padding=kernel_size_rest // 2,  # for dilation 1
                 padding_mode="circular",
                 bias=not use_batch_norm,
-            )
-        )
+            ))
         if use_batch_norm:
             layers.append(nn.BatchNorm1d(60))
 
@@ -90,8 +88,7 @@ class Model1d(nn.Module):
                 kernel_size=kernel_size_rest,
                 padding=kernel_size_rest // 2,  # for dilation 1
                 padding_mode="circular",
-            )
-        )
+            ))
 
         self.net = nn.Sequential(*layers)
 
@@ -112,6 +109,7 @@ class Model1d(nn.Module):
 
 
 class LitModel1d(pl.LightningModule):
+
     def __init__(
         self,
         number_of_filters,
@@ -201,14 +199,15 @@ class LitModel1d(pl.LightningModule):
 
     def configure_optimizers(self):
         out_dict = {}
-        adam_opt = torch.optim.Adam(
-            self.model.parameters(), lr=self.hparams["learning_rate"]
-        )
+        adam_opt = torch.optim.Adam(self.model.parameters(),
+                                    lr=self.hparams["learning_rate"])
         out_dict["optimizer"] = adam_opt
 
         if self.hparams["lr_scheduler"] == "reduce_on_plateau":
             lr_scheduler = {
-                "scheduler": ReduceLROnPlateau(adam_opt, factor=0.5, patience=5000),
+                "scheduler": ReduceLROnPlateau(adam_opt,
+                                               factor=0.5,
+                                               patience=5000),
                 "monitor": "loss",
             }
             out_dict["lr_scheduler"] = lr_scheduler
@@ -220,13 +219,9 @@ class LitModel1d(pl.LightningModule):
         prediction = self.model(batch_in)
 
         batch_size = sum(len(label) for label in labels)
-        loss_mean = (
-            sum(
-                self.loss(prediction=pred, label=label).sum()
-                for pred, label in zip(prediction, labels)
-            )
-            / batch_size
-        ).mean()
+        loss_mean = (sum(
+            self.loss(prediction=pred, label=label).sum()
+            for pred, label in zip(prediction, labels)) / batch_size).mean()
 
         return loss_mean, batch_size
 
@@ -243,11 +238,9 @@ class LitModel1d(pl.LightningModule):
         return {"loss": loss_mean}
 
     def training_epoch_end(self, training_step_outputs):
-        self.current_train_loss = (
-            torch.stack(list(map(lambda o: o["loss"], training_step_outputs)))
-            .mean()
-            .item()
-        )
+        self.current_train_loss = (torch.stack(
+            list(map(lambda o: o["loss"],
+                     training_step_outputs))).mean().item())
 
     def validation_step(self, batch, batch_idx):
         loss_mean, batch_size = self._shared_eval_step(batch, batch_idx)
@@ -256,6 +249,7 @@ class LitModel1d(pl.LightningModule):
 
 
 class Model2d(nn.Module):
+
     def __init__(
         self,
         number_of_filters,
@@ -277,8 +271,7 @@ class Model2d(nn.Module):
                 padding=kernel_size_first // 2,  # for dilation 1
                 padding_mode="circular",
                 bias=not use_batch_norm,
-            )
-        )
+            ))
         if use_batch_norm:
             layers.append(nn.BatchNorm2d(number_of_filters))
 
@@ -293,8 +286,7 @@ class Model2d(nn.Module):
                     padding=kernel_size_rest // 2,  # for dilation 1
                     padding_mode="circular",
                     bias=not use_batch_norm,
-                )
-            )
+                ))
             if use_batch_norm:
                 layers.append(nn.BatchNorm2d(number_of_filters))
             layers.append(nn.ReLU())
@@ -308,8 +300,7 @@ class Model2d(nn.Module):
                 padding=kernel_size_rest // 2,  # for dilation 1
                 padding_mode="circular",
                 bias=not use_batch_norm,
-            )
-        )
+            ))
         if use_batch_norm:
             layers.append(nn.BatchNorm2d(60))
 
@@ -322,8 +313,7 @@ class Model2d(nn.Module):
                 kernel_size=kernel_size_rest,
                 padding=kernel_size_rest // 2,  # for dilation 1
                 padding_mode="circular",
-            )
-        )
+            ))
 
         self.net = nn.Sequential(*layers)
 
@@ -341,13 +331,13 @@ class Model2d(nn.Module):
                 assert torch.from_numpy(keras_weight).shape == p.shape
                 p.data = torch.from_numpy(keras_weight)
             elif "weight" in name:
-                assert (
-                    torch.from_numpy(keras_weight).permute(3, 2, 1, 0).shape == p.shape
-                )
+                assert (torch.from_numpy(keras_weight).permute(
+                    3, 2, 1, 0).shape == p.shape)
                 p.data = torch.from_numpy(keras_weight).permute(3, 2, 1, 0)
 
 
 class LitModel2d(pl.LightningModule):
+
     def __init__(
         self,
         number_of_filters,
@@ -406,15 +396,16 @@ class LitModel2d(pl.LightningModule):
 
     def configure_optimizers(self):
         out_dict = {}
-        adam_opt = torch.optim.Adam(
-            self.model.parameters(), lr=self.hparams["learning_rate"]
-        )
+        adam_opt = torch.optim.Adam(self.model.parameters(),
+                                    lr=self.hparams["learning_rate"])
         out_dict["optimizer"] = adam_opt
 
         if self.hparams["lr_scheduler"] == "reduce_on_plateau":
             lr_scheduler = {
-                "scheduler": ReduceLROnPlateau(adam_opt, factor=0.5, patience=10000),
-                "monitor": "loss",
+                "scheduler":
+                ReduceLROnPlateau(adam_opt, factor=0.5, patience=10000),
+                "monitor":
+                "loss",
             }
             out_dict["lr_scheduler"] = lr_scheduler
 
@@ -425,13 +416,9 @@ class LitModel2d(pl.LightningModule):
         prediction = self.model(batch_in)
 
         batch_size = sum(len(label) for label in labels)
-        loss_mean = (
-            sum(
-                self.loss(pred.squeeze(), label).sum()
-                for pred, label in zip(prediction, labels)
-            )
-            / batch_size
-        )
+        loss_mean = (sum(
+            self.loss(pred.squeeze(), label).sum()
+            for pred, label in zip(prediction, labels)) / batch_size)
 
         return loss_mean, batch_size
 
@@ -448,11 +435,9 @@ class LitModel2d(pl.LightningModule):
         return {"loss": loss_mean}
 
     def training_epoch_end(self, training_step_outputs):
-        self.current_train_loss = (
-            torch.stack(list(map(lambda o: o["loss"], training_step_outputs)))
-            .mean()
-            .item()
-        )
+        self.current_train_loss = (torch.stack(
+            list(map(lambda o: o["loss"],
+                     training_step_outputs))).mean().item())
 
     def validation_step(self, batch, batch_idx):
         loss_mean, batch_size = self._shared_eval_step(batch, batch_idx)
@@ -460,9 +445,9 @@ class LitModel2d(pl.LightningModule):
         for alpha in (0.8, 1.0, 1.2, 1.4, 1.6):
             self.log(
                 f"loss_crit/{alpha}",
-                combined_loss_criterion(
-                    loss_mean.detach().item(), self.current_train_loss, alpha=alpha
-                ),
+                combined_loss_criterion(loss_mean.detach().item(),
+                                        self.current_train_loss,
+                                        alpha=alpha),
                 batch_size=batch_size,
             )
 

@@ -1,21 +1,19 @@
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.sandbox.wedding_cake import (
-    get_quadratic_mu,
-)
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.sandbox.box import (
-    get_square_mu,
-)
-from dmb.data.bose_hubbard_2d.network_input import (
-    net_input_dimless_const_parameters,
-)
+import itertools
 from collections import defaultdict
+
 import matplotlib.pyplot as plt
-from dmb.utils import REPO_DATA_ROOT
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
 import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.cpp_worm.scripts.sandbox.box import get_square_mu
+from dmb.data.bose_hubbard_2d.cpp_worm.scripts.sandbox.wedding_cake import \
+    get_quadratic_mu
+from dmb.data.bose_hubbard_2d.network_input import \
+    net_input_dimless_const_parameters
 from dmb.data.bose_hubbard_2d.phase_diagram import model_predict
-import itertools
+from dmb.utils import REPO_DATA_ROOT
 
 
 def colorbar(mappable):
@@ -57,14 +55,10 @@ def create_wedding_cake_plot(
     )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
-    target_densities = [
-        (
-            ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0]
-            if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None
-            else np.ones((L, L))
-        )
-        for _muU in muU
-    ]
+    target_densities = [(ds.get_phase_diagram_sample(
+        ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0] if ds.get_phase_diagram_sample(
+            ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
+                        for _muU in muU]
 
     inputs = torch.stack(
         [
@@ -78,8 +72,7 @@ def create_wedding_cake_plot(
                 zVU=zVU,
                 cb_projection=True,
                 target_density=target_density,
-            )
-            for _muU, target_density in zip(muU, target_densities)
+            ) for _muU, target_density in zip(muU, target_densities)
         ],
         dim=0,
     )
@@ -97,17 +90,20 @@ def create_wedding_cake_plot(
 
         nn_image = nn_outputs[0]
 
-        combined = np.concatenate(
-            (
-                qmc_image[: int(L / 2) + 1],
-                nn_image[int(L / 2) + 1 :],
-            )
-        )
-        combined[int(L / 2), : int(L / 2) + 1] = nn_image[int(L / 2), : int(L / 2) + 1]
+        combined = np.concatenate((
+            qmc_image[:int(L / 2) + 1],
+            nn_image[int(L / 2) + 1:],
+        ))
+        combined[int(L / 2), :int(L / 2) +
+                 1] = nn_image[int(L / 2), :int(L / 2) + 1]
 
-        cm = ax.pcolormesh(
-            X, Y, combined, clim=(0, 2), cmap="viridis", linewidth=0, rasterized=True
-        )
+        cm = ax.pcolormesh(X,
+                           Y,
+                           combined,
+                           clim=(0, 2),
+                           cmap="viridis",
+                           linewidth=0,
+                           rasterized=True)
 
         plt.hlines(
             y=int(L / 2) - 0.5,
@@ -170,14 +166,10 @@ def create_box_plot(
     )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
-    target_densities = [
-        (
-            ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0]
-            if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None
-            else np.ones((L, L))
-        )
-        for _muU in muU
-    ]
+    target_densities = [(ds.get_phase_diagram_sample(
+        ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0] if ds.get_phase_diagram_sample(
+            ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
+                        for _muU in muU]
 
     inputs = torch.stack(
         [
@@ -192,8 +184,7 @@ def create_box_plot(
                 zVU=zVU,
                 cb_projection=True,
                 target_density=target_density,
-            )
-            for _muU, target_density in zip(muU, target_densities)
+            ) for _muU, target_density in zip(muU, target_densities)
         ],
         dim=0,
     )
@@ -213,17 +204,20 @@ def create_box_plot(
 
         nn_image = nn_outputs[0]
 
-        combined = np.concatenate(
-            (
-                qmc_image[: int(L / 2) + 1],
-                nn_image[int(L / 2) + 1 :],
-            )
-        )
-        combined[int(L / 2), : int(L / 2) + 1] = nn_image[int(L / 2), : int(L / 2) + 1]
+        combined = np.concatenate((
+            qmc_image[:int(L / 2) + 1],
+            nn_image[int(L / 2) + 1:],
+        ))
+        combined[int(L / 2), :int(L / 2) +
+                 1] = nn_image[int(L / 2), :int(L / 2) + 1]
 
-        cm = ax.pcolormesh(
-            X, Y, combined, clim=(0, 2), cmap="viridis", linewidth=0, rasterized=True
-        )
+        cm = ax.pcolormesh(X,
+                           Y,
+                           combined,
+                           clim=(0, 2),
+                           cmap="viridis",
+                           linewidth=0,
+                           rasterized=True)
 
         plt.hlines(
             y=int(L / 2) + 0.5,
@@ -274,15 +268,9 @@ def create_box_cuts_plot(
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities = torch.stack(
-        [
-            (
-                ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0]
-                if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)
-                is not None
-                else torch.ones((L, L))
-            )
-            for _muU in muU
-        ],
+        [(ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0]
+          if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)
+          is not None else torch.ones((L, L))) for _muU in muU],
         dim=0,
     )
 
@@ -301,8 +289,7 @@ def create_box_cuts_plot(
                 zVU=zVU,
                 cb_projection=True,
                 target_density=target_density,
-            )
-            for _muU, target_density in zip(muU, target_densities)
+            ) for _muU, target_density in zip(muU, target_densities)
         ],
         dim=0,
     )
@@ -313,14 +300,13 @@ def create_box_cuts_plot(
 
     MU, X = np.meshgrid(muU, np.arange(L))
 
-    qmc_image, nn_image = map(lambda c: np.stack(c, axis=0).T, (qmc_cuts, nn_cuts))
+    qmc_image, nn_image = map(lambda c: np.stack(c, axis=0).T,
+                              (qmc_cuts, nn_cuts))
 
-    combined = np.concatenate(
-        (
-            qmc_image[: int(L / 2) + 1],
-            nn_image[int(L / 2) + 1 :],
-        )
-    )
+    combined = np.concatenate((
+        qmc_image[:int(L / 2) + 1],
+        nn_image[int(L / 2) + 1:],
+    ))
     # combined[int(L / 2), : int(L / 2) + 1] = nn_image[int(L / 2), : int(L / 2) + 1]
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))

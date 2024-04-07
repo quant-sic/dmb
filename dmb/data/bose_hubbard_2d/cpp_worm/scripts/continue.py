@@ -1,13 +1,14 @@
 import argparse
-
-
-from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormSimulation, WormSimulationRunner
-from dmb.utils import REPO_DATA_ROOT, create_logger
-from dotenv import load_dotenv
+import asyncio
 import os
 from pathlib import Path
+
 import click
-import asyncio
+from dotenv import load_dotenv
+
+from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormSimulation, \
+    WormSimulationRunner
+from dmb.utils import REPO_DATA_ROOT, create_logger
 
 log = create_logger(__name__)
 
@@ -20,8 +21,8 @@ async def continue_simulation(
 ):
     try:
         sim = WormSimulation.from_dir(
-            dir_path=sample_dir, worm_executable=os.environ.get("WORM_MPI_EXECUTABLE")
-        )
+            dir_path=sample_dir,
+            worm_executable=os.environ.get("WORM_MPI_EXECUTABLE"))
     except OSError as e:
         log.error(f"Exception occured during loading: {e}")
         return
@@ -38,16 +39,15 @@ async def continue_simulation(
     try:
         # get tau_max key
         tau_max_keys = list(
-            filter(
-                lambda k: "tau_max" in k, sim.tune_simulation.record["steps"][-1].keys()
-            )
-        )
+            filter(lambda k: "tau_max" in k,
+                   sim.tune_simulation.record["steps"][-1].keys()))
         if len(tau_max_keys) == 0:
             raise Exception("No tau_max key found in record.")
         else:
             tau_max_key = list(tau_max_keys)[0]
 
-        if sim.tune_simulation.record["steps"][-1][tau_max_key] < tau_threshold:
+        if sim.tune_simulation.record["steps"][-1][
+                tau_max_key] < tau_threshold:
             log.info(f"Sample {sample_dir} already tuned.")
             tuned = True
     except Exception as e:
@@ -69,14 +69,17 @@ async def continue_simulation(
 
 
 @click.command()
-@click.option(
-    "--number_of_concurrent_jobs", default=1, help="Number of concurrent jobs."
-)
-@click.option("--target_density_error", default=0.01, help="Target density error.")
+@click.option("--number_of_concurrent_jobs",
+              default=1,
+              help="Number of concurrent jobs.")
+@click.option("--target_density_error",
+              default=0.01,
+              help="Target density error.")
 def run_until_complete(number_of_concurrent_jobs, target_density_error):
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(
+        description="Run worm simulation for 2D BH model")
     parser.add_argument("--number_of_concurrent_jobs", type=int, default=1)
     parser.add_argument("--target_density_error", type=float, default=0.015)
 
@@ -91,15 +94,13 @@ def run_until_complete(number_of_concurrent_jobs, target_density_error):
     async def run_continue_simulation(sample_dir):
         async with semaphore:
             await continue_simulation(
-                sample_dir, target_density_error=args.target_density_error
-            )
+                sample_dir, target_density_error=args.target_density_error)
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
-        asyncio.gather(
-            *[run_continue_simulation(sample_dir) for sample_dir in sample_dirs]
-        )
-    )
+        asyncio.gather(*[
+            run_continue_simulation(sample_dir) for sample_dir in sample_dirs
+        ]))
     loop.close()
 
 
@@ -108,7 +109,8 @@ if __name__ == "__main__":
 
     os.environ["WORM_JOB_NAME"] = "worm_ctd"
 
-    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(
+        description="Run worm simulation for 2D BH model")
     parser.add_argument("--number_of_concurrent_jobs", type=int, default=1)
     parser.add_argument("--restart_runs", type=bool, default=False)
     parser.add_argument("--target_density_error", type=float, default=0.015)
@@ -131,8 +133,7 @@ if __name__ == "__main__":
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
-        asyncio.gather(
-            *[run_continue_simulation(sample_dir) for sample_dir in sample_dirs]
-        )
-    )
+        asyncio.gather(*[
+            run_continue_simulation(sample_dir) for sample_dir in sample_dirs
+        ]))
     loop.close()

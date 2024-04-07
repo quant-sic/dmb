@@ -6,18 +6,18 @@ __all__ = [
     "plot_phase_diagram_worm_input_parameters",
 ]
 
+import os
+from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Optional, Union
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from functools import partial
+from attrs import define
 
 from dmb.utils import create_logger
-import os
-from attrs import define
-from dataclasses import dataclass
 
 log = create_logger(__name__)
 
@@ -82,12 +82,12 @@ class WormInputParameters:
                 if key in cls.__dataclass_fields__.keys():
                     # convert to correct type
                     if key in (
-                        "checkpoint",
-                        "outputfile",
-                        "h5_path",
-                        "h5_path_relative",
-                        "checkpoint_relative",
-                        "outputfile_relative",
+                            "checkpoint",
+                            "outputfile",
+                            "h5_path",
+                            "h5_path_relative",
+                            "checkpoint_relative",
+                            "outputfile_relative",
                     ):
                         value = Path(value)
                     elif key in ("mu_power", "mu_offset"):
@@ -122,9 +122,8 @@ class WormInputParameters:
                 ("U_on", self.U_on),
                 ("V_nn", self.V_nn),
             ):
-                file[f"/{name}"] = (
-                    attribute if isinstance(attribute, float) else attribute.flatten()
-                )
+                file[f"/{name}"] = (attribute if isinstance(attribute, float)
+                                    else attribute.flatten())
 
     @property
     def ini_path(self):
@@ -146,10 +145,8 @@ class WormInputParameters:
         # Create ini file
         with open(save_path, "w") as f:
             for key in self.__dataclass_fields__.keys():
-                if not (
-                    key in ("mu", "t_hop", "U_on", "V_nn")
-                    and isinstance(self.__getattribute__(key), np.ndarray)
-                ):
+                if not (key in ("mu", "t_hop", "U_on", "V_nn") and isinstance(
+                        self.__getattribute__(key), np.ndarray)):
                     f.write(f"{key} = {self.__getattribute__(key)}\n")
 
             if self.h5_path is None:
@@ -174,9 +171,11 @@ class WormInputParameters:
             try:
                 self.update_paths_in_checkpoint()
             except OSError as e:
-                log.warning(f"Exception occured during checkpoint editing: {e}")
+                log.warning(
+                    f"Exception occured during checkpoint editing: {e}")
 
     def update_paths_in_checkpoint(self):
+
         def iterfill_path(path, obj, file, contained_str, paths_list):
             if isinstance(obj, h5py.Dataset):
                 if isinstance(obj[()], (bytes, str)):
@@ -194,8 +193,7 @@ class WormInputParameters:
                             file=file,
                             paths_list=paths_list,
                             contained_str="checkpoint.h5",
-                        )
-                    )
+                        ))
                     for path in paths_list:
                         file[path][...] = str(self.checkpoint).encode("utf-8")
 
@@ -206,28 +204,25 @@ class WormInputParameters:
                             file=file,
                             paths_list=paths_list,
                             contained_str="output.h5",
-                        )
-                    )
+                        ))
                     for path in paths_list:
                         file[path][...] = str(self.outputfile).encode("utf-8")
 
                     ini_values = file["parameters"].attrs["ini_values"]
                     ini_keys = list(file["parameters"].attrs["ini_keys"])
                     for ini_key in (
-                        "checkpoint",
-                        "h5_path",
-                        "h5_path_relative",
-                        "outputfile",
-                        "site_arrays",
+                            "checkpoint",
+                            "h5_path",
+                            "h5_path_relative",
+                            "outputfile",
+                            "site_arrays",
                     ):
                         ini_key_idx = ini_keys.index(ini_key)
 
                         input_parameters_key = (
-                            ini_key if ini_key != "site_arrays" else "h5_path"
-                        )
+                            ini_key if ini_key != "site_arrays" else "h5_path")
                         ini_values[ini_key_idx] = str(
-                            self.__getattribute__(input_parameters_key)
-                        )
+                            self.__getattribute__(input_parameters_key))
 
                     file["parameters"].attrs.modify("ini_values", ini_values)
                     file["parameters"].attrs.modify(
@@ -248,8 +243,7 @@ class WormInputParameters:
                         file=file,
                         paths_list=paths_list,
                         contained_str="checkpoint.h5",
-                    )
-                )
+                    ))
                 for path in paths_list:
                     file[path][...] = str(self.outputfile).encode("utf-8")
 
@@ -273,9 +267,8 @@ class WormInputParameters:
         self.save_h5()
 
 
-def plot_worm_input_parameters(
-    parameters: WormInputParameters, plots_dir: Path
-) -> None:
+def plot_worm_input_parameters(parameters: WormInputParameters,
+                               plots_dir: Path) -> None:
     """Plot the input parameters of the worm simulation."""
     plots_dir.mkdir(parents=True, exist_ok=True)
 
@@ -299,7 +292,8 @@ def plot_worm_input_parameters(
         ax=ax[0],
     )
     fig.colorbar(
-        ax[1].imshow(parameters.t_hop.reshape(2, parameters.Lx, parameters.Ly)[0]),
+        ax[1].imshow(
+            parameters.t_hop.reshape(2, parameters.Lx, parameters.Ly)[0]),
         ax=ax[1],
     )
     fig.colorbar(
@@ -307,7 +301,8 @@ def plot_worm_input_parameters(
         ax=ax[2],
     )
     fig.colorbar(
-        ax[3].imshow(parameters.V_nn.reshape(2, parameters.Lx, parameters.Ly)[0]),
+        ax[3].imshow(
+            parameters.V_nn.reshape(2, parameters.Lx, parameters.Ly)[0]),
         ax=ax[3],
     )
 
@@ -315,9 +310,8 @@ def plot_worm_input_parameters(
     plt.close()
 
 
-def plot_phase_diagram_worm_input_parameters(
-    parameters: WormInputParameters, plots_dir: Path
-):
+def plot_phase_diagram_worm_input_parameters(parameters: WormInputParameters,
+                                             plots_dir: Path):
     """Plot the phase diagram input parameters of the worm simulation."""
     muU = parameters.mu / parameters.U_on
     ztU = 4 * parameters.t_hop / parameters.U_on[None, ...]
@@ -338,13 +332,12 @@ def plot_phase_diagram_worm_input_parameters(
         ax_.axis("off")
 
     # set colorbars
-    fig.colorbar(ax[0].imshow(muU.reshape(parameters.Lx, parameters.Ly)), ax=ax[0])
-    fig.colorbar(
-        ax[1].imshow(ztU.reshape(2, parameters.Lx, parameters.Ly)[0]), ax=ax[1]
-    )
-    fig.colorbar(
-        ax[2].imshow(zVU.reshape(2, parameters.Lx, parameters.Ly)[0]), ax=ax[2]
-    )
+    fig.colorbar(ax[0].imshow(muU.reshape(parameters.Lx, parameters.Ly)),
+                 ax=ax[0])
+    fig.colorbar(ax[1].imshow(ztU.reshape(2, parameters.Lx, parameters.Ly)[0]),
+                 ax=ax[1])
+    fig.colorbar(ax[2].imshow(zVU.reshape(2, parameters.Lx, parameters.Ly)[0]),
+                 ax=ax[2])
 
     plt.savefig(plots_dir / "phase_diagram_inputs.png")
     plt.close()

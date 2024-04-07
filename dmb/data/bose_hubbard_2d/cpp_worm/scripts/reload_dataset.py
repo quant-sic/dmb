@@ -4,9 +4,8 @@ from joblib import delayed
 from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.cpp_worm.datamodule import BoseHubbardDataModule
-from dmb.utils import REPO_DATA_ROOT
+from dmb.utils import REPO_DATA_ROOT, create_logger
 from dmb.utils.io import ProgressParallel
-from dmb.utils import create_logger
 
 log = create_logger(__name__)
 
@@ -35,7 +34,6 @@ if __name__ == "__main__":
     with ProgressParallel(n_jobs=10, total=len(dm.dataset)) as parallel:
         data = parallel(
             delayed(partial(dm.dataset.__getitem__, reload=True))(i)
-            for i in tqdm(range(len(dm.dataset)))
-        )
+            for i in tqdm(range(len(dm.dataset))))
 
     log.info("len(data): %s", len(data))

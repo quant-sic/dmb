@@ -6,6 +6,7 @@ from torch import nn
 
 
 class Exponential(torch.nn.Module):
+
     def __init__(self, eps=1e-10):
         super().__init__()
         self.eps = eps
@@ -15,6 +16,7 @@ class Exponential(torch.nn.Module):
 
 
 class DMBModel(nn.Module):
+
     def __init__(
         self,
         in_channels: int,
@@ -30,14 +32,16 @@ class DMBModel(nn.Module):
 
         for module in module_list:
             self.modules_list.append(
-                hydra.utils.instantiate(module, _recursive_=False, _convert_="all")
-            )
+                hydra.utils.instantiate(module,
+                                        _recursive_=False,
+                                        _convert_="all"))
 
         # output modifications do not change the shape of the output
         for module in output_modification:
             self.output_modification.append(
-                hydra.utils.instantiate(module, _recursive_=False, _convert_="all")
-            )
+                hydra.utils.instantiate(module,
+                                        _recursive_=False,
+                                        _convert_="all"))
 
         self._observables = observables
         self._in_channels = in_channels
@@ -48,13 +52,11 @@ class DMBModel(nn.Module):
     def sanity_check(self):
         if not self._in_channels == self.modules_list[0].in_channels:
             raise ValueError(
-                "in_channels of first module must match in_channels of model"
-            )
+                "in_channels of first module must match in_channels of model")
 
         if not self._out_channels == self.modules_list[-1].out_channels:
             raise ValueError(
-                "out_channels of last module must match out_channels of model"
-            )
+                "out_channels of last module must match out_channels of model")
 
     @property
     def observables(self):

@@ -1,5 +1,6 @@
 from functools import reduce
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, \
+    Tuple, Union
 
 import numpy as np
 import torch
@@ -38,7 +39,9 @@ def random_seeded_split(
 
     log.info("Splitting dataset with default indices")
 
-    sample_numbers = [int(f * float(dataset_length)) for f in train_val_test_split]
+    sample_numbers = [
+        int(f * float(dataset_length)) for f in train_val_test_split
+    ]
     sample_numbers[-1] = dataset_length - sum(sample_numbers[:-1])
 
     split_datasets = random_split(
@@ -50,9 +53,11 @@ def random_seeded_split(
     split_datasets_out: List[Subset] = []
     if resplit is not None:
         if not len(resplit) == len(split_datasets):
-            raise ValueError("resplit must have the same length as split_datasets")
+            raise ValueError(
+                "resplit must have the same length as split_datasets")
 
-        for idx, (split_config, _dataset) in enumerate(zip(resplit, split_datasets)):
+        for idx, (split_config,
+                  _dataset) in enumerate(zip(resplit, split_datasets)):
             if split_config is None:
                 split_datasets_out.append(_dataset)
             else:
@@ -60,68 +65,47 @@ def random_seeded_split(
                     random_seeded_split(
                         dataset=_dataset,
                         **split_config,
-                    )
-                )
+                    ))
     else:
         split_datasets_out = split_datasets
 
-    if (
-        not len(
+    if (not len(
             set.intersection(
-                *[set(_dataset.indices) for _dataset in split_datasets_out]
-            )
-        )
-        == 0
-    ):
+                *[set(_dataset.indices)
+                  for _dataset in split_datasets_out])) == 0):
         raise ValueError(
             "Split datasets are not disjoint. Intersections: {}".format(
                 set.intersection(
-                    *[set(_dataset.indices) for _dataset in split_datasets_out]
-                )
-            )
-        )
+                    *
+                    [set(_dataset.indices)
+                     for _dataset in split_datasets_out])))
 
     # check that ids are disjoint
-    if (
-        not len(
-            set.intersection(
-                *[
-                    set(
-                        [
-                            og_dataset.get_dataset_ids_from_indices(idx)
-                            for idx in _dataset.indices
-                        ]
-                    )
-                    for _dataset in split_datasets_out
-                ]
-            )
-        )
-        == 0
-    ):
+    if (not len(
+            set.intersection(*[
+                set([
+                    og_dataset.get_dataset_ids_from_indices(idx)
+                    for idx in _dataset.indices
+                ]) for _dataset in split_datasets_out
+            ])) == 0):
         raise ValueError(
             "Split datasets have overlapping ids. Intersections: {}".format(
-                set.intersection(
-                    *[
-                        set(
-                            [
-                                og_dataset.get_dataset_ids_from_indices(idx)
-                                for idx in _dataset.indices
-                            ]
-                        )
-                        for _dataset in split_datasets_out
-                    ]
-                )
-            )
-        )
+                set.intersection(*[
+                    set([
+                        og_dataset.get_dataset_ids_from_indices(idx)
+                        for idx in _dataset.indices
+                    ]) for _dataset in split_datasets_out
+                ])))
 
-    if not sum([len(_dataset) for _dataset in split_datasets_out]) == dataset_length:
+    if not sum([len(_dataset)
+                for _dataset in split_datasets_out]) == dataset_length:
         raise ValueError(
-            "Split datasets do not add up to original dataset. Lengths: {}. Sum: {}. Dataset Length: {}.".format(
+            "Split datasets do not add up to original dataset. Lengths: {}. Sum: {}. Dataset Length: {}."
+            .format(
                 [len(_dataset) for _dataset in split_datasets_out],
                 sum([len(_dataset) for _dataset in split_datasets_out]),
                 dataset_length,
-            )
-        )
+            ))
 
     return split_datasets_out
 
@@ -138,12 +122,10 @@ def collate_sizes(batch):
     for size in set(sizes):
         size_batch_in, size_batch_out = map(
             lambda array: torch.from_numpy(np.stack(array)).float(),
-            zip(
-                *[
-                    batch[sample_idx]
-                    for sample_idx in np.argwhere(sizes == size).flatten()
-                ]
-            ),
+            zip(*[
+                batch[sample_idx]
+                for sample_idx in np.argwhere(sizes == size).flatten()
+            ]),
         )
 
         size_batches_in.append(size_batch_in)
@@ -153,6 +135,7 @@ def collate_sizes(batch):
 
 
 class GaussianNoise:
+
     def __init__(self, mean: float, std: float):
         self.mean = mean
         self.std = std
@@ -161,11 +144,13 @@ class GaussianNoise:
         return x + torch.randn_like(x) * self.std + self.mean
 
     def __repr__(self):
-        return self.__class__.__name__ + "(mean={}, std={})".format(self.mean, self.std)
+        return self.__class__.__name__ + "(mean={}, std={})".format(
+            self.mean, self.std)
 
 
 # Transorm for symmetry of the square
 class SquareSymmetryGroupAugmentations(object):
+
     def __call__(
         self, xy: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -178,8 +163,8 @@ class SquareSymmetryGroupAugmentations(object):
             y = None
 
         def map_if_not_none(
-            fn: Callable[[torch.Tensor], torch.Tensor], x: Optional[torch.Tensor]
-        ) -> Optional[torch.Tensor]:
+                fn: Callable[[torch.Tensor], torch.Tensor],
+                x: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
             if x is None:
                 return None
             else:
@@ -192,37 +177,41 @@ class SquareSymmetryGroupAugmentations(object):
             pass
         elif rnd < 2 / 8:  # rotate 90 left
             x, y = map(
-                lambda xy: map_if_not_none(lambda x: torch.rot90(x, 1, [-2, -1]), xy),
+                lambda xy: map_if_not_none(
+                    lambda x: torch.rot90(x, 1, [-2, -1]), xy),
                 (x, y),
             )
         elif rnd < 3 / 8:  # rotate 180 left
             x, y = map(
-                lambda xy: map_if_not_none(lambda x: torch.rot90(x, 2, [-2, -1]), xy),
+                lambda xy: map_if_not_none(
+                    lambda x: torch.rot90(x, 2, [-2, -1]), xy),
                 (x, y),
             )
         elif rnd < 4 / 8:  # rotate 270 left
             x, y = map(
-                lambda xy: map_if_not_none(lambda x: torch.rot90(x, 3, [-2, -1]), xy),
+                lambda xy: map_if_not_none(
+                    lambda x: torch.rot90(x, 3, [-2, -1]), xy),
                 (x, y),
             )
         elif rnd < 5 / 8:  # flip x
             x, y = map(
-                lambda xy: map_if_not_none(lambda x: torch.flip(x, [-2]), xy), (x, y)
-            )
+                lambda xy: map_if_not_none(lambda x: torch.flip(x, [-2]), xy),
+                (x, y))
         elif rnd < 6 / 8:  # flip y
             x, y = map(
-                lambda xy: map_if_not_none(lambda x: torch.flip(x, [-1]), xy), (x, y)
-            )
+                lambda xy: map_if_not_none(lambda x: torch.flip(x, [-1]), xy),
+                (x, y))
         elif rnd < 7 / 8:  # reflection x=y
             x, y = map(
-                lambda xy: map_if_not_none(lambda x: torch.transpose(x, -2, -1), xy),
+                lambda xy: map_if_not_none(
+                    lambda x: torch.transpose(x, -2, -1), xy),
                 (x, y),
             )
         else:  # reflection x=-y
             x, y = map(
                 lambda xy: map_if_not_none(
-                    lambda x: torch.flip(torch.transpose(x, -2, -1), [-2, -1]), xy
-                ),
+                    lambda x: torch.flip(torch.transpose(x, -2, -1), [-2, -1]),
+                    xy),
                 (x, y),
             )
 
@@ -236,6 +225,7 @@ class SquareSymmetryGroupAugmentations(object):
 
 
 class TupleWrapperInTransform(object):
+
     def __init__(self, transform: Callable[[torch.Tensor], torch.Tensor]):
         self.transform = transform
 
@@ -248,10 +238,12 @@ class TupleWrapperInTransform(object):
             return self.transform(x)
 
     def __repr__(self):
-        return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
+        return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__(
+        )
 
 
 class TupleWrapperOutTransform(object):
+
     def __init__(self, transform: Callable[[torch.Tensor], torch.Tensor]):
         self.transform = transform
 
@@ -264,4 +256,5 @@ class TupleWrapperOutTransform(object):
             return self.transform(x)
 
     def __repr__(self):
-        return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
+        return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__(
+        )

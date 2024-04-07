@@ -1,13 +1,15 @@
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import simulate
-from pathlib import Path
 import argparse
-import os
-from dotenv import load_dotenv
-from dmb.utils import REPO_DATA_ROOT
 import asyncio
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
-from tqdm import tqdm
+import os
+from pathlib import Path
+
 import numpy as np
+from dotenv import load_dotenv
+from tqdm import tqdm
+
+from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import simulate
+from dmb.utils import REPO_DATA_ROOT
 
 
 def get_required_inputs(
@@ -35,12 +37,10 @@ def get_required_inputs(
     if len(bh_dataset) == 0:
         zVU, muU, ztU = [], [], []
     else:
-        zVU, muU, ztU = zip(
-            *[
-                bh_dataset.phase_diagram_position(idx)
-                for idx in tqdm(range(len(bh_dataset)))
-            ]
-        )
+        zVU, muU, ztU = zip(*[
+            bh_dataset.phase_diagram_position(idx)
+            for idx in tqdm(range(len(bh_dataset)))
+        ])
 
     rest_filter = [
         bh_dataset.get_parameters(idx).Lx == L and zVU[idx] == zVU
@@ -52,10 +52,10 @@ def get_required_inputs(
     )
 
     # get meshgrid of U and mu
-    U_on_array = np.arange(
-        U_on_inv_min, U_on_inv_max, min_distance_between_samples_U_inv
-    )
-    mu_offset_array = np.arange(muU_min, muU_max, min_distance_between_samples_mu)
+    U_on_array = np.arange(U_on_inv_min, U_on_inv_max,
+                           min_distance_between_samples_U_inv)
+    mu_offset_array = np.arange(muU_min, muU_max,
+                                min_distance_between_samples_mu)
 
     U_on_inv_mesh, muU_mesh = np.meshgrid(U_on_array, mu_offset_array)
 
@@ -65,7 +65,8 @@ def get_required_inputs(
         mask = np.logical_and(
             mask,
             np.logical_or(
-                np.abs(U_on_inv_mesh - ztU_) > min_distance_between_samples_U_inv,
+                np.abs(U_on_inv_mesh - ztU_)
+                > min_distance_between_samples_U_inv,
                 np.abs(muU_mesh - muU_) > min_distance_between_samples_mu,
             ),
         )
@@ -83,7 +84,8 @@ def get_required_inputs(
 if __name__ == "__main__":
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(
+        description="Run worm simulation for 2D BH model")
     parser.add_argument(
         "--min_distance_between_samples_U_inv",
         type=float,
@@ -154,7 +156,8 @@ if __name__ == "__main__":
         V_nn_z=args.V_nn_z,
         muU_min=args.muU_min,
         muU_max=args.muU_max,
-        min_distance_between_samples_U_inv=args.min_distance_between_samples_U_inv,
+        min_distance_between_samples_U_inv=args.
+        min_distance_between_samples_U_inv,
         min_distance_between_samples_mu=args.min_distance_between_samples_mu,
     )
 
@@ -164,13 +167,15 @@ if __name__ == "__main__":
         async with semaphore:
             await simulate(
                 parent_dir=target_dir,
-                simulation_name=f"phase_diagram_{args.zVU}_{args.L}_{sample_id}",
+                simulation_name=
+                f"phase_diagram_{args.zVU}_{args.L}_{sample_id}",
                 L=args.L,
                 U_on=U_on_required[sample_id],
                 V_nn=args.zVU * U_on_required[sample_id] / 4,
                 mu=np.ones((args.L, args.L)) * mu_required[sample_id],
                 t_hop_array=np.ones((2, args.L, args.L)),
-                U_on_array=np.ones((args.L, args.L)) * U_on_required[sample_id],
+                U_on_array=np.ones(
+                    (args.L, args.L)) * U_on_required[sample_id],
                 V_nn_array=np.ones((2, args.L, args.L)) * args.V_nn_z,
                 power=1.0,
                 mu_offset=mu_required[sample_id],
@@ -179,7 +184,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         asyncio.gather(
-            *[run_sample(sample_id) for sample_id in range(len(U_on_required))]
-        )
-    )
+            *
+            [run_sample(sample_id)
+             for sample_id in range(len(U_on_required))]))
     loop.close()

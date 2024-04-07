@@ -1,4 +1,5 @@
 import datetime
+import logging
 import subprocess
 from copy import deepcopy
 from pathlib import Path
@@ -7,15 +8,16 @@ from typing import Optional
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+from attrs import define
 
-
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.observables import SimulationObservables
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.observables import \
+    SimulationObservables
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
+    WormInputParameters
+from dmb.data.dispatching import Dispatcher
 from dmb.utils import REPO_DATA_ROOT, create_logger
 from dmb.utils.syjson import SyJson
-import logging
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.dispatching import AutoDispatcher
 
 __all__ = [
     "WormSimulation",
@@ -27,35 +29,13 @@ __all__ = [
 log = create_logger(__name__)
 
 
-class _SimulationExecution:
-    @property
-    def executable(self):
-        if not hasattr(self, "_executable") or self._executable is None:
-            raise RuntimeError("No executable set!")
-
-        return self._executable
-
-    @executable.setter
-    def executable(self, executable: Optional[str] = None) -> None:
-        if executable is None:
-            log.debug("No executable set. Won't be able to execute worm calculation.")
-            return
-
-        if not Path(executable).is_file():
-            raise RuntimeError(f"Executable {executable} does not exist!")
-
-        self._executable = executable
-
-    @property
-    def dispatcher(self):
-        return AutoDispatcher()
+class _SimulationExecutionMixin:
 
     async def execute_worm(
         self,
         input_file_path: Optional[Path] = None,
     ):
-        self.file_logger.info(
-            f"""Running simulation with:
+        self.file_logger.info(f"""Running simulation with:
             sweeps: {self.input_parameters.sweeps},
             Nmeasure2: {self.input_parameters.Nmeasure2},
             Nmeasure: {self.input_parameters.Nmeasure},
@@ -63,8 +43,7 @@ class _SimulationExecution:
             Executable: {self.executable}
             Input file Path: {input_file_path}
             Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}
-            """
-        )
+            """)
 
         try:
             await self.dispatcher.dispatch(
@@ -81,25 +60,23 @@ class _SimulationExecution:
             )
         except subprocess.CalledProcessError as e:
             self.file_logger.error(
-                f"Worm calculation failed with error code {e.returncode}."
-            )
+                f"Worm calculation failed with error code {e.returncode}.")
 
-    async def execute_worm_continue(
-        self,
-    ):
+    async def execute_worm_continue(self, ):
         await self.execute_worm(
-            input_file_path=self.input_parameters.checkpoint,
-        )
+            input_file_path=self.input_parameters.checkpoint, )
 
 
-class _SimulationResult:
+class _SimulationResultMixin:
+
     @property
     def output(self):
         if self.input_parameters.outputfile_relative is None:
             out_file_path = (
-                REPO_DATA_ROOT / self.input_parameters.outputfile.split("data/")[-1]
-            )
-            self.file_logger.debug(f"Using default output file path: {out_file_path}")
+                REPO_DATA_ROOT /
+                self.input_parameters.outputfile.split("data/")[-1])
+            self.file_logger.debug(
+                f"Using default output file path: {out_file_path}")
         else:
             out_file_path = self.save_dir / self.input_parameters.outputfile_relative
 
@@ -117,19 +94,20 @@ class _SimulationResult:
 
     @property
     def max_tau_int(self) -> float | None:
-        tau_int = self.observables.get_error_analysis("primary", "density")["tau_int"]
+        tau_int = self.observables.get_error_analysis("primary",
+                                                      "density")["tau_int"]
         return float(np.max(tau_int)) if tau_int is not None else None
 
     @property
     def uncorrected_max_density_error(self) -> float | None:
-        naive_error = self.observables.get_error_analysis("primary", "density")[
-            "naive_error"
-        ]
+        naive_error = self.observables.get_error_analysis(
+            "primary", "density")["naive_error"]
         return float(np.max(naive_error)) if naive_error is not None else None
 
     @property
     def max_density_error(self) -> float | None:
-        error = self.observables.get_error_analysis("primary", "density")["error"]
+        error = self.observables.get_error_analysis("primary",
+                                                    "density")["error"]
         return float(np.max(error)) if error is not None else None
 
     def plot_observables(self, observable_names: list[str] = ["density"]):
@@ -143,19 +121,22 @@ class _SimulationResult:
             fig, ax = plt.subplots(1, 3, figsize=(12, 4))
             plt.subplots_adjust(wspace=0.5)
 
-            error_analysis = self.observables.get_error_analysis("primary", obs)
+            error_analysis = self.observables.get_error_analysis(
+                "primary", obs)
 
-            value_plot = ax[0].imshow(error_analysis["expectation_value"])
-            ax[0].set_title(obs)
-            fig.colorbar(value_plot, ax=ax[0])
+            if expectation_value := error_analysis["expectation_value"]:
+                value_plot = ax[0].imshow(expectation_value)
+                ax[0].set_title(obs)
+                fig.colorbar(value_plot, ax=ax[0])
 
-            error_plot = ax[1].imshow(error_analysis["error"])
-            ax[1].set_title("Error")
-            fig.colorbar(error_plot, ax=ax[1])
+            if error := error_analysis["error"]:
+                error_plot = ax[1].imshow(error)
+                ax[1].set_title("Error")
+                fig.colorbar(error_plot, ax=ax[1])
 
             chem_pot_plot = ax[2].imshow(
-                inputs.reshape(self.input_parameters.Lx, self.input_parameters.Ly)
-            )
+                inputs.reshape(self.input_parameters.Lx,
+                               self.input_parameters.Ly))
             ax[2].set_title("Chemical Potential")
             fig.colorbar(chem_pot_plot, ax=ax[2])
 
@@ -174,73 +155,74 @@ class _SimulationResult:
             plt.close()
 
     def plot_inputs(self):
-        self.input_parameters.plot_inputs(plots_dir=self.get_plot_dir(self.save_dir))
+        self.input_parameters.plot_inputs(
+            plots_dir=self.get_plot_dir(self.save_dir))
 
     def plot_phase_diagram_inputs(self):
         self.input_parameters.plot_phase_diagram_inputs(
-            plots_dir=self.get_plot_dir(self.save_dir)
-        )
+            plots_dir=self.get_plot_dir(self.save_dir))
 
 
+@define
 class WormSimulation(_SimulationExecution, _SimulationResult):
     """Class to manage worm simulations."""
 
-    def __init__(
-        self,
-        input_parameters: WormInputParameters,
-        save_dir: Path,
-        worm_executable: Optional[Path] = None,
-        reloaded_from_dir: bool = False,
-    ):
-        self.input_parameters = input_parameters
-        self.executable = worm_executable
-        self.save_dir = save_dir
+    input_parameters: WormInputParameters
+    executable: Path
+    save_dir: Path
+    dispatcher: Dispatcher
+    reloaded_from_dir: bool = False
 
-        self.record = SyJson(path=save_dir / "record.json")
-
-        if not reloaded_from_dir:
-            self.save_parameters()
+    def __attrs_post_init__(self):
+        self.record = SyJson(path=self.save_dir / "record.json")
 
         self.file_logger = create_logger(
-            app_name=(
-                f"worm_simulation_{self.save_dir.name}"
-                if self.save_dir.name != "tune"
-                else f"worm_simulation_{self.save_dir.parent.name}_{self.save_dir.name}"
-            ),
+            app_name=
+            (f"worm_simulation_{self.save_dir.name}"
+             if self.save_dir.name != "tune" else
+             f"worm_simulation_{self.save_dir.parent.name}_{self.save_dir.name}"
+             ),
             level=logging.INFO,
             file=self.save_dir / "log.txt",
         )
 
-        if not reloaded_from_dir:
-            self.file_logger.info(f"Initialized worm simulation in {self.save_dir}")
+        if not self.reloaded_from_dir:
+            self.save_parameters()
+
+        self.file_logger.info(
+            f"Initialized worm simulation in {self.save_dir}")
 
     @classmethod
     def from_dir(
         cls,
         dir_path: Path,
+        dispatcher: Dispatcher,
         worm_executable: Optional[Path] = None,
         check_tune_dir: bool = True,
     ):
         try:
             # Read in parameters
-            input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
+            input_parameters = WormInputParameters.from_dir(
+                save_dir_path=dir_path)
         except FileNotFoundError:
             if check_tune_dir:
                 tune_dir = cls.get_tune_dir(save_dir=dir_path)
                 if tune_dir.is_dir():
-                    log.info(f"Parameters are loaded from tune_dir {tune_dir}.")
+                    log.info(
+                        f"Parameters are loaded from tune_dir {tune_dir}.")
                     loaded_simulation = cls.from_dir(
                         dir_path=tune_dir,
                         worm_executable=worm_executable,
                         check_tune_dir=False,
+                        dispatcher=dispatcher,
                     )
                     loaded_simulation.input_parameters.save_parameters(
-                        save_dir_path=dir_path
-                    )
+                        save_dir_path=dir_path)
                     loaded_simulation.save_dir = dir_path
                     return loaded_simulation
 
-            raise FileNotFoundError(f"Could not find input parameters in {dir_path}.")
+            raise FileNotFoundError(
+                f"Could not find input parameters in {dir_path}.")
 
         # Create simulation
         return cls(
@@ -248,11 +230,18 @@ class WormSimulation(_SimulationExecution, _SimulationResult):
             save_dir=dir_path,
             worm_executable=worm_executable,
             reloaded_from_dir=True,
+            dispatcher=dispatcher,
         )
 
     @staticmethod
     def get_tune_dir(save_dir: Path):
         return save_dir / "tune"
+
+    @staticmethod
+    def get_plot_dir(save_dir: Path):
+        plot_dir = save_dir / "plots"
+        plot_dir.mkdir(parents=True, exist_ok=True)
+        return plot_dir
 
     @property
     def tune_simulation(self):
@@ -261,13 +250,16 @@ class WormSimulation(_SimulationExecution, _SimulationResult):
 
         try:
             tune_simulation = WormSimulation.from_dir(
-                dir_path=tune_dir, worm_executable=self.executable
+                dir_path=tune_dir,
+                worm_executable=self.executable,
+                dispatcher=self.dispatcher,
             )
         except FileNotFoundError:
             tune_simulation = WormSimulation(
                 input_parameters=deepcopy(self.input_parameters),
                 save_dir=tune_dir,
                 worm_executable=self.executable,
+                dispatcher=self.dispatcher,
             )
         return tune_simulation
 
@@ -291,9 +283,3 @@ class WormSimulation(_SimulationExecution, _SimulationResult):
                 except KeyError:
                     pass
         return extension_sweeps
-
-    @staticmethod
-    def get_plot_dir(save_dir: Path):
-        plot_dir = save_dir / "plots"
-        plot_dir.mkdir(parents=True, exist_ok=True)
-        return plot_dir

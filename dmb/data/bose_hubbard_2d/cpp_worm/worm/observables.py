@@ -1,24 +1,33 @@
+import concurrent.futures
+import itertools
+from copy import deepcopy
+from logging import Logger
+
 import numpy as np
+from attrs import define
+from auto_correlation import DerivedAnalysis, GammaPathologicalError, \
+    PrimaryAnalysis
 
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
 from dmb.utils import create_logger
-from auto_correlation import GammaPathologicalError, PrimaryAnalysis, DerivedAnalysis
-import concurrent.futures
-from logging import Logger
-from copy import deepcopy
-from attrs import define
-import itertools
 
 log = create_logger(__name__)
 
 
 def reshape_if_not_none(results, attribute, shape):
     """Reshape the attribute of the results if it is not None."""
-    return (
-        np.array(getattr(results, attribute)).reshape(*shape)
-        if results is not None
-        else None
-    )
+    if results is None:
+        return None
+
+    attribute_value = np.array(getattr(results, attribute))
+    if attribute_value is None:
+        return None
+
+    out = attribute_value.reshape(shape)
+    if shape == (1, ):
+        return float(out)
+
+    return out
 
 
 def ulli_wolff_mc_error_analysis(
@@ -43,14 +52,14 @@ def ulli_wolff_mc_error_analysis(
     Lx, Ly = samples.shape[1:]
 
     def function_shape_adjuster(function):
+
         def wrapper(data):
             return function(data.reshape(*data.shape[:-1], Lx, Ly))
 
         return wrapper
 
-    samples_reshaped = samples.reshape(
-        1, samples.shape[0], samples.shape[1] * samples.shape[2]
-    )
+    samples_reshaped = samples.reshape(1, samples.shape[0],
+                                       samples.shape[1] * samples.shape[2])
 
     if derived_quantity is None:
         analysis = PrimaryAnalysis(
@@ -72,10 +81,9 @@ def ulli_wolff_mc_error_analysis(
         # calculate the mean of the observable
         analysis.mean()
         mean_analysis_results = analysis.apply(
-            function_shape_adjuster(derived_quantity)
-        )
-        out_shape = (1,)
-        variance = derived_quantity(samples).var(axis=0).reshape(*out_shape)
+            function_shape_adjuster(derived_quantity))
+        out_shape = (1, )
+        variance = derived_quantity(samples).var(axis=0)
 
     try:
 
@@ -96,13 +104,17 @@ def ulli_wolff_mc_error_analysis(
         )
         error_analysis_results = None
 
-    expectation_value = mean_analysis_results.value.reshape(*out_shape)
+    expectation_value = reshape_if_not_none(mean_analysis_results, "value",
+                                            out_shape)
 
     error = reshape_if_not_none(error_analysis_results, "dvalue", out_shape)
-    naive_error = reshape_if_not_none(error_analysis_results, "naive_err", out_shape)
+    naive_error = reshape_if_not_none(error_analysis_results, "naive_err",
+                                      out_shape)
     tau_int = reshape_if_not_none(error_analysis_results, "tau_int", out_shape)
-    tau_int_error = reshape_if_not_none(error_analysis_results, "dtau_int", out_shape)
-    error_on_error = reshape_if_not_none(error_analysis_results, "ddvalue", out_shape)
+    tau_int_error = reshape_if_not_none(error_analysis_results, "dtau_int",
+                                        out_shape)
+    error_on_error = reshape_if_not_none(error_analysis_results, "ddvalue",
+                                         out_shape)
 
     return {
         "expectation_value": expectation_value,
@@ -135,7 +147,8 @@ class DensityDerivedObservable:
 
         return samples
 
-    def expectation_value(self, output: WormOutput) -> np.ndarray | None:
+    def expectation_value(self,
+                          output: WormOutput) -> np.ndarray | float | None:
         """Return the expectation value of the observable."""
         densities = output.densities
 
@@ -144,17 +157,14 @@ class DensityDerivedObservable:
 
         samples = self._subsample(densities)
 
-        mapped_samples = (
-            self.sample_function(samples) if self.sample_function else samples
-        )
-        derived_quantity = (
-            self.derived_quantity(mapped_samples)
-            if self.derived_quantity
-            else mapped_samples
-        )
+        mapped_samples = (self.sample_function(samples)
+                          if self.sample_function else samples)
+        derived_quantity = (self.derived_quantity(mapped_samples)
+                            if self.derived_quantity else mapped_samples)
         return derived_quantity.mean(axis=0)
 
-    def error_analysis(self, output: WormOutput) -> dict[str, np.ndarray | None]:
+    def error_analysis(
+            self, output: WormOutput) -> dict[str, np.ndarray | float | None]:
         """Return the error of the observable."""
         densities = output.densities
 
@@ -166,13 +176,11 @@ class DensityDerivedObservable:
         if np.array_equal(samples, self._error_previous_samples):
             return self._error_previous_results
 
-        mapped_samples = (
-            self.sample_function(samples) if self.sample_function else samples
-        )
+        mapped_samples = (self.sample_function(samples)
+                          if self.sample_function else samples)
 
         results = ulli_wolff_mc_error_analysis(
-            samples=mapped_samples, derived_quantity=self.derived_quantity
-        )
+            samples=mapped_samples, derived_quantity=self.derived_quantity)
 
         # store the results and samples for future reference
         self._error_previous_results = results
@@ -245,9 +253,11 @@ class SimulationObservables:
     ) -> dict[str, np.ndarray | None]:
         """Return the observable with the given name."""
         if observable_type == "primary":
-            return self.primary_observables[name].expectation_value(self.output)
+            return self.primary_observables[name].expectation_value(
+                self.output)
         elif observable_type == "derived":
-            return self.derived_observables[name].expectation_value(self.output)
+            return self.derived_observables[name].expectation_value(
+                self.output)
         else:
             raise ValueError(f"Invalid observable type: {observable_type}")
 
@@ -266,9 +276,8 @@ class SimulationObservables:
 
     def __contains__(self, key):
         """Return whether the observable with the given key is present."""
-        return key in itertools.chain(
-            self.primary_observables.keys(), self.derived_observables.keys()
-        )
+        return key in itertools.chain(self.primary_observables.keys(),
+                                      self.derived_observables.keys())
 
 
 # sample_function = None
@@ -287,12 +296,14 @@ def get_density_density_corr_1(samples: np.ndarray) -> np.ndarray:
 
 @SimulationObservables.register_primary("density_density_corr_2")
 def get_density_density_corr_2(samples: np.ndarray) -> np.ndarray:
-    return np.roll(np.roll(samples, axis=-2, shift=1), axis=2, shift=1) * samples
+    return np.roll(np.roll(samples, axis=-2, shift=1), axis=2,
+                   shift=1) * samples
 
 
 @SimulationObservables.register_primary("density_density_corr_3")
 def get_density_density_corr_3(samples: np.ndarray) -> np.ndarray:
-    return np.roll(np.roll(samples, axis=-2, shift=-1), axis=-1, shift=1) * samples
+    return np.roll(np.roll(samples, axis=-2, shift=-1), axis=-1,
+                   shift=1) * samples
 
 
 @SimulationObservables.register_primary("density_squared")

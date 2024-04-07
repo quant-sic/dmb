@@ -15,13 +15,12 @@ log = create_logger(__name__)
 
 
 class LitModelMixin:
+
     @property
     def metrics(self) -> MetricCollection:
-        metric_collection = MetricCollection(
-            {
-                "mse": MaskedMSE(),
-            }
-        )
+        metric_collection = MetricCollection({
+            "mse": MaskedMSE(),
+        })
 
         module_device: torch.device = (
             self.model.parameters().__next__().device
@@ -62,8 +61,7 @@ class LitModelMixin:
             return {"optimizer": _optimizer}
         else:
             _scheduler: torch.optim.lr_scheduler._LRScheduler = hydra.utils.instantiate(
-                self.hparams["scheduler"], optimizer=_optimizer
-            )
+                self.hparams["scheduler"], optimizer=_optimizer)
 
             return {
                 "optimizer": _optimizer,
@@ -107,14 +105,12 @@ class LitModelMixin:
 
             # log metric
             computed_metric = metric.compute()
-            log_dict = (
-                {metric_name: computed_metric}
-                if not isinstance(computed_metric, dict)
-                else {
-                    f"{metric_name}/{key}": value
-                    for key, value in computed_metric.items()
-                }
-            )
+            log_dict = ({
+                metric_name: computed_metric
+            } if not isinstance(computed_metric, dict) else {
+                f"{metric_name}/{key}": value
+                for key, value in computed_metric.items()
+            })
 
             # log on step only for training
             log_on_step = stage == "train"
@@ -127,6 +123,7 @@ class LitModelMixin:
 
 
 class DMBLitModel(pl.LightningModule, LitModelMixin):
+
     def __init__(
         self,
         model: Dict[str, Any],
@@ -173,9 +170,11 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         loss = self.loss(model_out, batch_label, mask=batch_mask)
 
         # log metrics
-        self.compute_and_log_metrics(
-            model_out, batch_in, "train", loss, mask=batch_mask
-        )
+        self.compute_and_log_metrics(model_out,
+                                     batch_in,
+                                     "train",
+                                     loss,
+                                     mask=batch_mask)
 
         return loss
 
@@ -189,9 +188,11 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         loss = self.loss(model_out, batch_label, mask=batch_mask)
 
         # log metrics
-        self.compute_and_log_metrics(
-            model_out, batch_label, "val", loss, mask=batch_mask
-        )
+        self.compute_and_log_metrics(model_out,
+                                     batch_label,
+                                     "val",
+                                     loss,
+                                     mask=batch_mask)
 
         return loss
 
@@ -205,9 +206,11 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         loss = self.loss(model_out, batch_label, mask=batch_mask)
 
         # log metrics
-        self.compute_and_log_metrics(
-            model_out, batch_label, "test", loss, mask=batch_mask
-        )
+        self.compute_and_log_metrics(model_out,
+                                     batch_label,
+                                     "test",
+                                     loss,
+                                     mask=batch_mask)
 
         return loss
 
@@ -215,7 +218,8 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         """Reset metrics."""
         # get metrics for the current stage
         metrics_dict = getattr(self, f"{stage}_metrics")
-        for metric_name, (metric, lit_module_attribute) in metrics_dict.items():
+        for metric_name, (metric,
+                          lit_module_attribute) in metrics_dict.items():
             metric.reset()
 
     def training_epoch_end(self, outputs: List[Any]) -> None:

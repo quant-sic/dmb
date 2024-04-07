@@ -1,14 +1,14 @@
 import logging
+from pathlib import Path
 from typing import Any, Optional
 
 from joblib import Parallel
 from tqdm import tqdm
-from pathlib import Path
 
 
-def create_logger(
-    app_name: str, file: Optional[Path] = None, level: int = logging.INFO
-) -> logging.Logger:
+def create_logger(app_name: str,
+                  file: Optional[Path] = None,
+                  level: int = logging.INFO) -> logging.Logger:
     """Serves as a unified way to instantiate a new logger. Will create a new logging instance with the name app_name. The logging output is sent to the console via a logging.StreamHandler() instance. The output will be formatted using the logging time, the logger name, the level at which the logger was called and the logging message. As the root logger threshold is set to WARNING, the instantiation via logging.getLogger(__name__) results in a logger instance, which console handel also has the threshold set to WARNING. One needs to additionally set the console handler level to the desired level, which is done by this function.
 
     ..note:: Function might be adapted for more specialized usage in the future
@@ -46,14 +46,10 @@ def create_logger(
         logger.addHandler(fh)
 
     # if number of stream handlers is 0, add console handler
-    if (
-        len(
+    if (len(
             list(
-                filter(lambda x: isinstance(x, logging.StreamHandler), logger.handlers)
-            )
-        )
-        == 0
-    ):
+                filter(lambda x: isinstance(x, logging.StreamHandler),
+                       logger.handlers))) == 0):
         logger.addHandler(ch)
 
     return logger
@@ -81,9 +77,9 @@ class ProgressParallel(Parallel):
         super().__init__(*args, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        with tqdm(
-            disable=not self._use_tqdm, total=self._total, desc=self._desc
-        ) as self._pbar:
+        with tqdm(disable=not self._use_tqdm,
+                  total=self._total,
+                  desc=self._desc) as self._pbar:
             return Parallel.__call__(self, *args, **kwargs)
 
     def print_progress(self) -> None:

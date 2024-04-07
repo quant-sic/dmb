@@ -1,21 +1,17 @@
-import numpy as np
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import (
-    simulate,
-    get_missing_samples,
-)
-from pathlib import Path
 import argparse
-import os
-from dotenv import load_dotenv
-from dmb.utils import REPO_DATA_ROOT
 import asyncio
-from tqdm import tqdm
-import numpy as np
-from typing import List
 import itertools
-
+import os
+from pathlib import Path
+from typing import List
 
 import numpy as np
+from dotenv import load_dotenv
+from tqdm import tqdm
+
+from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import \
+    get_missing_samples, simulate
+from dmb.utils import REPO_DATA_ROOT
 
 
 def get_quadratic_mu(coeffitients, lattice_size, center=None, offset=0):
@@ -23,11 +19,9 @@ def get_quadratic_mu(coeffitients, lattice_size, center=None, offset=0):
         center = (float(lattice_size) / 2, float(lattice_size) / 2)
 
     X, Y = np.meshgrid(np.arange(lattice_size), np.arange(lattice_size))
-    mu = (
-        offset
-        + coeffitients[0] * (X - center[0]) ** 2 / ((float(lattice_size) * 0.5) ** 2)
-        + coeffitients[1] * (Y - center[1]) ** 2 / ((float(lattice_size) * 0.5) ** 2)
-    )
+    mu = (offset + coeffitients[0] * (X - center[0])**2 /
+          ((float(lattice_size) * 0.5)**2) + coeffitients[1] *
+          (Y - center[1])**2 / ((float(lattice_size) * 0.5)**2))
 
     return mu
 
@@ -35,7 +29,8 @@ def get_quadratic_mu(coeffitients, lattice_size, center=None, offset=0):
 if __name__ == "__main__":
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(
+        description="Run worm simulation for 2D BH model")
     parser.add_argument(
         "--muU_min",
         type=float,
@@ -90,9 +85,8 @@ if __name__ == "__main__":
     os.environ["WORM_JOB_NAME"] = "wedding_cake"
 
     target_dir = (
-        REPO_DATA_ROOT
-        / f"wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
-    )
+        REPO_DATA_ROOT /
+        f"wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}")
     target_dir.mkdir(parents=True, exist_ok=True)
 
     L_out, ztU_out, zVU_out, muU_out = get_missing_samples(
@@ -114,15 +108,13 @@ if __name__ == "__main__":
             await simulate(
                 parent_dir=target_dir,
                 simulation_name="wedding_cake_{}_{:.3f}_{}".format(
-                    args.zVU, muU_out[sample_id], sample_id
-                ),
+                    args.zVU, muU_out[sample_id], sample_id),
                 L=args.L,
                 mu=get_quadratic_mu(
                     [args.coefficient, args.coefficient],
                     args.L,
                     offset=muU_out[sample_id],
-                )
-                * U_on,
+                ) * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
                 U_on_array=np.ones((args.L, args.L)) * U_on,
                 V_nn_array=np.ones((2, args.L, args.L)) * args.zVU * U_on / 4,
@@ -132,6 +124,6 @@ if __name__ == "__main__":
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
-        asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))])
-    )
+        asyncio.gather(
+            *[run_sample(sample_id) for sample_id in range(len(muU_out))]))
     loop.close()

@@ -52,7 +52,9 @@ def print_config_tree(
 
     # add fields from `print_order` to queue
     for field_print_order in print_order:
-        queue.append(field_print_order) if field_print_order in cfg else log.warning(
+        queue.append(
+            field_print_order
+        ) if field_print_order in cfg else log.warning(
             f"Field '{field_print_order}' not found in config. Skipping '{field_print_order}' config printing..."
         )
 
@@ -90,8 +92,10 @@ def enforce_tags(cfg: DictConfig, save_to_file: bool = False) -> None:
             if "id" in hydra_conf.hydra.job:
                 raise ValueError("Specify tags before launching a multirun!")
 
-        log.warning("No tags provided in config. Prompting user to input tags...")
-        tags = Prompt.ask("Enter a list of comma separated tags", default="dev")
+        log.warning(
+            "No tags provided in config. Prompting user to input tags...")
+        tags = Prompt.ask("Enter a list of comma separated tags",
+                          default="dev")
         tags_list = [t.strip() for t in tags.split(",") if t != ""]
 
         with open_dict(cfg):
@@ -138,9 +142,10 @@ def task_wrapper(task_func: Callable) -> Callable:
                 f"'{cfg.task_name}' execution time: {time.time() - start_time} (s)"
             )
             save_file(
-                path, content
-            )  # save task execution time (even if exception occurs)
-            close_loggers()  # close loggers (even if exception occurs so multirun won't fail)
+                path,
+                content)  # save task execution time (even if exception occurs)
+            close_loggers(
+            )  # close loggers (even if exception occurs so multirun won't fail)
 
         log.info(f"Output dir: {cfg.paths.output_dir}")
 
@@ -164,7 +169,8 @@ def extras(cfg: DictConfig) -> None:
 
     # disable python warnings
     if cfg.extras.get("ignore_warnings"):
-        log.info("Disabling python warnings! <cfg.extras.ignore_warnings=True>")
+        log.info(
+            "Disabling python warnings! <cfg.extras.ignore_warnings=True>")
         warnings.filterwarnings("ignore")
 
     # prompt user to input tags from command line if none are provided in the config
@@ -174,7 +180,8 @@ def extras(cfg: DictConfig) -> None:
 
     # pretty print config tree using Rich library
     if cfg.extras.get("print_config"):
-        log.info("Printing config tree with Rich! <cfg.extras.print_config=True>")
+        log.info(
+            "Printing config tree with Rich! <cfg.extras.print_config=True>")
         print_config_tree(cfg, resolve=True, save_to_file=True)
 
 
@@ -242,12 +249,12 @@ def log_hyperparameters(object_dict: dict) -> None:
 
     # save number of model parameters
     hparams["model/params/total"] = sum(p.numel() for p in model.parameters())
-    hparams["model/params/trainable"] = sum(
-        p.numel() for p in model.parameters() if p.requires_grad
-    )
-    hparams["model/params/non_trainable"] = sum(
-        p.numel() for p in model.parameters() if not p.requires_grad
-    )
+    hparams["model/params/trainable"] = sum(p.numel()
+                                            for p in model.parameters()
+                                            if p.requires_grad)
+    hparams["model/params/non_trainable"] = sum(p.numel()
+                                                for p in model.parameters()
+                                                if not p.requires_grad)
 
     hparams["datamodule"] = cfg["datamodule"]
     hparams["trainer"] = cfg["trainer"]
@@ -264,9 +271,8 @@ def log_hyperparameters(object_dict: dict) -> None:
     trainer.logger.log_hyperparams(hparams)
 
 
-def get_metric_value(
-    metric_dict: Dict[str, Tensor], metric_name: str
-) -> Optional[float]:
+def get_metric_value(metric_dict: Dict[str, Tensor],
+                     metric_name: str) -> Optional[float]:
     """Safely retrieves value of the metric logged in LightningModule."""
 
     if not metric_name:

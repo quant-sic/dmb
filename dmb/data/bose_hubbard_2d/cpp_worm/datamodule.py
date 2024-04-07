@@ -10,6 +10,7 @@ log = create_logger(__name__)
 
 
 class BoseHubbardDataModule(DataModuleMixin):
+
     def __init__(
         self,
         data_dir: Path,
@@ -20,7 +21,11 @@ class BoseHubbardDataModule(DataModuleMixin):
         base_transforms=None,
         train_transforms=None,
         resplit: Optional[List[Dict]] = None,
-        split_usage: Dict[str, int] = {"train": 0, "val": 1, "test": 2},
+        split_usage: Dict[str, int] = {
+            "train": 0,
+            "val": 1,
+            "test": 2
+        },
         pin_memory: bool = False,
         max_density_error: float = 0.015,
         observables: List[str] = [

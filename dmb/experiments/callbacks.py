@@ -1,16 +1,18 @@
-from lightning.pytorch.callbacks import Callback
 from pathlib import Path
 from typing import List, Tuple
 
+from lightning.pytorch.callbacks import Callback
+
 
 class PhaseDiagramPlotCallback(Callback):
+
     def __init__(
         self,
         plot_interval: int,
         check: List[Tuple[str, ...]] = [
             ("density", "max-min"),
             ("density_variance", "mean"),
-            ("mu_cut",),
+            ("mu_cut", ),
         ],
     ) -> None:
         super().__init__()

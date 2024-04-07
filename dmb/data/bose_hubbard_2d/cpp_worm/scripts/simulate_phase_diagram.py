@@ -7,11 +7,10 @@ from pathlib import Path
 
 import joblib
 
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.create import (
-    draw_random_config,
-    draw_uniform_config,
-)
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.cpp_worm.scripts.create import \
+    draw_random_config, draw_uniform_config
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
+    WormInputParameters
 from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 from dmb.utils import create_logger
 from dmb.utils.io import ProgressParallel
@@ -77,8 +76,7 @@ def simulate(sample_id, type="random"):
     sim.save_parameters()
     try:
         sim.run_until_convergence(
-            executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi"
-        )
+            executable="/u/bale/paper/worm/build_non_uniform/qmc_worm_mpi")
         sim.plot_result()
     except Exception as e:
         log.error("Simulation failed with exception: %s", e)
@@ -90,7 +88,8 @@ def simulate(sample_id, type="random"):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(
+        description="Run worm simulation for 2D BH model")
     parser.add_argument(
         "--number_of_samples_per_dim",
         type=int,
@@ -112,7 +111,5 @@ if __name__ == "__main__":
         total=args.number_of_samples,
         desc="Running Simulations",
         timeout=99999,
-    )(
-        joblib.delayed(partial(simulate, type=args.type))(sample_id)
-        for sample_id in range(args.number_of_samples)
-    )
+    )(joblib.delayed(partial(simulate, type=args.type))(sample_id)
+      for sample_id in range(args.number_of_samples))

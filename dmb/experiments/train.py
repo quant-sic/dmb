@@ -3,15 +3,12 @@ from typing import List, Optional, Tuple
 
 import hydra
 import lightning.pytorch as pl
-from lightning.pytorch import Callback, LightningDataModule, LightningModule, Trainer
+from lightning.pytorch import Callback, LightningDataModule, LightningModule, \
+    Trainer
 from omegaconf import DictConfig
 
-from dmb.experiments.task_utils import (
-    get_metric_value,
-    instantiate_callbacks,
-    instantiate_loggers,
-    log_hyperparameters,
-)
+from dmb.experiments.task_utils import get_metric_value, \
+    instantiate_callbacks, instantiate_loggers, log_hyperparameters
 from dmb.utils import REPO_ROOT, create_logger
 
 log = create_logger(__name__)
@@ -38,14 +35,13 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     # log.info(f"Instantiating datamodule <{cfg.datamodule._target_}>")
     # _recursive_=False, _convert_="all" are needed, because the LightningModule should be able to save the the configs as dicts. without _recursive_ all objects are instantiated. without _convert_ the configs are not given as dicts.
     datamodule: LightningDataModule = hydra.utils.instantiate(
-        cfg.datamodule, _recursive_=False, _convert_="all"
-    )
+        cfg.datamodule, _recursive_=False, _convert_="all")
 
     # log.info(f"Instantiating model <{cfg.model._target_}>")
     # _recursive_=False, _convert_="all" are needed, because the LightningModule should be able to save the the configs as dicts. without _recursive_ all objects are instantiated. without _convert_ the configs are not given as dicts.
-    model: LightningModule = hydra.utils.instantiate(
-        cfg.model, _recursive_=False, _convert_="all"
-    )
+    model: LightningModule = hydra.utils.instantiate(cfg.model,
+                                                     _recursive_=False,
+                                                     _convert_="all")
 
     # log.info("Instantiating callbacks...")
     callbacks: List[Callback] = instantiate_callbacks(cfg.get("callbacks"))
@@ -54,9 +50,9 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     logger = instantiate_loggers(cfg.get("logger"))
 
     # log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-    trainer: Trainer = hydra.utils.instantiate(
-        cfg.trainer, callbacks=callbacks, logger=logger
-    )
+    trainer: Trainer = hydra.utils.instantiate(cfg.trainer,
+                                               callbacks=callbacks,
+                                               logger=logger)
 
     object_dict = {
         "cfg": cfg,
@@ -73,17 +69,17 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
 
     if cfg.get("train"):
         log.info("Starting training!")
-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+        trainer.fit(model=model,
+                    datamodule=datamodule,
+                    ckpt_path=cfg.get("ckpt_path"))
 
     train_metrics = trainer.callback_metrics
 
     if cfg.get("test"):
         log.info("Starting testing!")
 
-        if (
-            hasattr(trainer.checkpoint_callback, "best_model_path")
-            and trainer.checkpoint_callback is not None
-        ):
+        if (hasattr(trainer.checkpoint_callback, "best_model_path")
+                and trainer.checkpoint_callback is not None):
             best_model_path = trainer.checkpoint_callback.best_model_path
             if best_model_path is not None and best_model_path != "":
                 ckpt_path = best_model_path
@@ -93,7 +89,8 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
             else:
                 ckpt_path = None
         else:
-            log.warning("Best ckpt not found! Using current weights for testing...")
+            log.warning(
+                "Best ckpt not found! Using current weights for testing...")
             ckpt_path = None
 
         trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
@@ -119,9 +116,8 @@ def main(cfg: DictConfig) -> Optional[float]:
     metric_dict, object_dict = train(cfg)
 
     # safely retrieve metric value for hydra-based hyperparameter optimization
-    metric_value = get_metric_value(
-        metric_dict=metric_dict, metric_name=cfg.get("optimized_metric")
-    )
+    metric_value = get_metric_value(metric_dict=metric_dict,
+                                    metric_name=cfg.get("optimized_metric"))
 
     # return optimized metric
     return metric_value

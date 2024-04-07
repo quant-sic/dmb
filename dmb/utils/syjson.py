@@ -43,7 +43,7 @@ class InnerObject:
         """tranform traditional classes object in synced object"""
         if type(v) in (list, tuple):
             v = SyncedList(self.root, self.keychain + [key])
-        elif type(v) in (dict,):
+        elif type(v) in (dict, ):
             v = SyncedDict(self.root, self.keychain + [key])
         return v
 
@@ -149,7 +149,8 @@ class SyJson(SyncedDict):
         self._file_encoding = encoding
         if not os.path.exists(self.file_path):
             if create_file:
-                with open(self.file_path, "wt", encoding=self._file_encoding) as fl:
+                with open(self.file_path, "wt",
+                          encoding=self._file_encoding) as fl:
                     fl.write("")
             else:
                 raise FileNotFoundError(f"The file {path} doesn't exist!")

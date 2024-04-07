@@ -1,18 +1,21 @@
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from collections import defaultdict
+
+from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.network_input import \
+    net_input_dimless_const_parameters
 from dmb.utils import REPO_DATA_ROOT
 
-from dmb.data.bose_hubbard_2d.network_input import net_input_dimless_const_parameters
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
 
-
-def phase_diagram_uniform_inputs_iter(
-    n_samples, zVU=1.0, muU_range=(-0.1, 3.1), ztU_range=(0.05, 0.85)
-):
+def phase_diagram_uniform_inputs_iter(n_samples,
+                                      zVU=1.0,
+                                      muU_range=(-0.1, 3.1),
+                                      ztU_range=(0.05, 0.85)):
     muU = np.linspace(*muU_range, n_samples)
     ztU = np.linspace(*ztU_range, n_samples)
 
@@ -36,7 +39,8 @@ def phase_diagram_uniform_inputs_iter(
 
 
 def phase_diagram_uniform_inputs(n_samples, zVU=1.0):
-    MUU, ZTU, inputs = zip(*list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU)))
+    MUU, ZTU, inputs = zip(
+        *list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU)))
 
     MUU = torch.from_numpy(np.array(MUU)).float()
     ZTU = torch.from_numpy(np.array(ZTU)).float()
@@ -46,7 +50,10 @@ def phase_diagram_uniform_inputs(n_samples, zVU=1.0):
 
 
 def model_predict(model, inputs, batch_size=512):
-    dl = DataLoader(inputs, batch_size=batch_size, shuffle=False, num_workers=0)
+    dl = DataLoader(inputs,
+                    batch_size=batch_size,
+                    shuffle=False,
+                    num_workers=0)
 
     model.eval()
     with torch.no_grad():
@@ -187,7 +194,8 @@ def add_phase_boundaries(ax):
 
 
 def plot_phase_diagram(model, n_samples=250, zVU=1.0):
-    MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples, zVU=zVU)
+    MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples,
+                                                    zVU=zVU)
     outputs = model_predict(model, inputs, batch_size=512)
 
     reductions = {
@@ -265,8 +273,7 @@ def plot_phase_diagram_mu_cut(
                 zVU=zVU,
                 cb_projection=True,
                 target_density=np.ones((L, L)),
-            )
-            for _muU in muU
+            ) for _muU in muU
         ],
         dim=0,
     )
@@ -275,19 +282,15 @@ def plot_phase_diagram_mu_cut(
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
     try:
-        muU_qmc, n_qmc = zip(
-            *[
-                (ds.phase_diagram_position(i)[1], ds_i[1][0])
-                for i, ds_i in enumerate(ds)
-            ]
-        )
+        muU_qmc, n_qmc = zip(*[(ds.phase_diagram_position(i)[1], ds_i[1][0])
+                               for i, ds_i in enumerate(ds)])
 
-        ax.scatter(
-            muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))], c="black", label="QMC"
-        )
-        ax.scatter(
-            muU_qmc, [n_qmc[i].min() for i in range(len(n_qmc))], c="black", label="QMC"
-        )
+        ax.scatter(muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))],
+                   c="black",
+                   label="QMC")
+        ax.scatter(muU_qmc, [n_qmc[i].min() for i in range(len(n_qmc))],
+                   c="black",
+                   label="QMC")
     except:
         pass
 

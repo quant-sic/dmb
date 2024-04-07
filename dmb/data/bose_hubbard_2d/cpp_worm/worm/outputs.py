@@ -1,14 +1,15 @@
 import json
 from collections import defaultdict
-from attrs import define, field
+from logging import Logger
 from pathlib import Path
 
 import h5py
-
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
-from dmb.utils import create_logger
 import numpy as np
-from logging import Logger
+from attrs import define, field
+
+from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
+    WormInputParameters
+from dmb.utils import create_logger
 
 logger = create_logger(__name__)
 
@@ -44,7 +45,10 @@ class WormOutput:
         """
 
         if not self.out_file_path.exists():
-            self.logging_instance.warning(f"File {self.out_file_path} does not exist.")
+            raise FileNotFoundError(
+                f"File {self.out_file_path} does not exist.")
+            self.logging_instance.warning(
+                f"File {self.out_file_path} does not exist.")
             return None
 
         try:
@@ -69,8 +73,7 @@ class WormOutput:
 
     @property
     def accumulator_observables(
-        self,
-    ) -> dict[str, dict[str, dict[str, np.ndarray]]] | None:
+        self, ) -> dict[str, dict[str, dict[str, np.ndarray]]] | None:
         """Return the observables from the simulation accumulator.
 
         If the file does not exist, return None. If the file exists but the
@@ -79,7 +82,8 @@ class WormOutput:
         """
 
         if not self.out_file_path.exists():
-            self.logging_instance.warning(f"File {self.out_file_path} does not exist.")
+            self.logging_instance.warning(
+                f"File {self.out_file_path} does not exist.")
             return None
 
         try:
@@ -95,13 +99,11 @@ class WormOutput:
         for obs, obs_dataset in observables.items():
             for measure, value in obs_dataset.items():
                 if isinstance(value, h5py.Dataset):
-                    accumulator_observables[obs][measure] = self.reshape_observable(
-                        value[()]
-                    )
+                    accumulator_observables[obs][
+                        measure] = self.reshape_observable(value[()])
 
                 elif isinstance(value, h5py.Group):
                     accumulator_observables[obs][measure] = {}
                     for sub_measure, sub_value in value.items():
                         accumulator_observables[obs][measure][sub_measure] = (
-                            self.reshape_observable(sub_value[()])
-                        )
+                            self.reshape_observable(sub_value[()]))

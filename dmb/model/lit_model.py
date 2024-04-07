@@ -1,29 +1,40 @@
+import functools
+import itertools
+from collections.abc import Mapping
 from functools import cached_property
-from typing import Any, Dict, List, Literal, Tuple
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Literal, Tuple, cast
 
 import hydra
+import lightning
 import lightning.pytorch as pl
+import matplotlib.pyplot as plt
 import torch
+import torchmetrics
+import transformers
+from attrs import define, field
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
+from torch.optim import Optimizer
 
+from dmb.data.bose_hubbard_2d.phase_diagram import plot_phase_diagram, \
+    plot_phase_diagram_mu_cut
+from dmb.data.bose_hubbard_2d.plots import create_box_cuts_plot, \
+    create_box_plot, create_wedding_cake_plot
 from dmb.model.mixins import LitModelMixin
 from dmb.utils import create_logger
-from dmb.data.bose_hubbard_2d.phase_diagram import (
-    plot_phase_diagram,
-    plot_phase_diagram_mu_cut,
-)
-from pathlib import Path
-import matplotlib.pyplot as plt
-from dmb.data.bose_hubbard_2d.plots import (
-    create_wedding_cake_plot,
-    create_box_plot,
-    create_box_cuts_plot,
-)
-import itertools
 
 log = create_logger(__name__)
 
 
+@define
 class DMBLitModel(pl.LightningModule, LitModelMixin):
+
+    model: torch.nn.Module
+    optimizer: functools.partial[Optimizer]
+    scheduler: functools.partial[dict[str,
+                                      functools.partial[_LRScheduler | Any]]]
+    loss: torch.nn.Module
+
     def __init__(
         self,
         model: Dict[str, Any],
@@ -41,27 +52,7 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
 
         # serves as a dummy input for the model to get the output shape with lightning
         self.example_input_array = torch.zeros(
-            1, self.hparams["model"]["in_channels"], 10, 10
-        )
-
-    @staticmethod
-    def load_model(model_dict):
-        return hydra.utils.instantiate(model_dict, _recursive_=False, _convert_="all")
-
-    @property
-    def observables(self):
-        return self.hparams["observables"]
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass.
-
-        Args:
-            x (torch.Tensor): Input tensor.
-
-        Returns:
-            torch.Tensor: Output tensor.
-        """
-        return self.model(x)
+            1, self.hparams["model"]["in_channels"], 10, 10)
 
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
         batch_in, batch_label = batch
@@ -117,78 +108,63 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
         """Reset metrics."""
         # get metrics for the current stage
         metrics_dict = getattr(self, f"{stage}_metrics")
-        for metric_name, (metric, lit_module_attribute) in metrics_dict.items():
+        for metric_name, (metric,
+                          lit_module_attribute) in metrics_dict.items():
             metric.reset()
 
-    @cached_property
-    def loss(self) -> torch.nn.Module:
-        _loss: torch.nn.Module = hydra.utils.instantiate(self.hparams["loss"])
-
-        log.info("Using {} as loss".format(_loss.__class__.__name__))
-
-        return _loss
-
-    def configure_optimizers(self) -> Any:
+    def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configure the optimizer and scheduler."""
-        # filter required for fine-tuning
-        _optimizer: torch.optim.Optimizer = hydra.utils.instantiate(
-            self.hparams["optimizer"],
-            params=filter(lambda p: p.requires_grad, self.model.parameters()),
-        )
+        optimizer: torch.optim.Optimizer = self.optimizer(params=filter(
+            lambda p: p.requires_grad, self.trocr_model.parameters()), )
 
-        if self.hparams["scheduler"] is None:
-            return {"optimizer": _optimizer}
-        else:
-            _scheduler: torch.optim.lr_scheduler._LRScheduler = hydra.utils.instantiate(
-                self.hparams["scheduler"], optimizer=_optimizer
-            )
+        configuration: dict[str, Any] = {"optimizer": optimizer}
 
-            return {
-                "optimizer": _optimizer,
-                "lr_scheduler": {
-                    "scheduler": _scheduler,
-                    "monitor": "val/loss",
-                    "interval": "epoch",
-                    "frequency": 1,
-                },
+        if self.lr_scheduler is not None:
+            scheduler: _LRScheduler = self.lr_scheduler["scheduler"](
+                optimizer=optimizer)
+            configuration["lr_scheduler"] = {
+                **self.lr_scheduler,
+                "scheduler": scheduler,
             }
 
+        return cast(OptimizerLRScheduler, configuration)
+
     def plot_model(
-        self,
-        save_dir: Path,
-        file_name_stem: str,
-        resolution: int = 300,
-        check: List[Tuple[str, ...]] = [
-            ("density", "max-min"),
-            ("density_variance", "mean"),
-            ("mu_cut",),
-            ("wedding_cake", "2.67"),
-            ("wedding_cake", "1.33"),
-            ("wedding_cake", "2.0"),
-            ("box", "1.71"),
-            ("box_cuts",),
-        ],
-        zVUs: List[float] = (1.0, 1.5),
-        ztUs: List[float] = (0.1, 0.25),
+            self,
+            save_dir: Path,
+            file_name_stem: str,
+            resolution: int = 300,
+            check: List[Tuple[str, ...]] = [
+                ("density", "max-min"),
+                ("density_variance", "mean"),
+                ("mu_cut", ),
+                ("wedding_cake", "2.67"),
+                ("wedding_cake", "1.33"),
+                ("wedding_cake", "2.0"),
+                ("box", "1.71"),
+                ("box_cuts", ),
+            ],
+            zVUs: List[float] = (1.0, 1.5),
+            ztUs: List[float] = (0.1, 0.25),
     ) -> None:
         # mu,ztU,out = model_predict(net,batch_size=512)
         for zVU, ztU in itertools.product(zVUs, ztUs):
             for figures in (
-                create_box_cuts_plot(self, zVU=zVU, ztU=ztU),
-                create_box_plot(self, zVU=zVU, ztU=ztU),
-                create_wedding_cake_plot(self, zVU=zVU, ztU=ztU),
-                plot_phase_diagram(self, n_samples=resolution, zVU=zVU),
-                plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
-                plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
+                    create_box_cuts_plot(self, zVU=zVU, ztU=ztU),
+                    create_box_plot(self, zVU=zVU, ztU=ztU),
+                    create_wedding_cake_plot(self, zVU=zVU, ztU=ztU),
+                    plot_phase_diagram(self, n_samples=resolution, zVU=zVU),
+                    plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
+                    plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
             ):
 
                 def recursive_iter(path, obj):
                     if isinstance(obj, dict):
                         for key, value in obj.items():
-                            yield from recursive_iter(path + (key,), value)
+                            yield from recursive_iter(path + (key, ), value)
                     elif isinstance(obj, list):
                         for idx, value in enumerate(obj):
-                            yield from recursive_iter(path + (idx,), value)
+                            yield from recursive_iter(path + (idx, ), value)
                     else:
                         yield path, obj
 
@@ -197,24 +173,15 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
 
                     # * is a wildcard
                     if not any(
-                        all(
-                            a == b or a == "*" or b == "*" for a, b in zip(check_, path)
-                        )
-                        and len(check_) == len(path)
-                        for check_ in check
-                    ):
+                            all(a == b or a == "*" or b == "*"
+                                for a, b in zip(check_, path))
+                            and len(check_) == len(path) for check_ in check):
                         continue
 
                     if isinstance(figure, plt.Figure):
                         save_path = Path(save_dir) / (
-                            file_name_stem
-                            + "_"
-                            + str(zVU).replace(".", "_")
-                            + "_"
-                            + str(ztU).replace(".", "_")
-                            + "_"
-                            + "_".join(path)
-                            + ".png"
-                        )
+                            file_name_stem + "_" + str(zVU).replace(".", "_") +
+                            "_" + str(ztU).replace(".", "_") + "_" +
+                            "_".join(path) + ".png")
                         save_path.parent.mkdir(exist_ok=True, parents=True)
                         figure.savefig(save_path)
