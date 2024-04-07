@@ -1,5 +1,6 @@
 import itertools
 import shutil
+from abc import ABC, abstractmethod
 from functools import cached_property, partial
 from pathlib import Path
 from typing import List, Optional, Union
@@ -19,7 +20,7 @@ log = create_logger(__name__)
 
 
 @define
-class BoseHubbardDataset(Dataset):
+class BoseHubbardDataset(Dataset, IdDataset):
     """Dataset for the Bose-Hubbard model."""
 
     data_dir: Path | str

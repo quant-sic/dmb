@@ -10,8 +10,8 @@ from attrs import define
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, \
     SettingsConfigDict
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.dispatching.helpers import \
-    call_sbatch_and_wait, check_if_slurm_is_installed_and_running
+from dmb.data.dispatching.helpers import call_sbatch_and_wait, \
+    check_if_slurm_is_installed_and_running
 from dmb.utils.io import create_logger
 from dmb.utils.paths import REPO_ROOT
 

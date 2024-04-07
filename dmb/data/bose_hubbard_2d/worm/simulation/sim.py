@@ -164,7 +164,7 @@ class _SimulationResultMixin:
 
 
 @define
-class WormSimulation(_SimulationExecution, _SimulationResult):
+class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     """Class to manage worm simulations."""
 
     input_parameters: WormInputParameters

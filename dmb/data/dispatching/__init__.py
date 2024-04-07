@@ -1,3 +1,3 @@
-from .dispatchers import AutoDispatcher
+from .dispatchers import AutoDispatcher, Dispatcher
 
-__all__ = ["AutoDispatcher"]
+__all__ = ["AutoDispatcher", "Dispatcher"]

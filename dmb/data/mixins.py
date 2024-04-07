@@ -78,10 +78,11 @@ class DataModuleMixin(pl.LightningDataModule, ABC):
                 self.hparams["train_val_test_split"],
                 self.dataset,
                 seed=42,
-                num_split_versions=self.hparams["num_split_versions"]
-                if "num_split_versions" in self.hparams else 1,
-                split_version_id=self.hparams["split_version_id"]
-                if "split_version_id" in self.hparams else 0,
+                num_split_versions=(self.hparams["num_split_versions"]
+                                    if "num_split_versions" in self.hparams
+                                    else 1),
+                split_version_id=(self.hparams["split_version_id"] if
+                                  "split_version_id" in self.hparams else 0),
                 resplit=self.hparams["resplit"]
                 if "resplit" in self.hparams else None,
             )
