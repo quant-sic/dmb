@@ -1,4 +1,4 @@
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import SimulationOutput
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.outputs import SimulationOutput
 import numpy as np
 
 

@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import List, Dict
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.sim import WormSimulation
 from dmb.utils import create_logger
 
 log = create_logger(__name__)
@@ -16,18 +16,18 @@ class WormSimulationRunner:
     def __init__(self, worm_simulation: WormSimulation):
         self.worm_simulation = worm_simulation
 
-    async def run(self, num_restarts: int = 1):
+    async def run(self):
         self.worm_simulation.save_parameters()
         try:
-            await self.worm_simulation.execute_worm(num_restarts=num_restarts)
+            await self.worm_simulation.execute_worm()
         except RuntimeError as e:
             self.worm_simulation.file_logger.error(e)
             raise e
 
-    async def run_continue(self, num_restarts: int = 1):
+    async def run_continue(self):
         self.worm_simulation.save_parameters()
         try:
-            await self.worm_simulation.execute_worm_continue(num_restarts=num_restarts)
+            await self.worm_simulation.execute_worm_continue()
         except RuntimeError as e:
             self.worm_simulation.file_logger.error(e)
             raise e
@@ -39,7 +39,6 @@ class WormSimulationRunner:
         num_sweep_increments: int = 35,
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
-        num_restarts: int = 1,
         restart: bool = False,
     ) -> None:
         try:
@@ -122,9 +121,9 @@ class WormSimulationRunner:
             start_time = time.perf_counter()
             try:
                 if step_idx > 0 and checkpoint_produced:
-                    await self.run_continue(num_restarts=num_restarts)
+                    await self.run_continue()
                 else:
-                    await self.run(num_restarts=num_restarts)
+                    await self.run()
             except RuntimeError as e:
                 self.worm_simulation.file_logger.error(e)
                 continue
@@ -165,7 +164,6 @@ class WormSimulationRunner:
         num_sweep_increments: int = 25,
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
-        num_restarts: int = 1,
         restart: bool = False,
     ) -> None:
         asyncio.run(
@@ -175,7 +173,6 @@ class WormSimulationRunner:
                 num_sweep_increments=num_sweep_increments,
                 sweeps_to_thermalization_ratio=sweeps_to_thermalization_ratio,
                 max_abs_error_threshold=max_abs_error_threshold,
-                num_restarts=num_restarts,
                 restart=restart,
             )
         )

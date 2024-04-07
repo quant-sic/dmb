@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm.auto import tqdm
 
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.worm_qmc.dataset import BoseHubbardDataset
 from dmb.utils.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":

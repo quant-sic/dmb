@@ -1,5 +1,5 @@
 from fake_worm_output import FakeWormOutput
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.observables import SimulationObservables
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.observables import SimulationObservables
 import pytest
 import numpy as np
 

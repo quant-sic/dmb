@@ -2,7 +2,7 @@ import numpy as np
 import os
 import shutil
 import datetime
-from dmb.data.bose_hubbard_2d.cpp_worm.worm import (
+from dmb.data.bose_hubbard_2d.worm_qmc.worm import (
     WormInputParameters,
     WormSimulation,
     WormSimulationRunner,
@@ -11,7 +11,7 @@ from dmb.utils.io import create_logger
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from pathlib import Path
 from typing import List
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.worm_qmc.dataset import BoseHubbardDataset
 import itertools
 
 log = create_logger(__name__)

@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 import torch
 from torch.utils.data import Dataset
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.sim import WormSimulation
 from dmb.data.bose_hubbard_2d.network_input import net_input
 from dmb.utils import create_logger
 from dmb.utils import ProgressParallel

@@ -3,7 +3,7 @@ from functools import partial
 from joblib import delayed
 from tqdm import tqdm
 
-from dmb.data.bose_hubbard_2d.cpp_worm.datamodule import BoseHubbardDataModule
+from dmb.data.bose_hubbard_2d.worm_qmc.datamodule import BoseHubbardDataModule
 from dmb.utils import REPO_DATA_ROOT
 from dmb.utils.io import ProgressParallel
 from dmb.utils import create_logger

@@ -1,9 +1,9 @@
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import SimulationOutput
+from dmb.data.bose_hubbard_2d.simulation import SimulationOutput
 
 
-class SimulationObservables:
+class WormObservables:
     """Class for computing observables from a simulation."""
 
     observables: dict[str, callable] = {}
@@ -45,30 +45,30 @@ class SimulationObservables:
         return key in self.observables
 
 
-@SimulationObservables.register("density_variance", ("Lx", "Ly"))
+@WormObservables.register("density_variance", ("Lx", "Ly"))
 def get_density_variance(output: SimulationOutput) -> np.ndarray:
     return output.reshape_densities.var(axis=0)
 
 
-@SimulationObservables.register("density", ("Lx", "Ly"))
+@WormObservables.register("density", ("Lx", "Ly"))
 def get_density_mean(output: SimulationOutput) -> np.ndarray:
     return output.reshape_densities.mean(axis=0)
 
 
-@SimulationObservables.register("density_density_corr_0", ("Lx", "Ly"))
+@WormObservables.register("density_density_corr_0", ("Lx", "Ly"))
 def get_density_density_corr_0(output: SimulationOutput) -> np.ndarray:
     return (
         np.roll(output.reshape_densities, axis=1, shift=1) * output.reshape_densities
     ).mean(axis=0)
 
 
-@SimulationObservables.register("density_density_corr_1", ("Lx", "Ly"))
+@WormObservables.register("density_density_corr_1", ("Lx", "Ly"))
 def get_density_density_corr_1(output: SimulationOutput) -> np.ndarray:
     densities = output.reshape_densities
     return (np.roll(densities, axis=2, shift=1) * densities).mean(axis=0)
 
 
-@SimulationObservables.register("density_density_corr_2", ("Lx", "Ly"))
+@WormObservables.register("density_density_corr_2", ("Lx", "Ly"))
 def get_density_density_corr_2(output: SimulationOutput) -> np.ndarray:
     densities = output.reshape_densities
     return (
@@ -76,7 +76,7 @@ def get_density_density_corr_2(output: SimulationOutput) -> np.ndarray:
     ).mean(axis=0)
 
 
-@SimulationObservables.register("density_density_corr_3", ("Lx", "Ly"))
+@WormObservables.register("density_density_corr_3", ("Lx", "Ly"))
 def get_density_density_corr_3(output: SimulationOutput) -> np.ndarray:
     densities = output.reshape_densities
     return (
@@ -84,16 +84,16 @@ def get_density_density_corr_3(output: SimulationOutput) -> np.ndarray:
     ).mean(axis=0)
 
 
-@SimulationObservables.register("density_squared", ("Lx", "Ly"))
+@WormObservables.register("density_squared", ("Lx", "Ly"))
 def get_density_squared_mean(output: SimulationOutput) -> np.ndarray:
     return (output.reshape_densities**2).mean(axis=0)
 
 
-@SimulationObservables.register("density_max", tuple())
+@WormObservables.register("density_max", tuple())
 def get_density_max(output: SimulationOutput) -> np.ndarray:
     return output.reshape_densities.max(axis=(-1, -2)).mean(axis=0)
 
 
-@SimulationObservables.register("density_min", tuple())
+@WormObservables.register("density_min", tuple())
 def get_density_min(output: SimulationOutput) -> np.ndarray:
     return output.reshape_densities.min(axis=(-1, -2)).mean(axis=0)

@@ -1,5 +1,5 @@
 import numpy as np
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import (
+from dmb.data.bose_hubbard_2d.worm_qmc.scripts.simulate import (
     simulate,
     get_missing_samples,
 )
@@ -15,18 +15,17 @@ from typing import List
 import itertools
 
 
-import numpy as np
-
-
-def get_quadratic_mu(coeffitients, lattice_size, center=None, offset=0):
-    if center is None:
-        center = (float(lattice_size) / 2, float(lattice_size) / 2)
-
-    X, Y = np.meshgrid(np.arange(lattice_size), np.arange(lattice_size))
-    mu = (
-        offset
-        + coeffitients[0] * (X - center[0]) ** 2 / ((float(lattice_size) * 0.5) ** 2)
-        + coeffitients[1] * (Y - center[1]) ** 2 / ((float(lattice_size) * 0.5) ** 2)
+def get_square_mu(base_mu, delta_mu, square_size, lattice_size):
+    mu = np.full(shape=(lattice_size, lattice_size), fill_value=base_mu)
+    mu[
+        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
+            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
+        ),
+        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
+            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
+        ),
+    ] = (
+        base_mu + delta_mu
     )
 
     return mu
@@ -37,28 +36,28 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
     parser.add_argument(
-        "--muU_min",
+        "--muU_offset",
         type=float,
         default=0.0,
-        help="minimum mu offset",
+        help="mu/U offset",
     )
     parser.add_argument(
-        "--muU_max",
+        "--muU_delta_min",
+        type=float,
+        default=0.0,
+        help="minimum mu/U delta",
+    )
+    parser.add_argument(
+        "--muU_delta_max",
         type=float,
         default=3.0,
-        help="maximum mu offset",
+        help="maximum mu/U delta",
     )
     parser.add_argument(
-        "--muU_num_steps",
+        "--muU_delta_num_steps",
         type=int,
-        default=10,
-        help="number of mu offset steps",
-    )
-    parser.add_argument(
-        "--coefficient",
-        type=float,
-        default=-2.0,
-        help="quadratic mu coefficients",
+        default=50,
+        help="Number of mu/U delta steps",
     )
     parser.add_argument(
         "--ztU",
@@ -75,24 +74,21 @@ if __name__ == "__main__":
     parser.add_argument(
         "--L",
         type=int,
-        default=40,
+        default=41,
         help="lattice size",
     )
     parser.add_argument(
         "--number_of_concurrent_jobs",
         type=int,
-        default=20,
+        default=25,
         help="number of concurrent jobs",
     )
 
     args = parser.parse_args()
 
-    os.environ["WORM_JOB_NAME"] = "wedding_cake"
+    os.environ["WORM_JOB_NAME"] = "box"
 
-    target_dir = (
-        REPO_DATA_ROOT
-        / f"wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
-    )
+    target_dir = REPO_DATA_ROOT / f"box/{args.zVU}/{args.ztU}/{args.L}"
     target_dir.mkdir(parents=True, exist_ok=True)
 
     L_out, ztU_out, zVU_out, muU_out = get_missing_samples(
@@ -100,7 +96,11 @@ if __name__ == "__main__":
         L=args.L,
         ztU=args.ztU,
         zVU=args.zVU,
-        muU=list(np.linspace(args.muU_min, args.muU_max, args.muU_num_steps)),
+        muU=list(
+            np.linspace(
+                args.muU_delta_min, args.muU_delta_max, args.muU_delta_num_steps
+            )
+        ),
         tolerance_ztU=0,
         tolerance_zVU=0,
         tolerance_muU=0,
@@ -113,14 +113,15 @@ if __name__ == "__main__":
         async with semaphore:
             await simulate(
                 parent_dir=target_dir,
-                simulation_name="wedding_cake_{}_{:.3f}_{}".format(
+                simulation_name="box_{}_{:.3f}_{}".format(
                     args.zVU, muU_out[sample_id], sample_id
                 ),
                 L=args.L,
-                mu=get_quadratic_mu(
-                    [args.coefficient, args.coefficient],
-                    args.L,
-                    offset=muU_out[sample_id],
+                mu=get_square_mu(
+                    base_mu=0.0,
+                    delta_mu=muU_out[sample_id],
+                    square_size=22,
+                    lattice_size=args.L,
                 )
                 * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
@@ -130,7 +131,9 @@ if __name__ == "__main__":
                 mu_offset=muU_out[sample_id] * U_on,
             )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     loop.run_until_complete(
         asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))])
     )

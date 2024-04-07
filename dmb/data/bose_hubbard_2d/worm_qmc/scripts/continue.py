@@ -1,7 +1,7 @@
 import argparse
 
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormSimulation, WormSimulationRunner
+from dmb.data.bose_hubbard_2d.worm_qmc.worm import WormSimulation, WormSimulationRunner
 from dmb.utils import REPO_DATA_ROOT, create_logger
 from dotenv import load_dotenv
 import os

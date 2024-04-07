@@ -6,30 +6,30 @@ from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
-from threading import Thread
 import concurrent.futures
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from auto_correlation import GammaPathologicalError, PrimaryAnalysis
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.helpers import (
-    call_sbatch_and_wait,
-    check_if_slurm_is_installed_and_running,
-    write_sbatch_script,
-)
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.observables import SimulationObservables
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.outputs import WormOutput
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.observables import WormObservables
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.outputs import WormOutput
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.parameters import WormInputParameters
 from dmb.utils import REPO_DATA_ROOT, create_logger
 from dmb.utils.syjson import SyJson
 import logging
 
+from attrs import define, field
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.process_runner.runner import ProcessRunner
 
 log = create_logger(__name__)
 
 
 class SimulationExecution:
+
+    def __init__(self) -> None:
+        process_runner: ProcessRunner = field(default=ProcessRunner("auto"))
+
     @property
     def executable(self):
         if not hasattr(self, "_executable") or self._executable is None:
@@ -50,8 +50,7 @@ class SimulationExecution:
 
     async def execute_worm(
         self,
-        input_file: Optional[Path] = None,
-        num_restarts: int = 1,
+        input_file_path: Optional[Path] = None,
     ):
         self.file_logger.info(
             f"""Running simulation with:
@@ -59,93 +58,34 @@ class SimulationExecution:
             Nmeasure2: {self.input_parameters.Nmeasure2},
             Nmeasure: {self.input_parameters.Nmeasure},
             thermalization: {self.input_parameters.thermalization}
-            Restarts: {num_restarts}
             Executable: {self.executable}
             """
         )
 
-        errors = []
-        for run_idx in range(num_restarts):
-            try:
-                await self.execute_worm_single_try(input_file=input_file)
-            except subprocess.CalledProcessError as e:
-                self.file_logger.error(
-                    f"Restarting worm calculation... run {run_idx} failed!"
-                )
-                errors.append(e)
-
-                if run_idx == num_restarts - 1:
-                    raise RuntimeError(
-                        f"""Worm calculation failed {num_restarts} times.
-                        Errors: {errors}. Aborting."""
-                    )
-                continue
-            else:
-                break
+        try:
+            await self.process_runner.run(
+                task=[
+                    "mpirun",
+                    "--use-hwthread-cpus",
+                    str(self.executable),
+                    str(input_file_path or self.input_parameters.ini_path),
+                ],
+                job_name="worm",
+                work_directory=self.save_dir,
+                pipeout_dir=self.save_dir / "pipe_out",
+                timeout=60 * 60 * 24,
+            )
+        except subprocess.CalledProcessError as e:
+            self.file_logger.error(
+                f"Worm calculation failed with error code {e.returncode}."
+            )
 
     async def execute_worm_continue(
         self,
-        num_restarts: int = 1,
     ):
         await self.execute_worm(
-            input_file=self.input_parameters.checkpoint,
-            num_restarts=num_restarts,
+            input_file_path=self.input_parameters.checkpoint,
         )
-
-    async def execute_worm_single_try(self, input_file: Optional[Path] = None):
-        if input_file is None:
-            input_file = self.input_parameters.ini_path
-
-        pipeout_dir = self.save_dir / "pipe_out"
-        pipeout_dir.mkdir(parents=True, exist_ok=True)
-
-        # determine scheduler
-        if check_if_slurm_is_installed_and_running():
-            write_sbatch_script(
-                script_path=self.save_dir / "run.sh",
-                worm_executable_path=self.executable,
-                parameters_path=input_file,
-                pipeout_dir=pipeout_dir,
-            )
-
-            # submit job
-            await call_sbatch_and_wait(script_path=self.save_dir / "run.sh")
-
-        else:
-            env = os.environ.copy()
-            env["TMPDIR"] = "/tmp"
-
-            cmd = [
-                "mpirun",
-                "--use-hwthread-cpus",
-                str(self.executable),
-                str(input_file),
-            ]
-            self.file_logger.info(f"Running command: {' '.join(cmd)}")
-            p = await asyncio.create_subprocess_exec(
-                *cmd,
-                env=env,
-                stderr=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-            )
-
-            stdout, stderr = await p.communicate()
-
-            # write output to file
-            now = datetime.datetime.now()
-            with open(pipeout_dir / f"stdout_{now}.txt", "w") as f:
-                f.write(stdout.decode("utf-8"))
-            with open(pipeout_dir / f"stderr_{now}.txt", "w") as f:
-                f.write(stderr.decode("utf-8"))
-
-            # if job failed, raise error
-            if p.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    returncode=p.returncode,
-                    cmd=cmd,
-                    output=stdout,
-                    stderr=stderr,
-                )
 
 
 class SimulationResult:
@@ -251,7 +191,7 @@ class SimulationResult:
 
     @property
     def observables(self):
-        return SimulationObservables(output=self.output)
+        return WormObservables(output=self.output)
 
     @property
     def convergence_stats(self):
@@ -307,6 +247,7 @@ class WormSimulation(SimulationExecution, SimulationResult):
         worm_executable: Optional[Path] = None,
         reloaded_from_dir: bool = False,
     ):
+        super().__init__()
         self.input_parameters = input_parameters
         self.executable = worm_executable
         self.save_dir = save_dir

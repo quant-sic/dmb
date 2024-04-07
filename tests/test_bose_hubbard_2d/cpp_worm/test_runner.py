@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm import (
+from dmb.data.bose_hubbard_2d.worm_qmc.worm import (
     WormInputParameters,
     WormSimulation,
     WormSimulationRunner,

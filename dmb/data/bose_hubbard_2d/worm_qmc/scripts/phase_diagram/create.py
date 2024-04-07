@@ -1,11 +1,11 @@
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import simulate
+from dmb.data.bose_hubbard_2d.worm_qmc.scripts.simulate import simulate
 from pathlib import Path
 import argparse
 import os
 from dotenv import load_dotenv
 from dmb.utils import REPO_DATA_ROOT
 import asyncio
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.worm_qmc.dataset import BoseHubbardDataset
 from tqdm import tqdm
 import numpy as np
 

@@ -4,9 +4,9 @@ from pathlib import Path
 
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import WormInputParameters
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.run import WormSimulationRunner
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.run import WormSimulationRunner
+from dmb.data.bose_hubbard_2d.worm_qmc.worm.sim import WormSimulation
 
 # test function itself
 
