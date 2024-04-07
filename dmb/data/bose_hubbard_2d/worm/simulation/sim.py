@@ -16,7 +16,7 @@ from dmb.logging import create_logger
 from dmb.paths import REPO_DATA_ROOT
 
 from .observables import SimulationObservables
-from .outputs import WormOutput
+from .output import WormOutput
 from .parameters import WormInputParameters
 
 __all__ = [
@@ -71,22 +71,12 @@ class _SimulationResultMixin:
 
     @property
     def output(self):
-        if self.input_parameters.outputfile_relative is None:
-            out_file_path = (
-                REPO_DATA_ROOT /
-                self.input_parameters.outputfile.split("data/")[-1])
-            self.file_logger.debug(
-                f"Using default output file path: {out_file_path}")
-        else:
-            out_file_path = self.save_dir / self.input_parameters.outputfile_relative
-
-        _output = WormOutput(
-            out_file_path=out_file_path,
+        return WormOutput(
+            out_file_path=self.input_parameters.get_outputfile_path(
+                self.save_dir),
             input_parameters=self.input_parameters,
             logging_instance=self.file_logger,
         )
-
-        return _output
 
     @property
     def observables(self):
@@ -146,7 +136,7 @@ class _SimulationResultMixin:
 
             # save figure. append current time formatted to avoid overwriting
             # plots dir
-            plots_dir = self.get_plot_dir(self.save_dir) / obs
+            plots_dir = self.get_plot_dir_path(self.save_dir) / obs
             plots_dir.mkdir(parents=True, exist_ok=True)
 
             now = datetime.datetime.now()
@@ -156,7 +146,7 @@ class _SimulationResultMixin:
 
     def plot_inputs(self):
         self.input_parameters.plot_inputs(
-            plots_dir=self.get_plot_dir(self.save_dir))
+            plots_dir=self.get_plot_dir_path(self.save_dir))
 
     def plot_phase_diagram_inputs(self):
         self.input_parameters.plot_phase_diagram_inputs(
@@ -219,20 +209,20 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
 
     @property
     def tune_simulation(self):
-        tune_dir = self.get_tune_dir(save_dir=self.save_dir)
+        tune_dir = self.get_tune_dir_path(save_dir=self.save_dir)
         tune_dir.mkdir(parents=True, exist_ok=True)
 
         try:
             tune_simulation = WormSimulation.from_dir(
                 dir_path=tune_dir,
-                worm_executable=self.executable,
+                executable=self.executable,
                 dispatcher=self.dispatcher,
             )
         except FileNotFoundError:
             tune_simulation = WormSimulation(
                 input_parameters=deepcopy(self.input_parameters),
                 save_dir=tune_dir,
-                worm_executable=self.executable,
+                executable=self.executable,
                 dispatcher=self.dispatcher,
             )
         return tune_simulation
@@ -243,7 +233,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
         checkpoint_path = self.input_parameters.get_checkpoint_path(
             self.save_dir)
-        for checkpoint_file in checkpoint_path.glob(
+        for checkpoint_file in checkpoint_path.parent.glob(
                 f"{checkpoint_path.name}*"):
             with h5py.File(checkpoint_file, "r+") as f:
                 try:
@@ -251,11 +241,11 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
                 except KeyError:
                     f["parameters/extension_sweeps"] = extension_sweeps
 
-    def get_extension_sweeps_from_checkpoints(self):
+    def get_extension_sweeps_from_checkpoints(self) -> int | None:
         extension_sweeps = None
         checkpoint_path = self.input_parameters.get_checkpoint_path(
             self.save_dir)
-        for checkpoint_file in checkpoint_path.glob(
+        for checkpoint_file in checkpoint_path.parent.glob(
                 f"{checkpoint_path.name}*"):
             with h5py.File(checkpoint_file, "r") as f:
                 try:

@@ -10,7 +10,7 @@ from dmb.logging import create_logger
 
 from .parameters import WormInputParameters
 
-logger = create_logger(__name__)
+log = create_logger(__name__)
 
 
 @define
@@ -18,7 +18,7 @@ class WormOutput:
 
     out_file_path: Path
     input_parameters: WormInputParameters
-    logging_instance: Logger = field(default=logger)
+    logging_instance: Logger = field(default=log)
 
     def reshape_observable(self, observable: np.ndarray) -> np.ndarray:
         """Reshape the observable to (n_samples, Lx, Ly)."""
@@ -44,8 +44,6 @@ class WormOutput:
         """
 
         if not self.out_file_path.exists():
-            raise FileNotFoundError(
-                f"File {self.out_file_path} does not exist.")
             self.logging_instance.warning(
                 f"File {self.out_file_path} does not exist.")
             return None
@@ -53,7 +51,7 @@ class WormOutput:
         try:
             with h5py.File(self.out_file_path, "r") as f:
                 densities = f["simulation"]["densities"][()]
-        except OSError as e:
+        except KeyError as e:
             self.logging_instance.error(
                 f"Exception occured during of file {self.out_file_path} loading: {e}"
             )

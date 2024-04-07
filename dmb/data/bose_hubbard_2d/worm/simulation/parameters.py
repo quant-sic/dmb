@@ -1,25 +1,16 @@
 """Module for the worm input parameters."""
 
-__all__ = [
-    "WormInputParameters",
-    "plot_worm_input_parameters",
-    "plot_phase_diagram_worm_input_parameters",
-]
+__all__ = ["WormInputParameters"]
 
 from pathlib import Path
-from typing import Optional, Union
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from attrs import frozen
 
-from dmb.logging import create_logger
 
-log = create_logger(__name__)
-
-
-class InputParameterPlottingMixin:
+class _InputParameterPlottingMixin:
     """Mixin class for plotting input parameters."""
 
     def plot_input_parameters(self, plots_dir: Path) -> None:
@@ -93,7 +84,7 @@ class InputParameterPlottingMixin:
 
 
 @frozen(eq=False)
-class WormInputParameters(InputParameterPlottingMixin):
+class WormInputParameters(_InputParameterPlottingMixin):
     """Class for the input parameters of the worm simulation."""
 
     mu: np.ndarray

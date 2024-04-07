@@ -1,18 +1,23 @@
 from pathlib import Path
 
 import pytest
-from attrs import define
+from attrs import define, field
 
 from dmb.data.dataset import IdDataset
 from dmb.data.split import Split
 
 
+def validate_same_length(instance, attribute, value):
+    if len(instance.ids) != len(instance.indices):
+        raise ValueError("ids and indices must have the same length")
+
+
 @define
-class FakeIdDataset:
+class FakeIdDataset(IdDataset):
     """Fake dataset with ids and indices."""
 
-    ids: tuple[str, ...]
-    indices: tuple[int, ...]
+    ids: tuple[str, ...] = field(validator=validate_same_length)
+    indices: tuple[int, ...] = field(validator=validate_same_length)
 
     def get_ids_from_indices(self, indices: tuple[int,
                                                   ...]) -> tuple[str, ...]:

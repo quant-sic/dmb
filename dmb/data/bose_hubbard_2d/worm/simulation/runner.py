@@ -1,16 +1,11 @@
 import asyncio
 import time
-from typing import Dict, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-from dmb.logging import create_logger
-
 from .sim import WormSimulation
-
-log = create_logger(__name__)
 
 
 def sync_async(func):
@@ -202,7 +197,7 @@ class WormSimulationRunner:
             min_nmeasure: Minimum Nmeasure.
         """
 
-        def get_tau_max_keys(steps: List[Dict]) -> List[str]:
+        def get_tau_max_keys(steps: list[dict]) -> list[str]:
             # get tau_max key
             tau_max_keys_steps = [
                 list(filter(
@@ -221,7 +216,7 @@ class WormSimulationRunner:
                     for tau_max_keys_step in tau_max_keys_steps
                 ]
 
-        def get_tau_max_values(steps: List[Dict]) -> np.ndarray:
+        def get_tau_max_values(steps: list[dict]) -> np.ndarray:
             tau_max_keys = get_tau_max_keys(steps)
             return np.array([
                 step[tau_max_key]

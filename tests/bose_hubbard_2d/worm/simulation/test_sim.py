@@ -1,6 +1,7 @@
 import json
-from pathlib import Path
+from typing import Iterator
 
+import h5py
 import pytest
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
@@ -20,14 +21,6 @@ class FakeDispatcher:
 
 
 class TestWormSimulation:
-
-    @staticmethod
-    @pytest.fixture(scope="class", name="input_parameters")
-    def fixture_input_parameters() -> WormInputParameters:
-        with open(REPO_DATA_ROOT / "test/input_parameters.json") as f:
-            params = json.load(f, cls=WormInputParametersDecoder)["parameters"]
-
-        return WormInputParameters(**params)
 
     @staticmethod
     @pytest.fixture(scope="class", name="worm_executable")
@@ -79,3 +72,47 @@ class TestWormSimulation:
             test_simulation.save_dir).exists()
         assert test_simulation.input_parameters.get_h5_path(
             test_simulation.save_dir).exists()
+
+    @staticmethod
+    def test_get_tune_dir_path(test_simulation: WormSimulation):
+        assert test_simulation.get_tune_dir_path(test_simulation.save_dir) == \
+            test_simulation.save_dir / "tune"
+
+    @staticmethod
+    def test_get_plot_dir_path(test_simulation: WormSimulation):
+        assert test_simulation.get_plot_dir_path(test_simulation.save_dir) == \
+            test_simulation.save_dir / "plots"
+
+    @staticmethod
+    def test_tune_simulation(test_simulation: WormSimulation):
+        tune_sim = test_simulation.tune_simulation
+        assert tune_sim.save_dir == test_simulation.get_tune_dir_path(
+            test_simulation.save_dir)
+        assert tune_sim.input_parameters == test_simulation.input_parameters
+        assert tune_sim.executable == test_simulation.executable
+        assert tune_sim.dispatcher == test_simulation.dispatcher
+
+        assert tune_sim.save_dir.exists()
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="test_checkpoint")
+    def fixture_test_checkpoint(
+            test_simulation: WormSimulation) -> Iterator[None]:
+        checkpoint_path = test_simulation.input_parameters.get_checkpoint_path(
+            test_simulation.save_dir)
+
+        #create h5 file
+        with h5py.File(checkpoint_path, "w") as f:
+            f.create_group("parameters")
+
+        yield
+
+    @staticmethod
+    def test_set_get_extension_sweeps_in_checkpoints(
+            test_simulation: WormSimulation, test_checkpoint: None):
+
+        for extension_sweeps in (10, 20, 30):
+            test_simulation.set_extension_sweeps_in_checkpoints(
+                extension_sweeps)
+            assert test_simulation.get_extension_sweeps_from_checkpoints() == \
+                extension_sweeps

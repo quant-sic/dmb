@@ -10,7 +10,7 @@ from auto_correlation import DerivedAnalysis, GammaPathologicalError, \
 
 from dmb.logging import create_logger
 
-from .outputs import WormOutput
+from .output import WormOutput
 
 log = create_logger(__name__)
 
