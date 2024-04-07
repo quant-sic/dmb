@@ -8,6 +8,8 @@
 !*.yaml
 !*.cpp
 
+!Makefile
+
 !.gitignore
 
 dmb_old
