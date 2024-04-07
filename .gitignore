@@ -9,6 +9,7 @@
 !*.cpp
 
 !Makefile
+!poetry.lock
 
 !.gitignore
 
