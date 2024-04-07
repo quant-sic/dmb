@@ -1,10 +1,17 @@
 import asyncio
 import subprocess
 import time
+from enum import Enum
 from logging import Logger
 from pathlib import Path
 
 from dmb.logging import create_logger
+
+
+class ExecutionCode(Enum):
+    SUCCESS = 0
+    FAILURE = 1
+
 
 logger = create_logger(__name__)
 
@@ -13,7 +20,7 @@ async def call_sbatch_and_wait(
     script_path: Path,
     timeout: int = 48 * 60 * 60,
     logging_instance: Logger = logger,
-):
+) -> ExecutionCode:
     try:
         p = subprocess.run(
             "sbatch " + str(script_path),
@@ -25,7 +32,8 @@ async def call_sbatch_and_wait(
         )
     except subprocess.CalledProcessError as e:
         logging_instance.error(e.stderr.decode("utf-8"))
-        raise e
+
+        return ExecutionCode.FAILURE
 
     job_id = p.stdout.decode("utf-8").strip().split()[-1]
     logging_instance.debug(f"Submitted job {job_id}")
@@ -46,7 +54,7 @@ async def call_sbatch_and_wait(
                 logging_instance.debug(
                     f"Error executing squeue: {process.stderr.decode('utf-8')}"
                 )
-                break
+                return ExecutionCode.FAILURE
 
             if not job_state in ("RUNNING", "PENDING"):
                 logging_instance.debug(f"Job {job_id} ended {job_state}")
@@ -56,13 +64,15 @@ async def call_sbatch_and_wait(
             await asyncio.sleep(1)
 
             if time.time() - start_time > timeout:
-                raise TimeoutError("Job did not finish in time")
+                logging_instance.error(f"Job {job_id} timed out")
+                return ExecutionCode.FAILURE
 
     except Exception as e:
         logging_instance.error(f"Error: {e}")
         raise e
 
     logging_instance.debug(f"Job {job_id} finished")
+    return ExecutionCode.SUCCESS
 
 
 def check_if_slurm_is_installed_and_running(

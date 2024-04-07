@@ -10,7 +10,7 @@ from attrs import define
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, \
     SettingsConfigDict
 
-from dmb.data.dispatching.helpers import call_sbatch_and_wait, \
+from dmb.data.dispatching.helpers import ExecutionCode, call_sbatch_and_wait, \
     check_if_slurm_is_installed_and_running
 from dmb.logging import create_logger
 from dmb.paths import REPO_ROOT
@@ -50,7 +50,7 @@ class Dispatcher(ABC):
         task: list[str],
         work_directory: Path,
         pipeout_dir: Path,
-    ) -> None:
+    ) -> ExecutionCode:
         ...
 
 
@@ -140,7 +140,7 @@ class SlurmDispatcher(Dispatcher):
         pipeout_dir: Path,
         timeout: int,
         dispatcher_settings: SlurmDispatcherSettings,
-    ):
+    ) -> ExecutionCode:
 
         script_path = work_directory / "run.sh"
 
@@ -156,7 +156,9 @@ class SlurmDispatcher(Dispatcher):
             number_of_tasks_per_node,
             cpus_per_task=dispatcher_settings.cpus_per_task,
         )
-        await call_sbatch_and_wait(script_path, timeout=timeout)
+        code = await call_sbatch_and_wait(script_path, timeout=timeout)
+
+        return code
 
 
 class LocalDispatcher(Dispatcher):
@@ -169,7 +171,7 @@ class LocalDispatcher(Dispatcher):
         task: list[str],
         timeout: int,
         dispatcher_settings: BaseSettings,
-    ):
+    ) -> ExecutionCode:
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
 
@@ -183,9 +185,11 @@ class LocalDispatcher(Dispatcher):
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(),
                                                     timeout=timeout)
+            code = ExecutionCode.SUCCESS
         except asyncio.TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
+            code = ExecutionCode.FAILURE
 
         # write output to file
         now = datetime.datetime.now()
@@ -194,14 +198,7 @@ class LocalDispatcher(Dispatcher):
         with open(pipeout_dir / f"stderr_{job_name}_{now}.txt", "w") as f:
             f.write(stderr.decode("utf-8"))
 
-        # if job failed, raise error
-        if process.returncode != 0:
-            raise subprocess.CalledProcessError(
-                returncode=process.returncode,
-                cmd=task,
-                output=stdout,
-                stderr=stderr,
-            )
+        return code
 
 
 class AutoDispatcher(Dispatcher):
@@ -234,14 +231,14 @@ class AutoDispatcher(Dispatcher):
         pipeout_dir: Path,
         timeout: int,
         dispatcher_kwargs: dict[str, Any] = {},
-    ) -> None:
+    ) -> ExecutionCode:
 
         # update dispatcher settings
 
         updated_dispatcher_settings = self.dispatcher_settings_type(
             **dispatcher_kwargs)
 
-        await self.dispatcher.dispatch(
+        code = await self.dispatcher.dispatch(
             job_name=job_name,
             task=task,
             work_directory=work_directory,
@@ -249,3 +246,5 @@ class AutoDispatcher(Dispatcher):
             timeout=timeout,
             dispatcher_settings=updated_dispatcher_settings,
         )
+
+        return code

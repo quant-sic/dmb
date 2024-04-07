@@ -1,4 +1,6 @@
-import json
+import asyncio
+import itertools
+from pathlib import Path
 from typing import Iterator
 
 import h5py
@@ -6,21 +8,31 @@ import pytest
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation
-from dmb.paths import REPO_DATA_ROOT
+from dmb.data.dispatching import ExecutionCode
 
-from .utils import WormInputParametersDecoder
+from .test_output import WormOutputTests
 
 
 class FakeDispatcher:
 
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self,
+                 return_code: ExecutionCode = ExecutionCode.SUCCESS,
+                 expect_input_file_type: str = ".ini"):
+        self.expect_ini_input_file = expect_input_file_type
+        self.return_code = return_code
 
-    def dispatch(self, *args, **kwargs):
-        pass
+    async def dispatch(self, task, job_name, work_directory, pipeout_dir,
+                       timeout, **kwargs):
+        await asyncio.sleep(0.01)
+
+        if not task[-1].endswith(self.expect_ini_input_file):
+            raise RuntimeError(
+                f"Expected {self.expect_ini_input_file} input file.")
+
+        return self.return_code
 
 
-class TestWormSimulation:
+class TestWormSimulation(WormOutputTests):
 
     @staticmethod
     @pytest.fixture(scope="class", name="worm_executable")
@@ -28,9 +40,24 @@ class TestWormSimulation:
         return "worm_fake_executable"
 
     @staticmethod
+    @pytest.fixture(scope="class", name="test_dispatcher_return_code")
+    def fixture_dispatcher_return_code(request) -> ExecutionCode:
+        return getattr(request, "param", ExecutionCode.SUCCESS)
+
+    @staticmethod
+    @pytest.fixture(scope="class",
+                    name="test_dispatcher_expected_input_file_type")
+    def fixture_dispatcher_expect_ini_input_file(request) -> str:
+        return getattr(request, "param", "ini")
+
+    @staticmethod
     @pytest.fixture(scope="class", name="test_dispatcher")
-    def fixture_test_dispatcher() -> FakeDispatcher:
-        return FakeDispatcher()
+    def fixture_test_dispatcher(
+            test_dispatcher_return_code: ExecutionCode,
+            test_dispatcher_expected_input_file_type: bool) -> FakeDispatcher:
+        return FakeDispatcher(
+            return_code=test_dispatcher_return_code,
+            expect_input_file_type=test_dispatcher_expected_input_file_type)
 
     @staticmethod
     @pytest.fixture(scope="class", name="test_simulation")
@@ -95,24 +122,159 @@ class TestWormSimulation:
         assert tune_sim.save_dir.exists()
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_checkpoint")
-    def fixture_test_checkpoint(
-            test_simulation: WormSimulation) -> Iterator[None]:
+    @pytest.fixture(scope="function", name="test_checkpoint_status")
+    def fixture_test_checkpoint_status(request) -> str:
+        return getattr(request, "param", "no_checkpoint")
+
+    @staticmethod
+    @pytest.fixture(scope="function", name="test_checkpoint")
+    def fixture_test_checkpoint(test_simulation: WormSimulation,
+                                test_checkpoint_status: str) -> Iterator[None]:
         checkpoint_path = test_simulation.input_parameters.get_checkpoint_path(
             test_simulation.save_dir)
 
-        #create h5 file
-        with h5py.File(checkpoint_path, "w") as f:
-            f.create_group("parameters")
+        if test_checkpoint_status == "no_checkpoint":
+            yield
 
-        yield
+        elif test_checkpoint_status == "checkpoint_exists":
+            #create h5 file
+            with h5py.File(checkpoint_path, "w") as f:
+                pass
+
+            yield
+            checkpoint_path.unlink()
+
+        elif test_checkpoint_status == "checkpoint_with_parameters":
+            #create h5 file
+            with h5py.File(checkpoint_path, "w") as f:
+                f.create_group("parameters")
+
+            yield
+            checkpoint_path.unlink()
 
     @staticmethod
+    @pytest.mark.parametrize(
+        "test_checkpoint_status",
+        ["no_checkpoint", "checkpoint_exists", "checkpoint_with_parameters"])
     def test_set_get_extension_sweeps_in_checkpoints(
-            test_simulation: WormSimulation, test_checkpoint: None):
+            test_simulation: WormSimulation, test_checkpoint: Iterator[None],
+            test_checkpoint_status: str):
 
         for extension_sweeps in (10, 20, 30):
-            test_simulation.set_extension_sweeps_in_checkpoints(
-                extension_sweeps)
-            assert test_simulation.get_extension_sweeps_from_checkpoints() == \
-                extension_sweeps
+            if test_checkpoint_status in [
+                    "checkpoint_with_parameters", "checkpoint_exists"
+            ]:
+                test_simulation.set_extension_sweeps_in_checkpoints(
+                    extension_sweeps)
+                assert test_simulation.get_extension_sweeps_from_checkpoints() == \
+                    extension_sweeps
+
+            elif test_checkpoint_status == "no_checkpoint":
+                test_simulation.set_extension_sweeps_in_checkpoints(
+                    extension_sweeps)
+                assert test_simulation.get_extension_sweeps_from_checkpoints(
+                ) is None
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "test_checkpoint_status",
+        ["no_checkpoint", "checkpoint_exists", "checkpoint_with_parameters"])
+    def test_get_extension_sweeps_from_checkpoints_no_extension_sweeps(
+            test_simulation: WormSimulation, test_checkpoint: Iterator[None],
+            test_checkpoint_status: str):
+
+        assert test_simulation.get_extension_sweeps_from_checkpoints() is None
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="output_save_dir_path")
+    def fixture_output_save_dir_path(test_simulation: WormSimulation) -> Path:
+        return test_simulation.save_dir
+
+    @staticmethod
+    def test_output(test_simulation: WormSimulation,
+                    sim_output_valid_densities: Iterator[None]):
+
+        assert test_simulation.output
+        assert test_simulation.output.densities is not None
+
+    @staticmethod
+    def test_simulation_results(test_simulation: WormSimulation,
+                                sim_output_valid_densities: Iterator[None]):
+
+        assert test_simulation.max_tau_int is not None
+        assert test_simulation.uncorrected_max_density_error is not None
+        assert test_simulation.max_density_error is not None
+
+    @staticmethod
+    def test_observables(test_simulation: WormSimulation,
+                         sim_output_valid_densities: Iterator[None]):
+
+        assert test_simulation.observables
+        for obs_type, obs_names in test_simulation.observables.observable_names.items(
+        ):
+            for obs_name in obs_names:
+                assert test_simulation.observables.get_expectation_value(
+                    obs_type, obs_name) is not None
+                for key, obs in test_simulation.observables.get_error_analysis(
+                        obs_type, obs_name).items():
+                    assert obs is not None
+
+    @staticmethod
+    def test_plotting(test_simulation: WormSimulation,
+                      sim_output_valid_densities: Iterator[None]):
+
+        test_simulation.plot_observables(
+            test_simulation.observables.observable_names)
+
+        for obs_name in itertools.chain.from_iterable(
+                test_simulation.observables.observable_names.values()):
+
+            produced_files = (
+                test_simulation.get_plot_dir_path(test_simulation.save_dir) /
+                obs_name).glob("*.png")
+            assert any(produced_files)
+
+        test_simulation.plot_inputs()
+        assert (test_simulation.get_plot_dir_path(test_simulation.save_dir) /
+                "inputs.png").exists()
+
+        test_simulation.plot_phase_diagram_inputs()
+        assert (test_simulation.get_plot_dir_path(test_simulation.save_dir) /
+                "phase_diagram_inputs.png").exists()
+
+    @staticmethod
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("test_dispatcher_return_code",
+                             [ExecutionCode.SUCCESS, ExecutionCode.FAILURE],
+                             indirect=True)
+    @pytest.mark.parametrize("test_dispatcher_expected_input_file_type",
+                             [".ini", ".h5"],
+                             indirect=True)
+    async def test_execute_worm(test_simulation: WormSimulation,
+                                test_dispatcher_return_code: ExecutionCode,
+                                test_dispatcher_expected_input_file_type: str):
+        if test_dispatcher_expected_input_file_type == ".h5":
+            with pytest.raises(RuntimeError):
+                code = await test_simulation.execute_worm()
+        else:
+            code = await test_simulation.execute_worm()
+            assert code == test_dispatcher_return_code
+
+    @staticmethod
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("test_dispatcher_return_code",
+                             [ExecutionCode.SUCCESS, ExecutionCode.FAILURE],
+                             indirect=True)
+    @pytest.mark.parametrize("test_dispatcher_expected_input_file_type",
+                             [".ini", ".h5"],
+                             indirect=True)
+    async def test_execute_worm_continue(
+            test_simulation: WormSimulation,
+            test_dispatcher_return_code: ExecutionCode,
+            test_dispatcher_expected_input_file_type: str):
+        if test_dispatcher_expected_input_file_type == ".ini":
+            with pytest.raises(RuntimeError):
+                code = await test_simulation.execute_worm_continue()
+        else:
+            code = await test_simulation.execute_worm_continue()
+            assert code == test_dispatcher_return_code

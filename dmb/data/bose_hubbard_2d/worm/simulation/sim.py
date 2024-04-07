@@ -2,6 +2,7 @@ import datetime
 import logging
 import subprocess
 from copy import deepcopy
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -11,7 +12,7 @@ import numpy as np
 from attrs import define
 from syjson import SyJson
 
-from dmb.data.dispatching import Dispatcher
+from dmb.data.dispatching import Dispatcher, ExecutionCode
 from dmb.logging import create_logger
 from dmb.paths import REPO_DATA_ROOT
 
@@ -34,7 +35,7 @@ class _SimulationExecutionMixin:
     async def execute_worm(
         self,
         input_file_path: Optional[Path] = None,
-    ):
+    ) -> ExecutionCode:
         self.file_logger.info(f"""Running simulation with:
             sweeps: {self.input_parameters.sweeps},
             Nmeasure2: {self.input_parameters.Nmeasure2},
@@ -45,26 +46,24 @@ class _SimulationExecutionMixin:
             Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}
             """)
 
-        try:
-            await self.dispatcher.dispatch(
-                task=[
-                    "mpirun",
-                    "--use-hwthread-cpus",
-                    str(self.executable),
-                    str(input_file_path or self.input_parameters.ini_path),
-                ],
-                job_name="worm",
-                work_directory=self.save_dir,
-                pipeout_dir=self.save_dir / "pipe_out",
-                timeout=60 * 60 * 24,
-            )
-        except subprocess.CalledProcessError as e:
-            self.file_logger.error(
-                f"Worm calculation failed with error code {e.returncode}.")
+        code = await self.dispatcher.dispatch(
+            task=[
+                "mpirun",
+                "--use-hwthread-cpus",
+                str(self.executable),
+                str(input_file_path
+                    or self.input_parameters.get_ini_path(self.save_dir)),
+            ],
+            job_name="worm",
+            work_directory=self.save_dir,
+            pipeout_dir=self.save_dir / "pipe_out",
+            timeout=60 * 60 * 24,
+        )
+        return code
 
-    async def execute_worm_continue(self, ):
-        await self.execute_worm(
-            input_file_path=self.input_parameters.checkpoint, )
+    async def execute_worm_continue(self):
+        return await self.execute_worm(input_file_path=self.input_parameters.
+                                       get_checkpoint_path(self.save_dir))
 
 
 class _SimulationResultMixin:
@@ -100,57 +99,66 @@ class _SimulationResultMixin:
                                                     "density")["error"]
         return float(np.max(error)) if error is not None else None
 
-    def plot_observables(self, observable_names: list[str] = ["density"]):
+    def plot_observables(
+            self,
+            observable_names: dict[str, list[str]] = {"primary": ["density"]}):
         """
         Plot the results of the worm calculation.
         """
 
         inputs = self.input_parameters.mu
 
-        for obs in observable_names:
-            fig, ax = plt.subplots(1, 3, figsize=(12, 4))
-            plt.subplots_adjust(wspace=0.5)
+        for obs_type, obs_names in observable_names.items():
+            for obs in obs_names:
 
-            error_analysis = self.observables.get_error_analysis(
-                "primary", obs)
+                fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+                plt.subplots_adjust(wspace=0.5)
 
-            if expectation_value := error_analysis["expectation_value"]:
-                value_plot = ax[0].imshow(expectation_value)
-                ax[0].set_title(obs)
-                fig.colorbar(value_plot, ax=ax[0])
+                error_analysis = self.observables.get_error_analysis(
+                    "primary", obs)
 
-            if error := error_analysis["error"]:
-                error_plot = ax[1].imshow(error)
-                ax[1].set_title("Error")
-                fig.colorbar(error_plot, ax=ax[1])
+                if (expectation_value :=
+                        error_analysis["expectation_value"]) is not None:
+                    if expectation_value.ndim == 2:
+                        value_plot = ax[0].imshow(expectation_value)
 
-            chem_pot_plot = ax[2].imshow(
-                inputs.reshape(self.input_parameters.Lx,
-                               self.input_parameters.Ly))
-            ax[2].set_title("Chemical Potential")
-            fig.colorbar(chem_pot_plot, ax=ax[2])
+                    ax[0].set_title(obs)
+                    fig.colorbar(value_plot, ax=ax[0])
 
-            for a in ax:
-                a.set_xticks([])
-                a.set_yticks([])
+                if (error := error_analysis["error"]) is not None:
+                    if error.ndim == 2:
+                        error_plot = ax[1].imshow(error)
 
-            # save figure. append current time formatted to avoid overwriting
-            # plots dir
-            plots_dir = self.get_plot_dir_path(self.save_dir) / obs
-            plots_dir.mkdir(parents=True, exist_ok=True)
+                    ax[1].set_title("Error")
+                    fig.colorbar(error_plot, ax=ax[1])
 
-            now = datetime.datetime.now()
-            now = now.strftime("%Y-%m-%d_%H-%M-%S")
-            fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
-            plt.close()
+                chem_pot_plot = ax[2].imshow(
+                    inputs.reshape(self.input_parameters.Lx,
+                                   self.input_parameters.Ly))
+                ax[2].set_title("Chemical Potential")
+                fig.colorbar(chem_pot_plot, ax=ax[2])
+
+                for a in ax:
+                    a.set_xticks([])
+                    a.set_yticks([])
+
+                # save figure. append current time formatted to avoid overwriting
+                # plots dir
+                plots_dir = self.get_plot_dir_path(self.save_dir) / obs
+                plots_dir.mkdir(parents=True, exist_ok=True)
+
+                now = datetime.datetime.now()
+                now = now.strftime("%Y-%m-%d_%H-%M-%S")
+                fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
+                plt.close()
 
     def plot_inputs(self):
-        self.input_parameters.plot_inputs(
+        self.input_parameters.plot_input_parameters(
             plots_dir=self.get_plot_dir_path(self.save_dir))
 
     def plot_phase_diagram_inputs(self):
-        self.input_parameters.plot_phase_diagram_inputs(
-            plots_dir=self.get_plot_dir(self.save_dir))
+        self.input_parameters.plot_phase_diagram_input_parameters(
+            plots_dir=self.get_plot_dir_path(self.save_dir))
 
 
 @define
