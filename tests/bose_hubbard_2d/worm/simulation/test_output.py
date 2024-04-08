@@ -12,7 +12,7 @@ from dmb.data.bose_hubbard_2d.worm.simulation.output import WormOutput
 class WormOutputTests:
 
     @staticmethod
-    @pytest.fixture(scope="class", name="density_data")
+    @pytest.fixture(scope="function", name="density_data")
     def fixture_density_data(request: pytest.FixtureRequest) -> np.ndarray:
         return np.random.rand(*getattr(request, "param", (100, 3, 3)))
 
@@ -34,7 +34,7 @@ class WormOutputTests:
         outputfile_path.unlink()
 
     @staticmethod
-    @pytest.fixture(scope="class", name="invalidity_reason")
+    @pytest.fixture(scope="function", name="invalidity_reason")
     def fixture_invalidity_reason(request: pytest.FixtureRequest) -> str:
         return getattr(request, "param", "no_densities")
 
@@ -72,7 +72,7 @@ class WormOutputTests:
 class TestWormOutput(WormOutputTests):
 
     @staticmethod
-    @pytest.fixture(scope="class", name="output_save_dir_path")
+    @pytest.fixture(scope="function", name="output_save_dir_path")
     def fixture_output_save_dir_path(
             tmp_path_factory: pytest.TempPathFactory) -> Path:
         return tmp_path_factory.mktemp("test_simulation")
@@ -89,9 +89,7 @@ class TestWormOutput(WormOutputTests):
         input_parameters: WormInputParameters,
         sim_output_invalid_densities: Iterator[None],
         output_save_dir_path: Path,
-        tmp_path: Path,
     ):
-
         worm_output = WormOutput(
             input_parameters=input_parameters,
             out_file_path=input_parameters.get_outputfile_path(

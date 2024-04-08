@@ -7,11 +7,10 @@ from pathlib import Path
 
 import joblib
 
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.create import \
-    draw_random_config, draw_uniform_config
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.parameters import \
-    WormInputParameters
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
+from dmb.data.bose_hubbard_2d.worm.scripts.create import draw_random_config, \
+    draw_uniform_config
+from dmb.data.bose_hubbard_2d.worm.worm.parameters import WormInputParameters
+from dmb.data.bose_hubbard_2d.worm.worm.sim import WormSimulation
 from dmb.io import ProgressParallel
 from dmb.logging import create_logger
 

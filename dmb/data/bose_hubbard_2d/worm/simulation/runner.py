@@ -25,6 +25,16 @@ def get_expected_required_num_measurements(
                  max_abs_error_threshold)**2 * simulation.max_tau_int)
 
 
+def get_tune_nmeasure2_values(
+        min_nmeasure2: int, max_nmeasure2: int,
+        step_size_multiplication_factor: float) -> list[int]:
+    Nmeasure2_values = [min_nmeasure2]
+    while Nmeasure2_values[-1] < max_nmeasure2:
+        Nmeasure2_values.append(Nmeasure2_values[-1] *
+                                step_size_multiplication_factor)
+    return Nmeasure2_values
+
+
 def set_simulation_parameters(simulation: WormSimulation,
                               Nmeasure2: int,
                               sweeps: int,
@@ -102,9 +112,9 @@ class WormSimulationRunner:
 
     async def run_iterative_until_converged(
         self,
-        max_num_measurements_per_nmeasure2: int = 250000,
+        max_num_measurements_per_nmeasure2: int = 500000,
         min_num_measurements_per_nmeasure2: int = 15000,
-        num_sweep_increments: int = 35,
+        num_sweep_increments: int = 30,
         sweeps_to_thermalization_ratio: int = 10,
         max_abs_error_threshold: int = 0.015,
         Nmeasure2: int | None = None,
@@ -128,11 +138,11 @@ class WormSimulationRunner:
                 "Nmeasure2 must be set or tuned simulation must exist.")
 
         num_sweeps_values = np.array([
-            (min_num_measurements_per_nmeasure2 + i * int(
+            (min_num_measurements_per_nmeasure2 + increment * int(
                 (max_num_measurements_per_nmeasure2 -
                  min_num_measurements_per_nmeasure2) / num_sweep_increments)) *
             self.worm_simulation.input_parameters.Nmeasure2
-            for i in range(num_sweep_increments)
+            for increment in range(num_sweep_increments)
         ])
 
         set_simulation_parameters(
@@ -140,6 +150,9 @@ class WormSimulationRunner:
             Nmeasure2=Nmeasure2,
             sweeps=num_sweeps_values[0],
             sweeps_to_thermalization_ratio=sweeps_to_thermalization_ratio)
+
+        if not "steps" in self.worm_simulation.record:
+            self.worm_simulation.record["steps"] = []
 
         pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
         for step_idx, num_sweeps in pbar:
@@ -225,17 +238,16 @@ class WormSimulationRunner:
                     -1] < tau_threshold:
                 return True
 
-        Nmeasure2_values = np.array([min_nmeasure2])
-        while Nmeasure2_values[-1] < max_nmeasure2:
-            Nmeasure2_values = np.append(
-                Nmeasure2_values,
-                Nmeasure2_values[-1] * step_size_multiplication_factor)
-        Nmeasure2_values = Nmeasure2_values.astype(int)
+        nmeasure2_values = get_tune_nmeasure2_values(
+            min_nmeasure2=min_nmeasure2,
+            max_nmeasure2=max_nmeasure2,
+            step_size_multiplication_factor=step_size_multiplication_factor,
+        )
         skip_next_counter = 0
 
         # tune Nmeasure, Nmeasure2, thermalization, sweeps
-        for idx, Nmeasure2 in tqdm(enumerate(Nmeasure2_values),
-                                   total=len(Nmeasure2_values)):
+        for idx, Nmeasure2 in tqdm(enumerate(nmeasure2_values),
+                                   total=len(nmeasure2_values)):
             if skip_next_counter > 0:
                 skip_next_counter -= 1
                 continue
@@ -249,7 +261,6 @@ class WormSimulationRunner:
             tune_runner = WormSimulationRunner(worm_simulation=tune_simulation)
 
             return_code = await tune_runner.run()
-
             if return_code != ReturnCode.SUCCESS:
                 continue
 
@@ -276,7 +287,10 @@ class WormSimulationRunner:
                             tune_simulation.max_density_error))
                 break
 
-            # get biggest smaller 2**x value
             if tune_simulation.max_tau_int is not None:
-                skip_next_counter = int(np.log2(
-                    tune_simulation.max_tau_int)) - 2
+                # get biggest smaller 2**x value - 2, at most 5
+                skip_next_counter = min(
+                    5,
+                    int(
+                        np.emath.logn(step_size_multiplication_factor,
+                                      tune_simulation.max_tau_int)) - 2)

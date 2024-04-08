@@ -6,13 +6,13 @@ import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.sandbox.box import get_square_mu
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.sandbox.wedding_cake import \
-    get_quadratic_mu
 from dmb.data.bose_hubbard_2d.network_input import \
     net_input_dimless_const_parameters
 from dmb.data.bose_hubbard_2d.phase_diagram import model_predict
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.worm.scripts.sandbox.box import get_square_mu
+from dmb.data.bose_hubbard_2d.worm.scripts.sandbox.wedding_cake import \
+    get_quadratic_mu
 from dmb.paths import REPO_DATA_ROOT
 
 

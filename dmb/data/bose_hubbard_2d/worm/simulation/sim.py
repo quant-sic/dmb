@@ -31,8 +31,18 @@ class _SimulationExecutionMixin:
 
     async def execute_worm(
         self,
-        input_file_path: Optional[Path] = None,
+        input_file_path: Path | None = None,
     ) -> ReturnCode:
+        """Execute the worm simulation.
+        
+        Args:
+            input_file_path: Path to the input file (.h5,.ini). If None, the input parameters
+                file will be used. Defaults to None.
+        """
+        if self.executable is None or self.dispatcher is None:
+            raise ValueError("To execute the worm simulation, the executable "
+                             "and dispatcher must be set.")
+
         self.file_logger.info(f"""Running simulation with:
             sweeps: {self.input_parameters.sweeps},
             Nmeasure2: {self.input_parameters.Nmeasure2},
@@ -43,7 +53,7 @@ class _SimulationExecutionMixin:
             Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}
             """)
 
-        code = await self.dispatcher.dispatch(
+        return await self.dispatcher.dispatch(
             task=[
                 "mpirun",
                 "--use-hwthread-cpus",
@@ -56,9 +66,8 @@ class _SimulationExecutionMixin:
             pipeout_dir=self.save_dir / "pipe_out",
             timeout=60 * 60 * 24,
         )
-        return code
 
-    async def execute_worm_continue(self):
+    async def execute_worm_continue(self) -> ReturnCode:
         return await self.execute_worm(input_file_path=self.input_parameters.
                                        get_checkpoint_path(self.save_dir))
 
@@ -167,9 +176,9 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     """Class to manage worm simulations."""
 
     input_parameters: WormInputParameters
-    executable: Path
     save_dir: Path
-    dispatcher: Dispatcher
+    executable: Path | None = None
+    dispatcher: Dispatcher | None = None
     reloaded_from_dir: bool = False
 
     def __attrs_post_init__(self):
@@ -195,8 +204,8 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     def from_dir(
         cls,
         dir_path: Path,
-        dispatcher: Dispatcher,
-        executable: Optional[Path],
+        dispatcher: Dispatcher | None = None,
+        executable: Path | None = None,
     ):
         input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
         return cls(

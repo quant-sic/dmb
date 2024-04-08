@@ -19,7 +19,7 @@ trainer:
   gradient_clip_val: 1
   accumulate_grad_batches: 8
 
-exp_name: "bose_hubbard_2d/cpp_worm/se_cnn/density/msle"
+exp_name: "bose_hubbard_2d/worm/se_cnn/density/msle"
 
 test: True
 

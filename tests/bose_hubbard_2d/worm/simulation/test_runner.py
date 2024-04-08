@@ -69,7 +69,7 @@ class TestWormSimulationRunner:
     @staticmethod
     @pytest.mark.asyncio
     async def test_run_iterative_until_converged(
-        fake_worm_simulation: FakeWormSimulation) -> None:
+            fake_worm_simulation: FakeWormSimulation) -> None:
 
         fake_worm_simulation.tune_simulation.record = {
             "steps": [{
@@ -82,7 +82,7 @@ class TestWormSimulationRunner:
 
     @staticmethod
     def test_run_iterative_until_converged_sync(
-        fake_worm_simulation: FakeWormSimulation) -> None:
+            fake_worm_simulation: FakeWormSimulation) -> None:
 
         fake_worm_simulation.tune_simulation.record = {
             "steps": [{
@@ -95,7 +95,7 @@ class TestWormSimulationRunner:
 
     @staticmethod
     def test_tune_nmeasure2_sync(
-        fake_worm_simulation: FakeWormSimulation) -> None:
+            fake_worm_simulation: FakeWormSimulation) -> None:
 
         fake_worm_simulation.tune_simulation.record = {
             "steps": [{
@@ -120,3 +120,24 @@ class TestWormSimulationRunner:
         }
         runner = WormSimulationRunner(fake_worm_simulation)
         await runner.tune_nmeasure2()
+
+    # required tests:
+    # - test_run_iterative_until_converged
+    # |-> raises when not Nmeasure2 or tune_simulation is not set
+    # |-> record is written with right keys
+    # |-> start with run. if never success, never continue, or continue after success
+    # |-> breaks only when max_density_error is reached. If max_density_error is not reached, it should continue until num_sweep_increments
+
+    # - test_tune_nmeasure2
+    # |-> worm simulation unmodified
+    # |-> tune simulation record is written with right keys
+    # |-> only start, never continue
+    # |-> breaks only when max_tau_int is reached. If max_tau_int is not reached, it should continue until get_tune_nmeasure2_values are exhausted
+    # |-> results in nmeasure2 is larger than min_nmeasure2 and smaller than max_nmeasure2
+    # |-> plots results
+    # |-> saves correct input parameters
+    # |-> record is written with right keys
+    # |-> record contains right values
+
+
+# test get_tune_nmeasure2_values

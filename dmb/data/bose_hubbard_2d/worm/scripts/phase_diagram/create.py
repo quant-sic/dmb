@@ -7,8 +7,8 @@ import numpy as np
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
-from dmb.data.bose_hubbard_2d.cpp_worm.scripts.simulate import simulate
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.worm.scripts.simulate import simulate
 from dmb.paths import REPO_DATA_ROOT
 
 

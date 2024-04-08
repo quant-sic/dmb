@@ -1,6 +1,5 @@
 import itertools
 import shutil
-from abc import ABC, abstractmethod
 from functools import cached_property, partial
 from pathlib import Path
 from typing import List, Optional, Union
@@ -9,18 +8,20 @@ import numpy as np
 import torch
 from attrs import define
 from joblib import delayed
-from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm.sim import WormSimulation
 from dmb.data.bose_hubbard_2d.network_input import net_input
-from dmb.utils import ProgressParallel, create_logger
+from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
+from dmb.data.dataset import IdDataset
+from dmb.data.dispatching import AutoDispatcher
+from dmb.io import ProgressParallel
+from dmb.logging import create_logger
 
 log = create_logger(__name__)
 
 
 @define
-class BoseHubbardDataset(Dataset, IdDataset):
+class BoseHubbardDataset(IdDataset):
     """Dataset for the Bose-Hubbard model."""
 
     data_dir: Path | str
@@ -71,8 +72,64 @@ class BoseHubbardDataset(Dataset, IdDataset):
 
         return sim_dirs
 
-    @staticmethod
+    def log(self, msg, level="info"):
+        if self.verbose:
+            getattr(log, level)(msg)
+
+    def get_simulation_valid(self,
+                             simulation_dir: Path,
+                             redo: bool = False) -> bool:
+        try:
+            sim = WormSimulation.from_dir(simulation_dir)
+        except (OSError, KeyError):
+            self.log(f"Could not load simulation from {simulation_dir}",
+                     "error")
+            return False
+
+        if "clean" in sim.record and not sim.record["clean"] and not redo:
+            return False
+        elif "clean" in sim.record and sim.record["clean"] and not redo:
+            return True
+        else:
+            valid = sim.valid
+
+        # general purpose validation
+        sim.record["clean"] = valid
+
+        return valid
+
+    def filter_by_error(
+        self,
+        simulation: WormSimulation,
+        max_density_error: float,
+        recalculate_errors: bool = False,
+    ) -> bool:
+        try:
+            if recalculate_errors:
+                self.log(f"Recalculating errors for {simulation.save_dir}",
+                         "info")
+                if not "steps" in simulation.record or len(
+                        simulation.record["steps"]) == 0:
+                    simulation.record["steps"] = [{
+                        "error": None,
+                        "tau_max": None
+                    }]
+
+                simulation.record["steps"][-1][
+                    "error"] = simulation.max_density_error
+                simulation.record["steps"][-1][
+                    "tau_max"] = simulation.max_tau_int
+
+            return (simulation.record["steps"][-1]["error"]
+                    <= max_density_error) and (
+                        simulation.record["steps"][-1]["tau_max"] > 0)
+        except (IndexError, TypeError, KeyError) as e:
+            self.log(f"Error {e} During error filtering for {simulation}",
+                     "error")
+            return False
+
     def _clean_sim_dirs(
+        self,
         observables,
         sim_dirs,
         redo=False,
@@ -81,84 +138,18 @@ class BoseHubbardDataset(Dataset, IdDataset):
         recalculate_errors: bool = False,
         delete_unreadable: bool = False,
     ):
-
-        def log_verbose(msg, level="info"):
-            if verbose:
-                getattr(log, level)(msg)
-
-        def filter_fn(sim_dir):
-            try:
-                sim = WormSimulation.from_dir(sim_dir)
-            except (OSError, KeyError):
-                log_verbose(f"Could not load simulation from {sim_dir}",
-                            "error")
-
-                return False
-
-            if "clean" in sim.record and not sim.record["clean"] and not redo:
-                return False
-            elif "clean" in sim.record and sim.record["clean"] and not redo:
-                valid = True
-            else:
-                if sim.output.densities is None:
-                    log_verbose(
-                        f"Could not load density distribution from {sim_dir}",
-                        "error")
-                    valid = False
-
-                else:
-                    valid = True
-
-                sim.record["clean"] = valid
-
-                # after saving the record, return if not valid
-                if not valid:
-                    return False
-
-            # general purpose validation
-            sim.record["clean"] = valid
-
-            return valid
-
-        def filter_by_error(sim_dir):
-            try:
-                sim = WormSimulation.from_dir(sim_dir)
-            except (OSError, KeyError):
-                log_verbose(f"Could not load simulation from {sim_dir}",
-                            "error")
-                return False
-
-            try:
-                if recalculate_errors:
-                    log_verbose(f"Recalculating errors for {sim_dir}", "info")
-                    if not "steps" in sim.record or len(
-                            sim.record["steps"]) == 0:
-                        sim.record["steps"] = [{
-                            "error": None,
-                            "tau_max": None
-                        }]
-
-                    sim.record["steps"][-1]["error"] = sim.max_density_error
-                    sim.record["steps"][-1]["tau_max"] = sim.max_tau_int
-
-                return (sim.record["steps"][-1]["error"] <= max_density_error
-                        ) and (sim.record["steps"][-1]["tau_max"] > 0)
-            except (IndexError, TypeError, KeyError) as e:
-                log_verbose(f"Error {e} During error filtering for {sim_dir}",
-                            "error")
-                return False
-
         valid_sim_dirs = ProgressParallel(
             n_jobs=10,
             total=len(sim_dirs),
             desc="Filtering Dataset",
             use_tqdm=verbose,
-        )(delayed(filter_fn)(sim_dir) for sim_dir in sim_dirs)
+        )(delayed(self.get_simulation_valid)(sim_dir, redo=redo)
+          for sim_dir in sim_dirs)
 
         if delete_unreadable:
             for sim_dir, valid in zip(sim_dirs, valid_sim_dirs):
                 if not valid:
-                    log_verbose(f"Deleting {sim_dir}")
+                    self.log(f"Deleting {sim_dir}")
                     shutil.rmtree(sim_dir)
 
         sim_dirs = list(
@@ -178,7 +169,10 @@ class BoseHubbardDataset(Dataset, IdDataset):
                         total=len(sim_dirs),
                         desc="Filtering Dataset by Error",
                         use_tqdm=verbose,
-                    )(delayed(filter_by_error)(sim_dir)
+                    )(delayed(self.filter_by_error)(
+                        WormSimulation.from_dir(sim_dir),
+                        max_density_error,
+                        recalculate_errors=recalculate_errors)
                       for sim_dir in sim_dirs),
                 ))
 
@@ -377,3 +371,9 @@ class BoseHubbardDataset(Dataset, IdDataset):
                 return self[idx]
 
         return None
+
+    def get_ids_from_indices(self, indices: tuple[int, ...]):
+        return tuple(self.sim_dirs[idx].name for idx in indices)
+
+    def get_indices_from_ids(self, ids):
+        return tuple(self.sim_dirs.index(self.data_dir / id) for id in ids)

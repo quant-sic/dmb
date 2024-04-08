@@ -6,9 +6,9 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
 from dmb.data.bose_hubbard_2d.network_input import \
     net_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
 from dmb.paths import REPO_DATA_ROOT
 
 

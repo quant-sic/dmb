@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
-from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormSimulation, \
+from dmb.data.bose_hubbard_2d.worm.worm import WormSimulation, \
     WormSimulationRunner
 from dmb.logging import create_logger
 from dmb.paths import REPO_DATA_ROOT

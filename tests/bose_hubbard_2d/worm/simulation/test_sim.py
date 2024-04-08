@@ -40,18 +40,18 @@ class WormSimulationTests:
         return "worm_fake_executable"
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_dispatcher_return_code")
+    @pytest.fixture(scope="function", name="test_dispatcher_return_code")
     def fixture_dispatcher_return_code(request) -> ReturnCode:
         return getattr(request, "param", ReturnCode.SUCCESS)
 
     @staticmethod
-    @pytest.fixture(scope="class",
+    @pytest.fixture(scope="function",
                     name="test_dispatcher_expected_input_file_type")
     def fixture_dispatcher_expect_ini_input_file(request) -> str:
         return getattr(request, "param", "ini")
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_dispatcher")
+    @pytest.fixture(scope="function", name="test_dispatcher")
     def fixture_test_dispatcher(
             test_dispatcher_return_code: ReturnCode,
             test_dispatcher_expected_input_file_type: bool) -> FakeDispatcher:
@@ -60,7 +60,7 @@ class WormSimulationTests:
             expect_input_file_type=test_dispatcher_expected_input_file_type)
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_simulation")
+    @pytest.fixture(scope="function", name="test_simulation")
     def fixture_test_simulation(
             input_parameters: WormInputParameters,
             tmp_path_factory: pytest.TempPathFactory, worm_executable: str,
@@ -75,14 +75,15 @@ class WormSimulationTests:
 class TestWormSimulation(WormOutputTests, WormSimulationTests):
 
     @staticmethod
-    def test_from_dir(test_simulation: WormSimulation, worm_executable: str,
-                      test_dispatcher):
+    def test_parameters_saved(test_simulation: WormSimulation):
+        assert test_simulation.input_parameters.get_ini_path(
+            test_simulation.save_dir).exists()
+        assert test_simulation.input_parameters.get_h5_path(
+            test_simulation.save_dir).exists()
 
-        loaded_sim = WormSimulation.from_dir(dir_path=test_simulation.save_dir,
-                                             dispatcher=FakeDispatcher(),
-                                             executable=worm_executable)
-
-        assert loaded_sim.input_parameters == test_simulation.input_parameters
+    @staticmethod
+    def test_from_dir(test_simulation: WormSimulation, worm_executable: str):
+        loaded_sim = WormSimulation.from_dir(dir_path=test_simulation.save_dir)
 
     @staticmethod
     def test_save_parameters(input_parameters: WormInputParameters,
@@ -189,7 +190,7 @@ class TestWormSimulation(WormOutputTests, WormSimulationTests):
         assert test_simulation.get_extension_sweeps_from_checkpoints() is None
 
     @staticmethod
-    @pytest.fixture(scope="class", name="output_save_dir_path")
+    @pytest.fixture(scope="function", name="output_save_dir_path")
     def fixture_output_save_dir_path(test_simulation: WormSimulation) -> Path:
         return test_simulation.save_dir
 

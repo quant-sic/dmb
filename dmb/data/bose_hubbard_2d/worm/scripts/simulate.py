@@ -3,15 +3,14 @@ import itertools
 import os
 import shutil
 from pathlib import Path
-from typing import List
 
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.cpp_worm.dataset import BoseHubbardDataset
-from dmb.data.bose_hubbard_2d.cpp_worm.worm import WormInputParameters, \
-    WormSimulation, WormSimulationRunner
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.io import create_logger
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
+    WormSimulation, WormSimulationRunner
+from dmb.logging import create_logger
 
 log = create_logger(__name__)
 
