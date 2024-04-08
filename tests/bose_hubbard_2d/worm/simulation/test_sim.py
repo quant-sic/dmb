@@ -8,7 +8,7 @@ import pytest
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation
-from dmb.data.dispatching import ExecutionCode
+from dmb.data.dispatching import ReturnCode
 
 from .test_output import WormOutputTests
 
@@ -16,7 +16,7 @@ from .test_output import WormOutputTests
 class FakeDispatcher:
 
     def __init__(self,
-                 return_code: ExecutionCode = ExecutionCode.SUCCESS,
+                 return_code: ReturnCode = ReturnCode.SUCCESS,
                  expect_input_file_type: str = ".ini"):
         self.expect_ini_input_file = expect_input_file_type
         self.return_code = return_code
@@ -32,7 +32,7 @@ class FakeDispatcher:
         return self.return_code
 
 
-class TestWormSimulation(WormOutputTests):
+class WormSimulationTests:
 
     @staticmethod
     @pytest.fixture(scope="class", name="worm_executable")
@@ -41,8 +41,8 @@ class TestWormSimulation(WormOutputTests):
 
     @staticmethod
     @pytest.fixture(scope="class", name="test_dispatcher_return_code")
-    def fixture_dispatcher_return_code(request) -> ExecutionCode:
-        return getattr(request, "param", ExecutionCode.SUCCESS)
+    def fixture_dispatcher_return_code(request) -> ReturnCode:
+        return getattr(request, "param", ReturnCode.SUCCESS)
 
     @staticmethod
     @pytest.fixture(scope="class",
@@ -53,7 +53,7 @@ class TestWormSimulation(WormOutputTests):
     @staticmethod
     @pytest.fixture(scope="class", name="test_dispatcher")
     def fixture_test_dispatcher(
-            test_dispatcher_return_code: ExecutionCode,
+            test_dispatcher_return_code: ReturnCode,
             test_dispatcher_expected_input_file_type: bool) -> FakeDispatcher:
         return FakeDispatcher(
             return_code=test_dispatcher_return_code,
@@ -70,6 +70,9 @@ class TestWormSimulation(WormOutputTests):
             save_dir=tmp_path_factory.mktemp("test_simulation"),
             dispatcher=test_dispatcher,
             executable=worm_executable)
+
+
+class TestWormSimulation(WormOutputTests, WormSimulationTests):
 
     @staticmethod
     def test_from_dir(test_simulation: WormSimulation, worm_executable: str,
@@ -245,13 +248,13 @@ class TestWormSimulation(WormOutputTests):
     @staticmethod
     @pytest.mark.asyncio
     @pytest.mark.parametrize("test_dispatcher_return_code",
-                             [ExecutionCode.SUCCESS, ExecutionCode.FAILURE],
+                             [ReturnCode.SUCCESS, ReturnCode.FAILURE],
                              indirect=True)
     @pytest.mark.parametrize("test_dispatcher_expected_input_file_type",
                              [".ini", ".h5"],
                              indirect=True)
     async def test_execute_worm(test_simulation: WormSimulation,
-                                test_dispatcher_return_code: ExecutionCode,
+                                test_dispatcher_return_code: ReturnCode,
                                 test_dispatcher_expected_input_file_type: str):
         if test_dispatcher_expected_input_file_type == ".h5":
             with pytest.raises(RuntimeError):
@@ -263,14 +266,14 @@ class TestWormSimulation(WormOutputTests):
     @staticmethod
     @pytest.mark.asyncio
     @pytest.mark.parametrize("test_dispatcher_return_code",
-                             [ExecutionCode.SUCCESS, ExecutionCode.FAILURE],
+                             [ReturnCode.SUCCESS, ReturnCode.FAILURE],
                              indirect=True)
     @pytest.mark.parametrize("test_dispatcher_expected_input_file_type",
                              [".ini", ".h5"],
                              indirect=True)
     async def test_execute_worm_continue(
             test_simulation: WormSimulation,
-            test_dispatcher_return_code: ExecutionCode,
+            test_dispatcher_return_code: ReturnCode,
             test_dispatcher_expected_input_file_type: str):
         if test_dispatcher_expected_input_file_type == ".ini":
             with pytest.raises(RuntimeError):

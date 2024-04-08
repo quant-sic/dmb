@@ -83,7 +83,7 @@ class _InputParameterPlottingMixin:
         plt.close()
 
 
-@frozen(eq=False)
+@frozen(eq=False, slots=False)
 class WormInputParameters(_InputParameterPlottingMixin):
     """Class for the input parameters of the worm simulation."""
 

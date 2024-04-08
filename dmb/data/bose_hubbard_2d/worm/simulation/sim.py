@@ -1,8 +1,6 @@
 import datetime
 import logging
-import subprocess
 from copy import deepcopy
-from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -12,9 +10,8 @@ import numpy as np
 from attrs import define
 from syjson import SyJson
 
-from dmb.data.dispatching import Dispatcher, ExecutionCode
+from dmb.data.dispatching import Dispatcher, ReturnCode
 from dmb.logging import create_logger
-from dmb.paths import REPO_DATA_ROOT
 
 from .observables import SimulationObservables
 from .output import WormOutput
@@ -35,7 +32,7 @@ class _SimulationExecutionMixin:
     async def execute_worm(
         self,
         input_file_path: Optional[Path] = None,
-    ) -> ExecutionCode:
+    ) -> ReturnCode:
         self.file_logger.info(f"""Running simulation with:
             sweeps: {self.input_parameters.sweeps},
             Nmeasure2: {self.input_parameters.Nmeasure2},
@@ -98,6 +95,10 @@ class _SimulationResultMixin:
         error = self.observables.get_error_analysis("primary",
                                                     "density")["error"]
         return float(np.max(error)) if error is not None else None
+
+    @property
+    def valid(self) -> bool:
+        return self.max_density_error is not None
 
     def plot_observables(
             self,

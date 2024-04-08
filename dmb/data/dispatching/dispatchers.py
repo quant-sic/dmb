@@ -10,7 +10,7 @@ from attrs import define
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, \
     SettingsConfigDict
 
-from dmb.data.dispatching.helpers import ExecutionCode, call_sbatch_and_wait, \
+from dmb.data.dispatching.helpers import ReturnCode, call_sbatch_and_wait, \
     check_if_slurm_is_installed_and_running
 from dmb.logging import create_logger
 from dmb.paths import REPO_ROOT
@@ -50,7 +50,7 @@ class Dispatcher(ABC):
         task: list[str],
         work_directory: Path,
         pipeout_dir: Path,
-    ) -> ExecutionCode:
+    ) -> ReturnCode:
         ...
 
 
@@ -140,7 +140,7 @@ class SlurmDispatcher(Dispatcher):
         pipeout_dir: Path,
         timeout: int,
         dispatcher_settings: SlurmDispatcherSettings,
-    ) -> ExecutionCode:
+    ) -> ReturnCode:
 
         script_path = work_directory / "run.sh"
 
@@ -171,7 +171,7 @@ class LocalDispatcher(Dispatcher):
         task: list[str],
         timeout: int,
         dispatcher_settings: BaseSettings,
-    ) -> ExecutionCode:
+    ) -> ReturnCode:
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
 
@@ -185,11 +185,11 @@ class LocalDispatcher(Dispatcher):
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(),
                                                     timeout=timeout)
-            code = ExecutionCode.SUCCESS
+            code = ReturnCode.SUCCESS
         except asyncio.TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
-            code = ExecutionCode.FAILURE
+            code = ReturnCode.FAILURE
 
         # write output to file
         now = datetime.datetime.now()
@@ -231,7 +231,7 @@ class AutoDispatcher(Dispatcher):
         pipeout_dir: Path,
         timeout: int,
         dispatcher_kwargs: dict[str, Any] = {},
-    ) -> ExecutionCode:
+    ) -> ReturnCode:
 
         # update dispatcher settings
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from dmb.logging import create_logger
 
 
-class ExecutionCode(Enum):
+class ReturnCode(Enum):
     SUCCESS = 0
     FAILURE = 1
 
@@ -20,7 +20,7 @@ async def call_sbatch_and_wait(
     script_path: Path,
     timeout: int = 48 * 60 * 60,
     logging_instance: Logger = logger,
-) -> ExecutionCode:
+) -> ReturnCode:
     try:
         p = subprocess.run(
             "sbatch " + str(script_path),
@@ -33,7 +33,7 @@ async def call_sbatch_and_wait(
     except subprocess.CalledProcessError as e:
         logging_instance.error(e.stderr.decode("utf-8"))
 
-        return ExecutionCode.FAILURE
+        return ReturnCode.FAILURE
 
     job_id = p.stdout.decode("utf-8").strip().split()[-1]
     logging_instance.debug(f"Submitted job {job_id}")
@@ -54,7 +54,7 @@ async def call_sbatch_and_wait(
                 logging_instance.debug(
                     f"Error executing squeue: {process.stderr.decode('utf-8')}"
                 )
-                return ExecutionCode.FAILURE
+                return ReturnCode.FAILURE
 
             if not job_state in ("RUNNING", "PENDING"):
                 logging_instance.debug(f"Job {job_id} ended {job_state}")
@@ -65,14 +65,14 @@ async def call_sbatch_and_wait(
 
             if time.time() - start_time > timeout:
                 logging_instance.error(f"Job {job_id} timed out")
-                return ExecutionCode.FAILURE
+                return ReturnCode.FAILURE
 
     except Exception as e:
         logging_instance.error(f"Error: {e}")
         raise e
 
     logging_instance.debug(f"Job {job_id} finished")
-    return ExecutionCode.SUCCESS
+    return ReturnCode.SUCCESS
 
 
 def check_if_slurm_is_installed_and_running(

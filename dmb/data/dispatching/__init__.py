@@ -1,3 +1,3 @@
-from .dispatchers import AutoDispatcher, Dispatcher, ExecutionCode
+from .dispatchers import AutoDispatcher, Dispatcher, ReturnCode
 
-__all__ = ["AutoDispatcher", "Dispatcher", "ExecutionCode"]
+__all__ = ["AutoDispatcher", "Dispatcher", "ReturnCode"]

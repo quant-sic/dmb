@@ -494,7 +494,7 @@ def gamma_with_error_handling(
             "dvalue": 0,
             "ddvalue": 0,
             "naive_err": 0,
-            "tau_int": -1,
+            "tau_int": None,
             "dtau_int": 0,
             "tau_int_fbb": np.zeros(1),
             "dtau_int_fbb": np.zeros(1),
