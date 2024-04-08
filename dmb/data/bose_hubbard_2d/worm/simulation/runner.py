@@ -19,12 +19,6 @@ def sync_async(func):
     return wrapper
 
 
-def get_expected_required_num_measurements(
-        simulation: WormSimulation, max_abs_error_threshold: float) -> int:
-    return (2 * (simulation.uncorrected_max_density_error /
-                 max_abs_error_threshold)**2 * simulation.max_tau_int)
-
-
 def get_tune_nmeasure2_values(
         min_nmeasure2: int, max_nmeasure2: int,
         step_size_multiplication_factor: float) -> list[int]:
@@ -74,16 +68,10 @@ def get_tau_max_values_from_simulation_record(steps: list[dict]) -> np.ndarray:
                 step.keys(),
             )) for step in steps
         ]
-        if any([
-                len(tau_max_keys_step) == 0
-                for tau_max_keys_step in tau_max_keys_steps
-        ]):
-            raise Exception("No tau_max key found in record.")
-        else:
-            return [
-                list(tau_max_keys_step)[0]
-                for tau_max_keys_step in tau_max_keys_steps
-            ]
+        return [
+            list(tau_max_keys_step)[0]
+            for tau_max_keys_step in tau_max_keys_steps
+        ]
 
     tau_max_keys = get_tau_max_keys(steps)
     return np.array(
@@ -130,8 +118,11 @@ class WormSimulationRunner:
             sweeps_to_thermalization_ratio: Ratio of sweeps to thermalization.
             max_abs_error_threshold: Maximum absolute error threshold.
         """
-        Nmeasure2 = Nmeasure2 or self.worm_simulation.tune_simulation.record[
-            "steps"][-1]["Nmeasure2"]
+        Nmeasure2 = Nmeasure2 or (
+            self.worm_simulation.tune_simulation.record["steps"][-1]
+            ["Nmeasure2"]
+            if len(self.worm_simulation.tune_simulation.record["steps"]) else
+            None)
 
         if Nmeasure2 is None:
             raise ValueError(
@@ -178,11 +169,7 @@ class WormSimulationRunner:
                 . Sweeps: {num_sweeps}.
                 Num Nmeasure2: {num_sweeps/
                                 self.worm_simulation.input_parameters.Nmeasure2}.
-                At step {step_idx} of {len(num_sweeps_values)}.
-                Expected required number of measurements:
-                 {get_expected_required_num_measurements(self.worm_simulation.tune_simulation,
-                                                          max_abs_error_threshold)}"""
-                                 )
+                At step {step_idx} of {len(num_sweeps_values)}.""")
 
             self.worm_simulation.plot_observables()
             self.worm_simulation.record["steps"].append({

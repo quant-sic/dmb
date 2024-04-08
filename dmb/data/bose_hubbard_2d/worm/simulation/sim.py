@@ -184,6 +184,9 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     def __attrs_post_init__(self):
         self.record = SyJson(path=self.save_dir / "record.json")
 
+        if not "steps" in self.record:
+            self.record["steps"] = []
+
         self.file_logger = create_logger(
             app_name=
             (f"worm_simulation_{self.save_dir.name}"
