@@ -61,7 +61,6 @@ class BoseHubbardDataset(IdDataset):
 
         if self.clean:
             sim_dirs = self._clean_sim_dirs(
-                self.observables,
                 sim_dirs,
                 redo=self.reload,
                 verbose=self.verbose,
@@ -108,8 +107,7 @@ class BoseHubbardDataset(IdDataset):
             if recalculate_errors:
                 self.log(f"Recalculating errors for {simulation.save_dir}",
                          "info")
-                if not "steps" in simulation.record or len(
-                        simulation.record["steps"]) == 0:
+                if len(simulation.record["steps"]) == 0:
                     simulation.record["steps"] = [{
                         "error": None,
                         "tau_max": None
@@ -130,7 +128,6 @@ class BoseHubbardDataset(IdDataset):
 
     def _clean_sim_dirs(
         self,
-        observables,
         sim_dirs,
         redo=False,
         verbose=False,
@@ -138,13 +135,16 @@ class BoseHubbardDataset(IdDataset):
         recalculate_errors: bool = False,
         delete_unreadable: bool = False,
     ):
-        valid_sim_dirs = ProgressParallel(
-            n_jobs=10,
-            total=len(sim_dirs),
-            desc="Filtering Dataset",
-            use_tqdm=verbose,
-        )(delayed(self.get_simulation_valid)(sim_dir, redo=redo)
-          for sim_dir in sim_dirs)
+
+        valid_sim_dirs = (self.get_simulation_valid(sim_dir, redo=redo) for sim_dir in sim_dirs)
+        
+        # ProgressParallel(
+        #     n_jobs=10,
+        #     total=len(sim_dirs),
+        #     desc="Filtering Dataset",
+        #     use_tqdm=verbose,
+        # )(delayed(self.get_simulation_valid)(sim_dir, redo=redo)
+        #   for sim_dir in sim_dirs)
 
         if delete_unreadable:
             for sim_dir, valid in zip(sim_dirs, valid_sim_dirs):

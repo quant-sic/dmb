@@ -155,11 +155,9 @@ async def simulate(
 
     sim = WormSimulation(p,
                          save_dir=save_dir,
-                         worm_executable=os.environ["WORM_MPI_EXECUTABLE"])
+                         executable=os.environ["WORM_MPI_EXECUTABLE"])
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
-    try:
-        await sim_run.tune_nmeasure2()
-        await sim_run.run_iterative_until_converged()
-    except Exception as e:
-        log.error(f"Exception occured: {e}")
+    await sim_run.tune_nmeasure2()
+    await sim_run.run_iterative_until_converged()
+

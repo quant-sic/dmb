@@ -1,8 +1,11 @@
+"""Module to manage worm simulations."""
+
+from __future__ import annotations
+
 import datetime
 import logging
 from copy import deepcopy
 from pathlib import Path
-from typing import Optional
 
 import h5py
 import matplotlib.pyplot as plt
@@ -17,12 +20,7 @@ from .observables import SimulationObservables
 from .output import WormOutput
 from .parameters import WormInputParameters
 
-__all__ = [
-    "WormSimulation",
-    "plot_sim_observables",
-    "plot_sim_inputs",
-    "plot_sim_phase_diagram_inputs",
-]
+__all__ = ["WormSimulation"]
 
 log = create_logger(__name__)
 
@@ -36,8 +34,9 @@ class _SimulationExecutionMixin:
         """Execute the worm simulation.
         
         Args:
-            input_file_path: Path to the input file (.h5,.ini). If None, the input parameters
-                file will be used. Defaults to None.
+            input_file_path: Path to the input file (.h5,.ini).
+                If None, the input parameters file will be used.
+                Defaults to None.
         """
         if self.executable is None or self.dispatcher is None:
             raise ValueError("To execute the worm simulation, the executable "
@@ -75,7 +74,7 @@ class _SimulationExecutionMixin:
 class _SimulationResultMixin:
 
     @property
-    def output(self):
+    def output(self) -> WormOutput:
         return WormOutput(
             out_file_path=self.input_parameters.get_outputfile_path(
                 self.save_dir),
@@ -84,7 +83,7 @@ class _SimulationResultMixin:
         )
 
     @property
-    def observables(self):
+    def observables(self) -> SimulationObservables:
         return SimulationObservables(output=self.output)
 
     @property
@@ -110,8 +109,9 @@ class _SimulationResultMixin:
         return self.max_density_error is not None
 
     def plot_observables(
-            self,
-            observable_names: dict[str, list[str]] = {"primary": ["density"]}):
+        self,
+        observable_names: dict[str, list[str]] = {"primary":
+                                                  ["density"]}) -> None:
         """
         Plot the results of the worm calculation.
         """
@@ -162,18 +162,32 @@ class _SimulationResultMixin:
                 fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
                 plt.close()
 
-    def plot_inputs(self):
+    def plot_inputs(self) -> None:
         self.input_parameters.plot_input_parameters(
             plots_dir=self.get_plot_dir_path(self.save_dir))
 
-    def plot_phase_diagram_inputs(self):
+    def plot_phase_diagram_inputs(self) -> None:
         self.input_parameters.plot_phase_diagram_input_parameters(
             plots_dir=self.get_plot_dir_path(self.save_dir))
 
 
 @define
 class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
-    """Class to manage worm simulations."""
+    """Class to manage worm simulations.
+
+    The class provides methods to execute worm simulations and
+    analyze the results. The simulation data is saved in the ``save_dir``.
+    A record of the simulation steps is saved in the ``save_dir/record.json``
+    file. Logs are saved in the ``save_dir/log.txt`` file.
+    
+    Attributes:
+        input_parameters: Input parameters for the worm simulation.
+        save_dir: Directory to save the simulation data.
+        executable: Path to the worm executable.
+        dispatcher: Dispatcher instance to run the worm simulation.
+        reloaded_from_dir: Flag to indicate if the simulation
+            was reloaded from a directory.
+    """
 
     input_parameters: WormInputParameters
     save_dir: Path
@@ -181,7 +195,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     dispatcher: Dispatcher | None = None
     reloaded_from_dir: bool = False
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         self.record = SyJson(path=self.save_dir / "record.json")
 
         if not "steps" in self.record:
@@ -209,7 +223,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
         dir_path: Path,
         dispatcher: Dispatcher | None = None,
         executable: Path | None = None,
-    ):
+    ) -> WormSimulation:
         input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
         return cls(
             input_parameters=input_parameters,
@@ -229,7 +243,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
         return plot_dir
 
     @property
-    def tune_simulation(self):
+    def tune_simulation(self) -> WormSimulation:
         tune_dir = self.get_tune_dir_path(save_dir=self.save_dir)
         tune_dir.mkdir(parents=True, exist_ok=True)
 
@@ -248,10 +262,11 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
             )
         return tune_simulation
 
-    def save_parameters(self):
+    def save_parameters(self) -> None:
         self.input_parameters.save(save_dir=self.save_dir)
 
-    def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
+    def set_extension_sweeps_in_checkpoints(self,
+                                            extension_sweeps: int) -> None:
         checkpoint_path = self.input_parameters.get_checkpoint_path(
             self.save_dir)
         for checkpoint_file in checkpoint_path.parent.glob(

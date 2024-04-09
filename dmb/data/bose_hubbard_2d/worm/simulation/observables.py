@@ -176,7 +176,15 @@ class DensityDerivedObservable:
         densities = output.densities
 
         if densities is None:
-            return None
+            return {
+                "expectation_value": None,
+                "variance": None,
+                "error": None,
+                "naive_error": None,
+                "tau_int": None,
+                "tau_int_error": None,
+                "error_on_error": None,
+            }
 
         samples = self._subsample(densities)
 

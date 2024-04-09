@@ -11,7 +11,8 @@ from .parameters import WormInputParameters
 from .sim import WormSimulation
 
 
-def sync_async(func):
+def sync_async(func) -> callable:
+    """Decorator to run async function synchronously."""
 
     def wrapper(*args, **kwargs):
         return asyncio.run(func(*args, **kwargs))
@@ -22,11 +23,43 @@ def sync_async(func):
 def get_tune_nmeasure2_values(
         min_nmeasure2: int, max_nmeasure2: int,
         step_size_multiplication_factor: float) -> list[int]:
+    """Get Nmeasure2 values for tuning.
+    
+    Args:
+        min_nmeasure2: Minimum Nmeasure2.
+        max_nmeasure2: Maximum Nmeasure2.
+        step_size_multiplication_factor: Step size multiplication factor,
+            for increasing Nmeasure2.
+    Returns:
+        Nmeasure2 values.
+    """
     Nmeasure2_values = [min_nmeasure2]
     while Nmeasure2_values[-1] < max_nmeasure2:
         Nmeasure2_values.append(Nmeasure2_values[-1] *
                                 step_size_multiplication_factor)
     return Nmeasure2_values
+
+
+def get_run_iteratively_num_sweeps_values(
+        Nmeasure2: int, min_num_measurements_per_nmeasure2: int,
+        max_num_measurements_per_nmeasure2: int,
+        num_sweep_increments: int) -> np.ndarray:
+    """Get number of sweeps values for running iteratively.
+
+    Args:
+        Nmeasure2: Nmeasure2.
+        min_num_measurements_per_nmeasure2: Minimum number of
+            measurements per Nmeasure2.
+        max_num_measurements_per_nmeasure2: Maximum number of
+            measurements per Nmeasure2.
+        num_sweep_increments: Number of sweep increments.
+    Returns:
+        Number of sweeps values.
+    """
+    return np.array([(min_num_measurements_per_nmeasure2 + increment * int(
+        (max_num_measurements_per_nmeasure2 -
+         min_num_measurements_per_nmeasure2) / num_sweep_increments)) *
+                     Nmeasure2 for increment in range(num_sweep_increments)])
 
 
 def set_simulation_parameters(simulation: WormSimulation,
@@ -37,7 +70,18 @@ def set_simulation_parameters(simulation: WormSimulation,
                               max_nmeasure: int = 10000,
                               min_nmeasure: int = 1,
                               seed: int | None = None) -> None:
+    """Set simulation parameters.
 
+    Args:
+        simulation: A WormSimulation instance.
+        Nmeasure2: Nmeasure2.
+        sweeps: Sweeps.
+        sweeps_to_thermalization_ratio: Ratio of sweeps to thermalization.
+        nmeasure2_to_nmeasure_ratio: Ratio of Nmeasure2 to Nmeasure.
+        max_nmeasure: Maximum Nmeasure.
+        min_nmeasure: Minimum Nmeasure.
+        seed: Seed.
+    """
     simulation.input_parameters = WormInputParameters(
         **{
             **simulation.input_parameters.__dict__, "Nmeasure2":
@@ -59,6 +103,13 @@ def set_simulation_parameters(simulation: WormSimulation,
 
 
 def get_tau_max_values_from_simulation_record(steps: list[dict]) -> np.ndarray:
+    """Get tau_max values from simulation record.
+
+    Args:
+        steps: Steps in simulation record.
+    Returns:
+        Tau_max values.
+    """
 
     def get_tau_max_keys(steps: list[dict]) -> list[str]:
         # get tau_max key
@@ -128,22 +179,13 @@ class WormSimulationRunner:
             raise ValueError(
                 "Nmeasure2 must be set or tuned simulation must exist.")
 
-        num_sweeps_values = np.array([
-            (min_num_measurements_per_nmeasure2 + increment * int(
-                (max_num_measurements_per_nmeasure2 -
-                 min_num_measurements_per_nmeasure2) / num_sweep_increments)) *
-            self.worm_simulation.input_parameters.Nmeasure2
-            for increment in range(num_sweep_increments)
-        ])
-
-        set_simulation_parameters(
-            simulation=self.worm_simulation,
+        num_sweeps_values = get_run_iteratively_num_sweeps_values(
             Nmeasure2=Nmeasure2,
-            sweeps=num_sweeps_values[0],
-            sweeps_to_thermalization_ratio=sweeps_to_thermalization_ratio)
-
-        if not "steps" in self.worm_simulation.record:
-            self.worm_simulation.record["steps"] = []
+            min_num_measurements_per_nmeasure2=
+            min_num_measurements_per_nmeasure2,
+            max_num_measurements_per_nmeasure2=
+            max_num_measurements_per_nmeasure2,
+            num_sweep_increments=num_sweep_increments)
 
         pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
         for step_idx, num_sweeps in pbar:
@@ -156,6 +198,12 @@ class WormSimulationRunner:
             if step_idx > 0 and self.worm_simulation.valid:
                 return_code = await self.run_continue()
             else:
+                set_simulation_parameters(simulation=self.worm_simulation,
+                                          Nmeasure2=Nmeasure2,
+                                          sweeps=num_sweeps,
+                                          sweeps_to_thermalization_ratio=
+                                          sweeps_to_thermalization_ratio)
+
                 return_code = await self.run()
 
             if return_code != ReturnCode.SUCCESS:
@@ -212,9 +260,6 @@ class WormSimulationRunner:
             min_nmeasure: Minimum Nmeasure.
         """
         tune_simulation = self.worm_simulation.tune_simulation
-
-        if not "steps" in tune_simulation.record:
-            tune_simulation.record["steps"] = []
 
         def break_condition() -> bool:
             # get tau_max key
