@@ -11,6 +11,8 @@
 !Makefile
 !poetry.lock
 
+!data/test/*
+
 !.gitignore
 
 dmb_old
