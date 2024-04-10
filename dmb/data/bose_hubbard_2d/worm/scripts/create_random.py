@@ -3,14 +3,14 @@ import asyncio
 import datetime
 import os
 import shutil
-from pathlib import Path
 
 import numpy as np
 from dotenv import load_dotenv
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.data.bose_hubbard_2d.worm.worm import WormInputParameters, \
+from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
+from dmb.data.dispatching import AutoDispatcher
 from dmb.logging import create_logger
 from dmb.paths import REPO_DATA_ROOT
 
@@ -141,14 +141,12 @@ async def simulate(
 
     sim = WormSimulation(p,
                          save_dir=save_dir,
-                         worm_executable=os.environ["WORM_MPI_EXECUTABLE"])
+                         executable=os.environ["WORM_MPI_EXECUTABLE"],
+                         dispatcher=AutoDispatcher())
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
-    # try:
     await sim_run.tune_nmeasure2()
     await sim_run.run_iterative_until_converged()
-    # except Exception as e:
-    #     log.error(f"Exception occured: {e}")
 
 
 if __name__ == "__main__":
@@ -165,7 +163,6 @@ if __name__ == "__main__":
                         type=str,
                         default="random",
                         choices=["random", "uniform"])
-
     parser.add_argument("--L_half_min",
                         type=int,
                         default=4,

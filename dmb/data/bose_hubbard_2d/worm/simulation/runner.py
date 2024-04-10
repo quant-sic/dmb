@@ -35,8 +35,8 @@ def get_tune_nmeasure2_values(
     """
     Nmeasure2_values = [min_nmeasure2]
     while Nmeasure2_values[-1] < max_nmeasure2:
-        Nmeasure2_values.append(Nmeasure2_values[-1] *
-                                step_size_multiplication_factor)
+        Nmeasure2_values.append(
+            int(Nmeasure2_values[-1] * step_size_multiplication_factor))
     return Nmeasure2_values
 
 
@@ -187,8 +187,8 @@ class WormSimulationRunner:
             max_num_measurements_per_nmeasure2,
             num_sweep_increments=num_sweep_increments)
 
-        pbar = tqdm(enumerate(num_sweeps_values), total=len(num_sweeps_values))
-        for step_idx, num_sweeps in pbar:
+        for step_idx, num_sweeps in tqdm(enumerate(num_sweeps_values),
+                                         total=len(num_sweeps_values)):
             self.worm_simulation.set_extension_sweeps_in_checkpoints(
                 extension_sweeps=num_sweeps)
 
@@ -212,12 +212,15 @@ class WormSimulationRunner:
 
             elapsed_time = time.perf_counter() - start_time
 
-            pbar.set_description(f"""Current error: {
-                    self.worm_simulation.max_density_error}.
-                . Sweeps: {num_sweeps}.
-                Num Nmeasure2: {num_sweeps/
-                                self.worm_simulation.input_parameters.Nmeasure2}.
-                At step {step_idx} of {len(num_sweeps_values)}.""")
+            self.worm_simulation.file_logger.info(
+                ("Running Iteratively:\n"
+                 "Current error: {}."
+                 "Sweeps: {}. Num Nmeasure2: {}"
+                 "At step {} of {}.").format(
+                     self.worm_simulation.max_density_error, num_sweeps,
+                     int(num_sweeps /
+                         self.worm_simulation.input_parameters.Nmeasure2),
+                     step_idx + 1, len(num_sweeps_values)))
 
             self.worm_simulation.plot_observables()
             self.worm_simulation.record["steps"].append({
@@ -275,8 +278,12 @@ class WormSimulationRunner:
             max_nmeasure2=max_nmeasure2,
             step_size_multiplication_factor=step_size_multiplication_factor,
         )
-        skip_next_counter = 0
 
+        tune_simulation.file_logger.info(
+            f"Starting tuning with Nmeasure2 planned values: {nmeasure2_values}.\n\n"
+        )
+
+        skip_next_counter = 0
         # tune Nmeasure, Nmeasure2, thermalization, sweeps
         for idx, Nmeasure2 in tqdm(enumerate(nmeasure2_values),
                                    total=len(nmeasure2_values)):
@@ -312,17 +319,23 @@ class WormSimulationRunner:
             tune_simulation.plot_observables()
 
             if break_condition():
-                self.worm_simulation.file_logger.info(
-                    "Tuning finished at: \n Nmeasure2: {}, tau_max: {}, max_density_error: {}."
-                    .format(tune_simulation.input_parameters.Nmeasure2,
-                            tune_simulation.max_tau_int,
-                            tune_simulation.max_density_error))
+                tune_simulation.file_logger.info(
+                    ("Tuning finished at: \n Nmeasure2: {}, tau_max: {},"
+                     " max_density_error: {}.\n\n").format(
+                         tune_simulation.input_parameters.Nmeasure2,
+                         tune_simulation.max_tau_int,
+                         tune_simulation.max_density_error))
                 break
 
             if tune_simulation.max_tau_int is not None:
-                # get biggest smaller 2**x value - 2, at most 5
+                # get biggest smaller 2**x value - 2,
+                #at most min(5,len(nmeasure2_values)/3, remaining steps-1)
                 skip_next_counter = min(
-                    5,
+                    min(5,
+                        len(nmeasure2_values) // 3,
+                        len(nmeasure2_values) - idx - 1),
                     int(
                         np.emath.logn(step_size_multiplication_factor,
                                       tune_simulation.max_tau_int)) - 2)
+                tune_simulation.file_logger.info(
+                    f"Skipping next {skip_next_counter} steps.\n\n")

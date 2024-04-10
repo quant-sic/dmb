@@ -10,6 +10,7 @@ from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
+from dmb.data.dispatching import AutoDispatcher
 from dmb.logging import create_logger
 
 log = create_logger(__name__)
@@ -155,9 +156,9 @@ async def simulate(
 
     sim = WormSimulation(p,
                          save_dir=save_dir,
-                         executable=os.environ["WORM_MPI_EXECUTABLE"])
+                         executable=os.environ["WORM_MPI_EXECUTABLE"],
+                         dispatcher=AutoDispatcher())
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
     await sim_run.tune_nmeasure2()
     await sim_run.run_iterative_until_converged()
-

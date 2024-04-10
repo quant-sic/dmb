@@ -1,9 +1,6 @@
 import argparse
 import asyncio
-import itertools
 import os
-from pathlib import Path
-from typing import List
 
 import numpy as np
 from dotenv import load_dotenv
@@ -14,7 +11,21 @@ from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
 from dmb.paths import REPO_DATA_ROOT
 
 
-def get_quadratic_mu(coeffitients, lattice_size, center=None, offset=0):
+def get_quadratic_mu(coeffitients: tuple[float, float],
+                     lattice_size: int,
+                     center: tuple[float, float] = None,
+                     offset: float = 0) -> np.ndarray:
+    """Generate a 2D quadratic mu array
+    
+    Args:
+        coeffitients: tuple of two floats, quadratic coefficients
+        lattice_size: size of the lattice
+        center: center of the quadratic mu array
+        offset: offset of the quadratic mu array
+
+    Returns:
+        np.ndarray: 2D quadratic mu array
+    """
     if center is None:
         center = (float(lattice_size) / 2, float(lattice_size) / 2)
 
@@ -76,7 +87,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--number_of_concurrent_jobs",
         type=int,
-        default=20,
+        default=1,
         help="number of concurrent jobs",
     )
 
@@ -122,7 +133,9 @@ if __name__ == "__main__":
                 mu_offset=muU_out[sample_id] * U_on,
             )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     loop.run_until_complete(
         asyncio.gather(
             *[run_sample(sample_id) for sample_id in range(len(muU_out))]))

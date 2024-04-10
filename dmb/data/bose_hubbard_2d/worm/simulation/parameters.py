@@ -231,6 +231,8 @@ class WormInputParameters(_InputParameterPlottingMixin):
         # Create ini file
         with open(ini_file_path, "w") as f:
             f.write(f"site_arrays = {h5_file_path}\n")
+            f.write(f"outputfile = {self.get_outputfile_path(save_dir)}\n")
+            f.write(f"checkpoint = {self.get_checkpoint_path(save_dir)}\n")
 
             for attribute in self.__attrs_attrs__:
                 if not (attribute.name in ("mu", "t_hop", "U_on", "V_nn")

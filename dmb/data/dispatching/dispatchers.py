@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import os
-import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Literal
@@ -185,20 +184,26 @@ class LocalDispatcher(Dispatcher):
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(),
                                                     timeout=timeout)
-            code = ReturnCode.SUCCESS
+            await process.wait()
+            return_code = ReturnCode.SUCCESS if process.returncode == 0 else ReturnCode.FAILURE
         except asyncio.TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
-            code = ReturnCode.FAILURE
+            return_code = ReturnCode.FAILURE
 
         # write output to file
-        now = datetime.datetime.now()
-        with open(pipeout_dir / f"stdout_{job_name}_{now}.txt", "w") as f:
+        now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        pipeout_dir.mkdir(exist_ok=True, parents=True)
+        with open(pipeout_dir / f"stdout_{job_name}_{now}.txt",
+                  "w",
+                  encoding="utf-8") as f:
             f.write(stdout.decode("utf-8"))
-        with open(pipeout_dir / f"stderr_{job_name}_{now}.txt", "w") as f:
+        with open(pipeout_dir / f"stderr_{job_name}_{now}.txt",
+                  "w",
+                  encoding="utf-8") as f:
             f.write(stderr.decode("utf-8"))
 
-        return code
+        return return_code
 
 
 class AutoDispatcher(Dispatcher):

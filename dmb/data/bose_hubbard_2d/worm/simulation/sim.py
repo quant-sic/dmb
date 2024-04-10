@@ -49,10 +49,10 @@ class _SimulationExecutionMixin:
             thermalization: {self.input_parameters.thermalization}
             Executable: {self.executable}
             Input file Path: {input_file_path}
-            Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}
+            Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}\n
             """)
 
-        return await self.dispatcher.dispatch(
+        return_code = await self.dispatcher.dispatch(
             task=[
                 "mpirun",
                 "--use-hwthread-cpus",
@@ -65,6 +65,9 @@ class _SimulationExecutionMixin:
             pipeout_dir=self.save_dir / "pipe_out",
             timeout=60 * 60 * 24,
         )
+        self.file_logger.info(
+            f"Simulation finished with return code: {return_code}")
+        return return_code
 
     async def execute_worm_continue(self) -> ReturnCode:
         return await self.execute_worm(input_file_path=self.input_parameters.
@@ -90,19 +93,22 @@ class _SimulationResultMixin:
     def max_tau_int(self) -> float | None:
         tau_int = self.observables.get_error_analysis("primary",
                                                       "density")["tau_int"]
-        return float(np.max(tau_int)) if tau_int is not None else None
+        if tau_int is not None and not np.isnan(tau_int).all():
+            return float(np.nanmax(tau_int))
 
     @property
     def uncorrected_max_density_error(self) -> float | None:
         naive_error = self.observables.get_error_analysis(
             "primary", "density")["naive_error"]
-        return float(np.max(naive_error)) if naive_error is not None else None
+        if naive_error is not None and not np.isnan(naive_error).all():
+            return float(np.nanmax(naive_error))
 
     @property
     def max_density_error(self) -> float | None:
         error = self.observables.get_error_analysis("primary",
                                                     "density")["error"]
-        return float(np.max(error)) if error is not None else None
+        if error is not None and not np.isnan(error).all():
+            return float(np.nanmax(error))
 
     @property
     def valid(self) -> bool:
@@ -196,6 +202,8 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     reloaded_from_dir: bool = False
 
     def __attrs_post_init__(self) -> None:
+
+        self.save_dir.mkdir(parents=True, exist_ok=True)
         self.record = SyJson(path=self.save_dir / "record.json")
 
         if not "steps" in self.record:
@@ -215,7 +223,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
             self.save_parameters()
 
         self.file_logger.info(
-            f"Initialized worm simulation in {self.save_dir}")
+            f"Initialized worm simulation in {self.save_dir}\n\n")
 
     @classmethod
     def from_dir(

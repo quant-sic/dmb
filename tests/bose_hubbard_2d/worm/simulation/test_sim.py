@@ -82,6 +82,21 @@ class TestWormSimulation(WormOutputTests, WormSimulationTests):
             test_simulation.save_dir).exists()
 
     @staticmethod
+    def test_init_for_non_existant_save_dir(
+            input_parameters: WormInputParameters, worm_executable: str,
+            test_dispatcher: FakeDispatcher,
+            tmp_path_factory: pytest.TempPathFactory):
+
+        save_dir = tmp_path_factory.mktemp(
+            "test_init_for_non_existant_save_dir")
+        non_existant_save_dir = save_dir / "non_existant_save_dir"
+        test_simulation = WormSimulation(input_parameters=input_parameters,
+                                         save_dir=non_existant_save_dir)
+
+        assert test_simulation.save_dir == non_existant_save_dir
+        assert non_existant_save_dir.exists()
+
+    @staticmethod
     def test_from_dir(test_simulation: WormSimulation, worm_executable: str):
         loaded_sim = WormSimulation.from_dir(dir_path=test_simulation.save_dir)
 

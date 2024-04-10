@@ -180,8 +180,7 @@ class TestWormSimulationRunner:
     @staticmethod
     def test_run_iterative_record_is_written_correctly(
             fake_worm_simulation: FakeWormSimulation, num_steps: int,
-            max_density_errors: list[float], max_tau_ints: list[int],
-            validities: list[bool]) -> None:
+            max_density_errors: list[float], max_tau_ints: list[int]) -> None:
         runner = WormSimulationRunner(fake_worm_simulation)
         runner.run_iterative_until_converged_sync(
             Nmeasure2=42, num_sweep_increments=num_steps)
@@ -317,11 +316,15 @@ class TestWormSimulationRunner:
         assert fake_worm_simulation.input_parameters == initial_input_parameters
 
     # @staticmethod
-    # def test_tune_nmeasure2_record_is_written_correctly(
+    # @pytest.mark.asyncio
+    # aync def test_tune_nmeasure2_record_is_written_correctly(
     #         fake_worm_simulation: FakeWormSimulation, record_steps: list[dict],
     #         num_steps: int) -> None:
     #     runner = WormSimulationRunner(fake_worm_simulation)
-    #     runner.tune_nmeasure2_sync()
+    #     await runner.tune_nmeasure2(
+    #         num_sweep_increments=num_steps,
+    #         Nmeasure2=42,
+    #     )
     #     assert all(key in fake_worm_simulation.tune_simulation.record["steps"]
     #                [step_idx] for key in [
     #                    "sweeps", "thermalization", "Nmeasure2", "tau_max",
