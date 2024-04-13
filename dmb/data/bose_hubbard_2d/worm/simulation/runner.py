@@ -43,8 +43,9 @@ def get_tune_nmeasure2_values(
     max_exponent = int(
         np.emath.logn(step_size_multiplication_factor,
                       max_nmeasure2 / min_nmeasure2))  #floor
-    Nmeasure2_values = (min_nmeasure2 * step_size_multiplication_factor**
-                        np.arange(max_exponent + 1)).round().astype(int).tolist()
+    Nmeasure2_values = (
+        min_nmeasure2 * step_size_multiplication_factor**
+        np.arange(max_exponent + 1)).round().astype(int).tolist()
 
     return Nmeasure2_values
 

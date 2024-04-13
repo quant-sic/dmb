@@ -80,7 +80,7 @@ class _PhaseDiagramSamplesMixin:
 
 
 @define
-class BoseHubbardDataset(IdDataset):
+class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
     """Dataset for the Bose-Hubbard model."""
 
     data_dir: Path | str
@@ -196,16 +196,13 @@ class BoseHubbardDataset(IdDataset):
         delete_unreadable: bool = False,
     ):
 
-        with Pool() as pool:
-            valid_sim_dirs = list(
-                pool.imap(
-                    partial(self.get_simulation_valid, redo=redo),
-                    tqdm(
-                        sim_dirs,
-                        desc="Filtering valid simulations",
-                        total=len(sim_dirs),
-                    ),
-                ))
+        valid_sim_dirs = [
+            self.get_simulation_valid(sim_dir, redo=redo) for sim_dir in tqdm(
+                sim_dirs,
+                desc="Filtering valid simulations",
+                total=len(sim_dirs),
+            )
+        ]
 
         if delete_unreadable:
             for sim_dir, valid in zip(sim_dirs, valid_sim_dirs):
@@ -219,23 +216,21 @@ class BoseHubbardDataset(IdDataset):
         ))
 
         if max_density_error is not None:
-            with Pool() as pool:
-                sim_dirs = list(
-                    itertools.compress(
-                        sim_dirs,
-                        pool.imap(
-                            partial(
-                                self.filter_by_error,
-                                max_density_error=max_density_error,
-                                recalculate_errors=recalculate_errors,
-                            ),
-                            tqdm(
-                                map(WormSimulation.from_dir, sim_dirs),
-                                desc="Filtering valid simulations by error",
-                                total=len(sim_dirs),
-                            ),
+            sim_dirs = list(
+                itertools.compress(
+                    sim_dirs,
+                    map(
+                        partial(
+                            self.filter_by_error,
+                            max_density_error=max_density_error,
+                            recalculate_errors=recalculate_errors,
                         ),
-                    ))
+                        tqdm(
+                            map(WormSimulation.from_dir, sim_dirs),
+                            desc="Filtering valid simulations by error",
+                            total=len(sim_dirs),
+                        ),
+                    )))
 
         return sim_dirs
 
@@ -324,7 +319,7 @@ class BoseHubbardDataset(IdDataset):
         """Get sample by index."""
         inputs, outputs = self.load_sample(idx)
         inputs_transformed, outputs_transformed = self.transforms(
-            inputs, outputs)
+            (inputs, outputs))
 
         return inputs_transformed, outputs_transformed
 
