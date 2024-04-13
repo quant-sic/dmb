@@ -3,7 +3,7 @@ import shutil
 from functools import cached_property, partial
 from multiprocessing import Pool
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List
 
 import numpy as np
 import torch
@@ -12,6 +12,7 @@ from joblib import delayed
 from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.network_input import net_input
+from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2DTransforms
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
 from dmb.data.dataset import IdDataset
 from dmb.io import ProgressParallel
@@ -20,11 +21,71 @@ from dmb.logging import create_logger
 log = create_logger(__name__)
 
 
+class _PhaseDiagramSamplesMixin:
+
+    def phase_diagram_position(self, idx):
+        pars = WormSimulation.from_dir(self.sim_dirs[idx]).input_parameters
+        U_on = pars.U_on
+        mu = float(pars.mu_offset)
+        J = pars.t_hop
+        V_nn = pars.V_nn
+
+        return (
+            4 * V_nn[0, 0, 0] / U_on[0, 0],
+            mu / U_on[0, 0],
+            4 * J[0, 0, 0] / U_on[0, 0],
+        )
+
+    def has_phase_diagram_sample(
+        self,
+        ztU: float,
+        muU: float,
+        zVU: float,
+        L: int,
+        ztU_tol: float = 0.01,
+        muU_tol: float = 0.01,
+        zVU_tol: float = 0.01,
+    ):
+        for idx, _ in enumerate(self):
+            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
+            L_i = WormSimulation.from_dir(
+                self.sim_dirs[idx]).input_parameters.Lx
+
+            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
+                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
+                return True
+
+        return False
+
+    def get_phase_diagram_sample(
+        self,
+        ztU: float,
+        muU: float,
+        zVU: float,
+        L: int,
+        ztU_tol: float = 0.01,
+        muU_tol: float = 0.01,
+        zVU_tol: float = 0.01,
+    ):
+        for idx, _ in enumerate(self):
+            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
+            L_i = WormSimulation.from_dir(
+                self.sim_dirs[idx]).input_parameters.Lx
+
+            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
+                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
+                return self[idx]
+
+        return None
+
+
 @define
 class BoseHubbardDataset(IdDataset):
     """Dataset for the Bose-Hubbard model."""
 
     data_dir: Path | str
+    transforms: BoseHubbard2DTransforms
+
     observables: list[str] = [
         "density",
         "density_density_corr_0",
@@ -36,8 +97,6 @@ class BoseHubbardDataset(IdDataset):
         "density_min",
         "density_variance",
     ]
-    base_transforms: Optional[callable] = None
-    train_transforms: Optional[callable] = None
     clean: bool = True
     reload: bool = False
     verbose: bool = False
@@ -259,112 +318,15 @@ class BoseHubbardDataset(IdDataset):
 
             self.loaded_samples[idx] = (inputs, outputs)
 
-        inputs, outputs = self.loaded_samples[idx]
+        return self.loaded_samples[idx]
 
-        # apply transforms
-        if self.base_transforms is not None:
-            inputs, outputs = self.base_transforms((inputs, outputs))
+    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
+        """Get sample by index."""
+        inputs, outputs = self.load_sample(idx)
+        inputs_transformed, outputs_transformed = self.transforms(
+            inputs, outputs)
 
-        if self.train_transforms is not None and self.apply_train_transforms:
-            inputs, outputs = self.train_transforms((inputs, outputs))
-
-        return inputs, outputs
-
-    @property
-    def apply_train_transforms(self) -> bool:
-        if hasattr(self, "_apply_train_transforms"):
-            return self._apply_train_transforms
-        else:
-            raise AttributeError(
-                "apply_transforms is not set. Please set it first.")
-
-    @apply_train_transforms.setter
-    def apply_train_transforms(self, value: bool) -> None:
-        self._apply_train_transforms = value
-
-    def __getitem__(self, idx, reload=False):
-        inputs, outputs = self.load_sample(idx, reload=reload)
-
-        return inputs, outputs
-
-    def reload_samples(self):
-        with ProgressParallel(n_jobs=10, total=len(self)) as parallel:
-            parallel(
-                delayed(partial(self.load_sample, reload=True))(idx)
-                for idx in tqdm(range(len(self))))
-
-    def get_sim(self, idx):
-        sim_dir = self.sim_dirs[idx]
-        sim = WormSimulation.from_dir(sim_dir)
-
-        return sim
-
-    def phase_diagram_position(self, idx):
-        pars = WormSimulation.from_dir(self.sim_dirs[idx]).input_parameters
-        U_on = pars.U_on
-        mu = float(pars.mu_offset)
-        J = pars.t_hop
-        V_nn = pars.V_nn
-
-        return (
-            4 * V_nn[0, 0, 0] / U_on[0, 0],
-            mu / U_on[0, 0],
-            4 * J[0, 0, 0] / U_on[0, 0],
-        )
-
-    def get_dataset_ids_from_indices(
-            self, indices: Union[int, List[int]]) -> Union[str, List[str]]:
-        ids = [
-            self.sim_dirs[idx].name
-            for idx in (indices if isinstance(indices, list) else [indices])
-        ]
-
-        if isinstance(indices, int):
-            ids = ids[0]
-
-        return ids
-
-    def has_phase_diagram_sample(
-        self,
-        ztU: float,
-        muU: float,
-        zVU: float,
-        L: int,
-        ztU_tol: float = 0.01,
-        muU_tol: float = 0.01,
-        zVU_tol: float = 0.01,
-    ):
-        for idx, _ in enumerate(self):
-            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
-            L_i = WormSimulation.from_dir(
-                self.sim_dirs[idx]).input_parameters.Lx
-
-            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
-                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
-                return True
-
-        return False
-
-    def get_phase_diagram_sample(
-        self,
-        ztU: float,
-        muU: float,
-        zVU: float,
-        L: int,
-        ztU_tol: float = 0.01,
-        muU_tol: float = 0.01,
-        zVU_tol: float = 0.01,
-    ):
-        for idx, _ in enumerate(self):
-            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
-            L_i = WormSimulation.from_dir(
-                self.sim_dirs[idx]).input_parameters.Lx
-
-            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
-                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
-                return self[idx]
-
-        return None
+        return inputs_transformed, outputs_transformed
 
     def get_ids_from_indices(self, indices: tuple[int, ...]):
         return tuple(self.sim_dirs[idx].name for idx in indices)

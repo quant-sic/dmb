@@ -1,3 +1,9 @@
+from typing import Literal
+
+import numpy as np
+import torch
+
+
 class GaussianNoise:
 
     def __init__(self, mean: float, std: float):
@@ -12,12 +18,24 @@ class GaussianNoise:
             self.mean, self.std)
 
 
-# Transorm for symmetry of the square
-class SquareSymmetryGroupAugmentations(object):
+class SquareSymmetryGroupAugmentations:
+    """Square symmetry group augmentations.
+
+    This class implements the square symmetry group augmentations for 2D
+    images. The following transformations are implemented:
+    - identity
+    - rotate 90 left
+    - rotate 180 left
+    - rotate 270 left
+    - flip x
+    - flip y
+    - reflection x=y
+    - reflection x=-y
+    """
 
     def __call__(
-        self, xy: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        self, xy: torch.Tensor | tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         if isinstance(xy, tuple):
             x = xy[0]
             y = xy[1]
@@ -26,9 +44,8 @@ class SquareSymmetryGroupAugmentations(object):
             x = xy
             y = None
 
-        def map_if_not_none(
-                fn: Callable[[torch.Tensor], torch.Tensor],
-                x: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+        def map_if_not_none(fn: callable[[torch.Tensor], torch.Tensor],
+                            x: torch.Tensor | None) -> torch.Tensor | None:
             if x is None:
                 return None
             else:
@@ -88,14 +105,14 @@ class SquareSymmetryGroupAugmentations(object):
         return self.__class__.__name__ + "()"
 
 
-class TupleWrapperInTransform(object):
+class TupleWrapperInTransform:
 
-    def __init__(self, transform: Callable[[torch.Tensor], torch.Tensor]):
+    def __init__(self, transform: callable[[torch.Tensor], torch.Tensor]):
         self.transform = transform
 
     def __call__(
-        self, x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        self, x: torch.Tensor | tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         if isinstance(x, tuple):
             return self.transform(x[0]), x[1]
         else:
@@ -106,14 +123,14 @@ class TupleWrapperInTransform(object):
         )
 
 
-class TupleWrapperOutTransform(object):
+class TupleWrapperOutTransform:
 
-    def __init__(self, transform: Callable[[torch.Tensor], torch.Tensor]):
+    def __init__(self, transform: callable[[torch.Tensor], torch.Tensor]):
         self.transform = transform
 
     def __call__(
-        self, x: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        self, x: torch.Tensor | tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         if isinstance(x, tuple):
             return x[0], self.transform(x[1])
         else:
@@ -122,3 +139,45 @@ class TupleWrapperOutTransform(object):
     def __repr__(self):
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__(
         )
+
+
+class BoseHubbard2DTransforms:
+
+    def __init__(
+        self,
+        base_augmentations: list[callable[[torch.Tensor], torch.Tensor]],
+        train_augmentations: list[callable[[torch.Tensor], torch.Tensor]],
+    ):
+        self.base_augmentations = base_augmentations
+        self.train_augmentations = train_augmentations
+        self._mode = "base"
+
+    @property
+    def mode(self) -> Literal["base", "train"]:
+        return self._mode
+
+    @mode.setter
+    def mode(self, mode: Literal["base", "train"]):
+        if mode not in ("base", "train"):
+            raise ValueError(
+                f"mode must be either 'base' or 'train', but got {mode}")
+        self._mode = mode
+
+    def __call__(
+        self, x: torch.Tensor | tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        for transform in self.base_augmentations:
+            x = transform(x)
+
+        if self.mode == "train":
+            for transform in self.train_augmentations:
+                x = transform(x)
+
+        return x
+
+    def __repr__(self):
+        return self.__class__.__name__ + (
+            "(base_augmentations={},"
+            "train_augmentations={}, mode={})").format(
+                ",".join(self.base_augmentations), ",".join(
+                    self.train_augmentations), self.mode)

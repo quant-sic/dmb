@@ -33,10 +33,19 @@ def get_tune_nmeasure2_values(
     Returns:
         Nmeasure2 values.
     """
-    Nmeasure2_values = [min_nmeasure2]
-    while Nmeasure2_values[-1] < max_nmeasure2:
-        Nmeasure2_values.append(
-            int(Nmeasure2_values[-1] * step_size_multiplication_factor))
+    if step_size_multiplication_factor <= 1:
+        raise ValueError(
+            "Step size multiplication factor must be greater than 1.")
+    if min_nmeasure2 >= max_nmeasure2:
+        raise ValueError(
+            "Minimum Nmeasure2 must be less than maximum Nmeasure2.")
+
+    max_exponent = int(
+        np.emath.logn(step_size_multiplication_factor,
+                      max_nmeasure2 / min_nmeasure2))  #floor
+    Nmeasure2_values = (min_nmeasure2 * step_size_multiplication_factor**
+                        np.arange(max_exponent + 1)).round().astype(int)
+
     return Nmeasure2_values
 
 
@@ -270,7 +279,7 @@ class WormSimulationRunner:
                 tune_simulation.record["steps"])
 
             if tau_max_values[-1] is not None and tau_max_values[
-                    -1] < tau_threshold:
+                    -1] <= tau_threshold:
                 return True
 
         nmeasure2_values = get_tune_nmeasure2_values(
@@ -333,7 +342,7 @@ class WormSimulationRunner:
                 skip_next_counter = min(
                     min(5,
                         len(nmeasure2_values) // 3,
-                        len(nmeasure2_values) - idx - 1),
+                        len(nmeasure2_values) - idx - 2),
                     int(
                         np.emath.logn(step_size_multiplication_factor,
                                       tune_simulation.max_tau_int)) - 2)

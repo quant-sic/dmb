@@ -26,6 +26,8 @@ class FakeWormSimulation:
         self.num_execute_worm_continue_calls = 0
         self.execution_calls = []
 
+        self.plots_calls = []
+
         self.file_logger = log
 
         self._max_density_errors = max_density_errors
@@ -71,7 +73,7 @@ class FakeWormSimulation:
         pass
 
     def plot_observables(self):
-        pass
+        self.plots_calls.append("plot_observables")
 
     @cached_property
     def tune_simulation(self):
@@ -133,6 +135,12 @@ class TestWormSimulationRunner:
                                   max_tau_ints=max_tau_ints,
                                   validities=validities,
                                   return_codes=return_codes)
+
+    @staticmethod
+    @pytest.fixture(name="runner", scope="function")
+    def fixture_runner(
+            fake_worm_simulation: FakeWormSimulation) -> WormSimulationRunner:
+        return WormSimulationRunner(fake_worm_simulation)
 
     @staticmethod
     @pytest.mark.asyncio
@@ -343,19 +351,82 @@ class TestWormSimulationRunner:
             "execute_worm"
         }
 
-    # @staticmethod
-    # @pytest.mark.asyncio
-    # async def test_tune_nmeasure2_input_parameters(
-    #         fake_worm_simulation: FakeWormSimulation) -> None:
-#     # |-> breaks only when max_tau_int is reached. If max_tau_int is not reached, it should continue until get_tune_nmeasure2_values are exhausted
+    @staticmethod
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "max_tau_ints",
+        [[50, 40, 30, 20, 11, 12, 14, 16, 18, 13], [50, 40, 11, 5, 2, 1],
+         [100, 50, 70, 80, 90, 110, 120]])
+    @pytest.mark.parametrize("max_nmeasure2", [567, 123, 1024])
+    @pytest.mark.parametrize("tau_threshold", [10, 5])
+    @pytest.mark.parametrize("step_size_multiplication_factor", [1.8, 3])
+    @pytest.mark.parametrize("min_nmeasure2", [1, 2])
+    async def test_tune_nmeasure2_break_iff_tau_max_is_reached(
+            runner: WormSimulationRunner,
+            fake_worm_simulation: FakeWormSimulation, max_tau_ints: list[int],
+            max_nmeasure2: int, tau_threshold: int,
+            step_size_multiplication_factor: float,
+            min_nmeasure2: int) -> None:
+        #     # |-> breaks only when max_tau_int is reached. If max_tau_int is not reached, it should continue until get_tune_nmeasure2_values are exhausted
+        await runner.tune_nmeasure2(
+            min_nmeasure2=min_nmeasure2,
+            max_nmeasure2=max_nmeasure2,
+            step_size_multiplication_factor=step_size_multiplication_factor,
+            tau_threshold=tau_threshold)
 
+        num_nmeasure2_values = get_tune_nmeasure2_values(
+            min_nmeasure2=min_nmeasure2,
+            max_nmeasure2=max_nmeasure2,
+            step_size_multiplication_factor=step_size_multiplication_factor)
+
+        max_tau_int_reached_indices = np.argwhere(
+            [tau_max < 10 for tau_max in max_tau_ints])
+        if len(max_tau_int_reached_indices) > 0:
+            first_max_tau_int_reached_idx = min(
+                max_tau_int_reached_indices).item()
+            assert fake_worm_simulation.tune_simulation.record["steps"][-1][
+                "Nmeasure2"] <= max_nmeasure2
+            assert fake_worm_simulation.tune_simulation.record["steps"][-1][
+                "tau_max"] <= tau_threshold
+
+        else:
+            first_max_tau_int_reached_idx = len(max_tau_ints)
+            assert fake_worm_simulation.tune_simulation.record["steps"][-1][
+                "Nmeasure2"] == num_nmeasure2_values[-1]
+            assert fake_worm_simulation.tune_simulation.record["steps"][-1][
+                "tau_max"] > tau_threshold
+
+        assert len(fake_worm_simulation.tune_simulation.execution_calls
+                   ) <= first_max_tau_int_reached_idx
+        assert set(fake_worm_simulation.tune_simulation.execution_calls) == {
+            "execute_worm"
+        }
+
+        # results in NMesure2, which adheres to the constraints
+        assert min_nmeasure2 <= fake_worm_simulation.tune_simulation.record[
+            "steps"][-1]["Nmeasure2"] <= max_nmeasure2
+
+        assert "plot_observables" in fake_worm_simulation.tune_simulation.plots_calls
 
     # - test_tune_nmeasure2
-    # |-> results in nmeasure2 is larger than min_nmeasure2 and smaller than max_nmeasure2
-    # |-> plots results
     # |-> saves correct input parameters
     # |-> record is written with right keys
     # |-> record contains right values
 
 
-# test get_tune_nmeasure2_values
+@pytest.mark.parametrize("min_nmeasure2", [10, 1, 5])
+@pytest.mark.parametrize("max_nmeasure2", [1000, 100, 200])
+@pytest.mark.parametrize("step_size_multiplication_factor", [2, 1.8, 3])
+def test_get_tune_nmeasure2_values(
+    min_nmeasure2: int,
+    max_nmeasure2: int,
+    step_size_multiplication_factor: float,
+) -> None:
+    nmeasure2_values = get_tune_nmeasure2_values(
+        min_nmeasure2=min_nmeasure2,
+        max_nmeasure2=max_nmeasure2,
+        step_size_multiplication_factor=step_size_multiplication_factor)
+
+    assert nmeasure2_values[0] == min_nmeasure2
+    assert nmeasure2_values[-1] < max_nmeasure2
+    assert (np.diff(nmeasure2_values) >= 0).all()
