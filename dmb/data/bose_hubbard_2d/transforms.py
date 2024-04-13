@@ -145,8 +145,8 @@ class BoseHubbard2DTransforms:
 
     def __init__(
         self,
-        base_augmentations: list[callable[[torch.Tensor], torch.Tensor]],
-        train_augmentations: list[callable[[torch.Tensor], torch.Tensor]],
+        base_augmentations: list[callable[[torch.Tensor], torch.Tensor]] = [],
+        train_augmentations: list[callable[[torch.Tensor], torch.Tensor]] = [],
     ):
         self.base_augmentations = base_augmentations
         self.train_augmentations = train_augmentations
