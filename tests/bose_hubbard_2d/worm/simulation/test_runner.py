@@ -7,7 +7,7 @@ import pytest
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulationRunner
 from dmb.data.bose_hubbard_2d.worm.simulation.runner import \
-    get_run_iteratively_num_sweeps_values
+    get_run_iteratively_num_sweeps_values, get_tune_nmeasure2_values
 from dmb.data.dispatching import ReturnCode
 from dmb.logging import create_logger
 
@@ -315,33 +315,42 @@ class TestWormSimulationRunner:
         assert fake_worm_simulation.num_execute_worm_continue_calls == 0
         assert fake_worm_simulation.input_parameters == initial_input_parameters
 
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_tune_nmeasure2_record_is_written_correctly(
+            fake_worm_simulation: FakeWormSimulation,
+            record_steps: list[dict]) -> None:
+        runner = WormSimulationRunner(fake_worm_simulation)
+        await runner.tune_nmeasure2(min_nmeasure2=10,
+                                    max_nmeasure2=100,
+                                    step_size_multiplication_factor=2)
+
+        assert all(key in step for key in [
+            "sweeps", "thermalization", "Nmeasure2", "tau_max",
+            "max_density_error"
+        ] for step in fake_worm_simulation.tune_simulation.record["steps"])
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_tune_nmeasure2_correct_run_calls(
+            fake_worm_simulation: FakeWormSimulation, num_steps: int) -> None:
+        runner = WormSimulationRunner(fake_worm_simulation)
+        await runner.tune_nmeasure2(min_nmeasure2=10,
+                                    max_nmeasure2=1000,
+                                    step_size_multiplication_factor=2)
+
+        assert set(fake_worm_simulation.tune_simulation.execution_calls) == {
+            "execute_worm"
+        }
+
     # @staticmethod
     # @pytest.mark.asyncio
-    # aync def test_tune_nmeasure2_record_is_written_correctly(
-    #         fake_worm_simulation: FakeWormSimulation, record_steps: list[dict],
-    #         num_steps: int) -> None:
-    #     runner = WormSimulationRunner(fake_worm_simulation)
-    #     await runner.tune_nmeasure2(
-    #         num_sweep_increments=num_steps,
-    #         Nmeasure2=42,
-    #     )
-    #     assert all(key in fake_worm_simulation.tune_simulation.record["steps"]
-    #                [step_idx] for key in [
-    #                    "sweeps", "thermalization", "Nmeasure2", "tau_max",
-    #                    "max_density_error"
-    #                ] for step_idx in range(num_steps))
+    # async def test_tune_nmeasure2_input_parameters(
+    #         fake_worm_simulation: FakeWormSimulation) -> None:
+#     # |-> breaks only when max_tau_int is reached. If max_tau_int is not reached, it should continue until get_tune_nmeasure2_values are exhausted
 
-    #     for step_idx in range(num_steps):
-    #         assert fake_worm_simulation.record["steps"][step_idx][
-    #             "max_density_error"] == record_steps[step_idx][
-    #                 "max_density_error"]
-    #         assert fake_worm_simulation.record["steps"][step_idx][
-    #             "tau_max"] == record_steps[step_idx]["tau_max"]
 
     # - test_tune_nmeasure2
-    # |-> tune simulation record is written with right keys
-    # |-> only start, never continue
-    # |-> breaks only when max_tau_int is reached. If max_tau_int is not reached, it should continue until get_tune_nmeasure2_values are exhausted
     # |-> results in nmeasure2 is larger than min_nmeasure2 and smaller than max_nmeasure2
     # |-> plots results
     # |-> saves correct input parameters
