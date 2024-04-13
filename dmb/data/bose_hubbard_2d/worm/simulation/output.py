@@ -44,14 +44,13 @@ class WormOutput:
         """
 
         if not self.out_file_path.exists():
-            self.logging_instance.warning(
-                f"File {self.out_file_path} does not exist.")
+            self.logging_instance.warning(f"File {self.out_file_path} does not exist.")
             return None
 
         try:
             with h5py.File(self.out_file_path, "r") as f:
                 densities = f["simulation"]["densities"][()]
-        except KeyError as e:
+        except (KeyError, OSError) as e:
             self.logging_instance.error(
                 f"Exception occured during of file {self.out_file_path} loading: {e}"
             )
@@ -70,7 +69,8 @@ class WormOutput:
 
     @property
     def accumulator_observables(
-        self, ) -> dict[str, dict[str, dict[str, np.ndarray]]] | None:
+        self,
+    ) -> dict[str, dict[str, dict[str, np.ndarray]]] | None:
         """Return the observables from the simulation accumulator.
 
         If the file does not exist, return None. If the file exists but the
@@ -79,8 +79,7 @@ class WormOutput:
         """
 
         if not self.out_file_path.exists():
-            self.logging_instance.warning(
-                f"File {self.out_file_path} does not exist.")
+            self.logging_instance.warning(f"File {self.out_file_path} does not exist.")
             return None
 
         try:
@@ -96,11 +95,13 @@ class WormOutput:
         for obs, obs_dataset in observables.items():
             for measure, value in obs_dataset.items():
                 if isinstance(value, h5py.Dataset):
-                    accumulator_observables[obs][
-                        measure] = self.reshape_observable(value[()])
+                    accumulator_observables[obs][measure] = self.reshape_observable(
+                        value[()]
+                    )
 
                 elif isinstance(value, h5py.Group):
                     accumulator_observables[obs][measure] = {}
                     for sub_measure, sub_value in value.items():
                         accumulator_observables[obs][measure][sub_measure] = (
-                            self.reshape_observable(sub_value[()]))
+                            self.reshape_observable(sub_value[()])
+                        )
