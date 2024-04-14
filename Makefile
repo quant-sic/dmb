@@ -1,7 +1,7 @@
 venv: $(VIRTUAL_ENV)
 
 tests: venv
-	python -X dev -m pytest -m "$(MARK)"
+	python -X dev -m pytest -m "$(MARK)" --basetemp=$(PWD)/.pytest_tmp
 
 format: venv
 	yapf -i --recursive dmb tests scripts
