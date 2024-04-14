@@ -5,6 +5,8 @@ from enum import Enum
 from logging import Logger
 from pathlib import Path
 
+from attrs import define
+
 from dmb.logging import create_logger
 
 

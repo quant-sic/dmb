@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import os
+import re
+import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Literal
@@ -37,7 +39,7 @@ class SlurmDispatcherSettings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        return init_settings, dotenv_settings
+        return init_settings, env_settings
 
 
 class Dispatcher(ABC):
@@ -96,19 +98,22 @@ class SlurmDispatcher(Dispatcher):
         number_of_nodes: int,
         number_of_tasks_per_node: int,
         cpus_per_task: int,
-    ):
+    ) -> dict[str, Any]:
+
         script_path.parent.mkdir(exist_ok=True, parents=True)
         pipeout_dir.mkdir(exist_ok=True, parents=True)
+
+        out_id = uuid.uuid4()
+        stdout_path = pipeout_dir / "stdout_{}.txt".format(out_id)
+        stderr_path = pipeout_dir / "stderr_{}.txt".format(out_id)
 
         with open(script_path, "w") as script_file:
             # write lines
             script_file.write("#!/bin/bash -l\n")
             script_file.write("#SBATCH --job-name={}\n".format(job_name))
 
-            script_file.write("#SBATCH --output=" + str(pipeout_dir) +
-                              "/stdout_{}_%j.txt\n".format(job_name))
-            script_file.write("#SBATCH --error=" + str(pipeout_dir) +
-                              "/stderr_{}_%j.txt\n".format(job_name))
+            script_file.write("#SBATCH --output=" + str(stdout_path) + "\n")
+            script_file.write("#SBATCH --error=" + str(stderr_path) + "\n")
 
             script_file.write("#SBATCH --partition={}\n".format(partition))
 
@@ -131,6 +136,8 @@ class SlurmDispatcher(Dispatcher):
 
         os.chmod(script_path, 0o755)
 
+        return {"stdout_path": stdout_path, "stderr_path": stderr_path}
+
     async def dispatch(
         self,
         job_name: str,
@@ -143,7 +150,7 @@ class SlurmDispatcher(Dispatcher):
 
         script_path = work_directory / "run.sh"
 
-        self.create_sbatch_script(
+        create_script_out = self.create_sbatch_script(
             script_path=script_path,
             job_name=job_name,
             pipeout_dir=pipeout_dir,
@@ -156,6 +163,14 @@ class SlurmDispatcher(Dispatcher):
             cpus_per_task=dispatcher_settings.cpus_per_task,
         )
         code = await call_sbatch_and_wait(script_path, timeout=timeout)
+
+        # check if the job was successful
+        with open(create_script_out["stderr_path"], "r") as f:
+            stderr = f.read()
+            errorcode = re.findall(r"errorcode\s(\d+)", stderr)
+            if errorcode:
+                if int(errorcode[0]) != 0:
+                    code = ReturnCode.FAILURE
 
         return code
 
@@ -185,7 +200,8 @@ class LocalDispatcher(Dispatcher):
             stdout, stderr = await asyncio.wait_for(process.communicate(),
                                                     timeout=timeout)
             await process.wait()
-            return_code = ReturnCode.SUCCESS if process.returncode == 0 else ReturnCode.FAILURE
+            return_code = (ReturnCode.SUCCESS
+                           if process.returncode == 0 else ReturnCode.FAILURE)
         except asyncio.TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()

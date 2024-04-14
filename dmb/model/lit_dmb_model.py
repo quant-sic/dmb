@@ -3,7 +3,7 @@ import itertools
 from collections.abc import Mapping
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Tuple, cast
+from typing import Any, Callable, Literal, cast
 
 import hydra
 import lightning
@@ -34,83 +34,41 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
     scheduler: functools.partial[dict[str,
                                       functools.partial[_LRScheduler | Any]]]
     loss: torch.nn.Module
+    observables: list[str]
 
-    def __init__(
-        self,
-        model: Dict[str, Any],
-        optimizer: Dict[str, Any],
-        scheduler: Dict[str, Any],
-        loss: Dict[str, Any],
-        observables: List[str],
-        **kwargs: Any,
-    ):
+    def __attrs_pre_init__(self):
         super().__init__()
-        self.save_hyperparameters()
 
-        # instantiate the decoder
-        self.model = self.load_model(model)
+    def __attrs_post_init__(self):
+        self.example_input_array = torch.zeros(1, self.model.in_channels, 10,
+                                               10)
 
-        # serves as a dummy input for the model to get the output shape with lightning
-        self.example_input_array = torch.zeros(
-            1, self.hparams["model"]["in_channels"], 10, 10)
-
-    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def _batch_evaluation(self,
+                          batch: Any) -> tuple[torch.Tensor, torch.Tensor]:
         batch_in, batch_label = batch
 
-        # forward pass
         model_out = self(batch_in)
-
-        # compute loss
         loss = self.loss(model_out, batch_label)
 
+        return model_out, loss
+
+    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+        model_out, loss = self._batch_evaluation(batch)
+
         # log metrics
-        self.compute_and_log_metrics(model_out, batch_label, "train", loss)
+        self.log_metrics(model_out, batch_label, "train", {"loss": loss})
 
         return loss
 
     def validation_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        batch_in, batch_label = batch
-
-        # forward pass
-        model_out = self(batch_in)
-
-        # compute loss
-        loss = self.loss(model_out, batch_label)
-
+        model_out, loss = self._batch_evaluation(batch)
         # log metrics
-        self.compute_and_log_metrics(model_out, batch_label, "val", loss)
-
-        return loss
+        self.log_metrics(model_out, batch_label, "val", {"loss": loss})
 
     def test_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        batch_in, batch_label = batch
-
-        # forward pass
-        model_out = self(batch_in)
-
-        # compute loss
-        loss = self.loss(model_out, batch_label)
-
+        model_out, loss = self._batch_evaluation(batch)
         # log metrics
-        self.compute_and_log_metrics(model_out, batch_label, "test", loss)
-
-        return loss
-
-    def on_train_epoch_end(self) -> None:
-        """Reset metrics at the end of the epoch."""
-        self.train_metrics.reset()
-
-    def on_validation_epoch_end(self) -> None:
-        """Reset metrics at the end of the epoch."""
-        self.val_metrics.reset()
-
-    def reset_metrics(self, stage: Literal["train", "val", "test"]) -> None:
-        """Reset metrics."""
-        # get metrics for the current stage
-        metrics_dict = getattr(self, f"{stage}_metrics")
-        for metric_name, (metric,
-                          lit_module_attribute) in metrics_dict.items():
-            metric.reset()
+        self.log_metrics(model_out, batch_label, "test", {"loss": loss})
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configure the optimizer and scheduler."""
@@ -128,6 +86,36 @@ class DMBLitModel(pl.LightningModule, LitModelMixin):
             }
 
         return cast(OptimizerLRScheduler, configuration)
+
+    def log_metrics(
+        self,
+        stage: Literal["train", "val", "test"],
+        metric_collection: Mapping[str, torch.Tensor | torchmetrics.Metric],
+        on_step: bool,
+        on_epoch: bool,
+        batch_size: int,
+    ) -> None:
+        """Log metrics."""
+
+        for metric_name, metric in metric_collection.items():
+
+            computed_metric = (metric.compute() if isinstance(
+                metric, torchmetrics.Metric) else metric)
+
+            if isinstance(computed_metric, dict):
+                loggable = {
+                    f"{stage}/{metric_name}/{key}": value
+                    for key, value in computed_metric.items()
+                }
+            else:
+                loggable = {f"{stage}/{metric_name}": computed_metric}
+
+            self.log_dict(
+                loggable,
+                on_step=on_step,
+                on_epoch=on_epoch,
+                batch_size=batch_size,
+            )
 
     def plot_model(
             self,

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
+from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2DTransforms
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
@@ -27,6 +28,7 @@ def get_missing_samples(
     tolerance_muU: float = 0.01,
 ):
     bh_dataset = BoseHubbardDataset(
+        transforms=BoseHubbard2DTransforms(),
         data_dir=target_dir,
         observables=["density"],
         clean=True,
@@ -154,10 +156,12 @@ async def simulate(
 
     shutil.rmtree(save_dir, ignore_errors=True)
 
-    sim = WormSimulation(p,
-                         save_dir=save_dir,
-                         executable=os.environ["WORM_MPI_EXECUTABLE"],
-                         dispatcher=AutoDispatcher())
+    sim = WormSimulation(
+        p,
+        save_dir=save_dir,
+        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        dispatcher=AutoDispatcher(),
+    )
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
     await sim_run.tune_nmeasure2()

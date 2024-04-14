@@ -3,7 +3,6 @@ import asyncio
 import os
 
 import numpy as np
-from dotenv import load_dotenv
 
 from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
     get_missing_samples, simulate
@@ -23,7 +22,6 @@ def get_square_mu(base_mu, delta_mu, square_size, lattice_size):
 
 
 if __name__ == "__main__":
-    load_dotenv()
 
     parser = argparse.ArgumentParser(
         description="Run worm simulation for 2D BH model")
@@ -77,8 +75,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    os.environ["WORM_JOB_NAME"] = "box"
 
     target_dir = REPO_DATA_ROOT / f"box/{args.zVU}/{args.ztU}/{args.L}"
     target_dir.mkdir(parents=True, exist_ok=True)

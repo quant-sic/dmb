@@ -24,7 +24,7 @@ def get_tune_nmeasure2_values(
         min_nmeasure2: int, max_nmeasure2: int,
         step_size_multiplication_factor: float) -> list[int]:
     """Get Nmeasure2 values for tuning.
-    
+
     Args:
         min_nmeasure2: Minimum Nmeasure2.
         max_nmeasure2: Maximum Nmeasure2.
@@ -42,18 +42,20 @@ def get_tune_nmeasure2_values(
 
     max_exponent = int(
         np.emath.logn(step_size_multiplication_factor,
-                      max_nmeasure2 / min_nmeasure2))  #floor
+                      max_nmeasure2 / min_nmeasure2))  # floor
     Nmeasure2_values = (
-        min_nmeasure2 * step_size_multiplication_factor**
-        np.arange(max_exponent + 1)).round().astype(int).tolist()
+        (min_nmeasure2 * step_size_multiplication_factor**
+         np.arange(max_exponent + 1)).round().astype(int).tolist())
 
     return Nmeasure2_values
 
 
 def get_run_iteratively_num_sweeps_values(
-        Nmeasure2: int, min_num_measurements_per_nmeasure2: int,
-        max_num_measurements_per_nmeasure2: int,
-        num_sweep_increments: int) -> np.ndarray:
+    Nmeasure2: int,
+    min_num_measurements_per_nmeasure2: int,
+    max_num_measurements_per_nmeasure2: int,
+    num_sweep_increments: int,
+) -> np.ndarray:
     """Get number of sweeps values for running iteratively.
 
     Args:
@@ -72,14 +74,16 @@ def get_run_iteratively_num_sweeps_values(
                      Nmeasure2 for increment in range(num_sweep_increments)])
 
 
-def set_simulation_parameters(simulation: WormSimulation,
-                              Nmeasure2: int,
-                              sweeps: int,
-                              sweeps_to_thermalization_ratio: int = 10,
-                              nmeasure2_to_nmeasure_ratio: int = 10,
-                              max_nmeasure: int = 10000,
-                              min_nmeasure: int = 1,
-                              seed: int | None = None) -> None:
+def set_simulation_parameters(
+    simulation: WormSimulation,
+    Nmeasure2: int,
+    sweeps: int,
+    sweeps_to_thermalization_ratio: int = 10,
+    nmeasure2_to_nmeasure_ratio: int = 10,
+    max_nmeasure: int = 10000,
+    min_nmeasure: int = 1,
+    seed: int | None = None,
+) -> None:
     """Set simulation parameters.
 
     Args:
@@ -94,7 +98,8 @@ def set_simulation_parameters(simulation: WormSimulation,
     """
     simulation.input_parameters = WormInputParameters(
         **{
-            **simulation.input_parameters.__dict__, "Nmeasure2":
+            **simulation.input_parameters.__dict__,
+            "Nmeasure2":
             Nmeasure2,
             "sweeps":
             sweeps,
@@ -107,7 +112,7 @@ def set_simulation_parameters(simulation: WormSimulation,
                     min_nmeasure,
                 )),
             "seed":
-            seed or simulation.input_parameters.seed
+            seed or simulation.input_parameters.seed,
         })
     simulation.save_parameters()
 
@@ -171,9 +176,9 @@ class WormSimulationRunner:
         """Run worm simulation iteratively until converged.
 
         Args:
-            max_num_measurements_per_nmeasure2: 
+            max_num_measurements_per_nmeasure2:
                 Maximum number of measurements per Nmeasure2.
-            min_num_measurements_per_nmeasure2: 
+            min_num_measurements_per_nmeasure2:
                 Minimum number of measurements per Nmeasure2.
             num_sweep_increments: Number of sweep increments.
             sweeps_to_thermalization_ratio: Ratio of sweeps to thermalization.
@@ -195,7 +200,8 @@ class WormSimulationRunner:
             min_num_measurements_per_nmeasure2,
             max_num_measurements_per_nmeasure2=
             max_num_measurements_per_nmeasure2,
-            num_sweep_increments=num_sweep_increments)
+            num_sweep_increments=num_sweep_increments,
+        )
 
         for step_idx, num_sweeps in tqdm(enumerate(num_sweeps_values),
                                          total=len(num_sweeps_values)):
@@ -208,11 +214,13 @@ class WormSimulationRunner:
             if step_idx > 0 and self.worm_simulation.valid:
                 return_code = await self.run_continue()
             else:
-                set_simulation_parameters(simulation=self.worm_simulation,
-                                          Nmeasure2=Nmeasure2,
-                                          sweeps=num_sweeps,
-                                          sweeps_to_thermalization_ratio=
-                                          sweeps_to_thermalization_ratio)
+                set_simulation_parameters(
+                    simulation=self.worm_simulation,
+                    Nmeasure2=Nmeasure2,
+                    sweeps=num_sweeps,
+                    sweeps_to_thermalization_ratio=
+                    sweeps_to_thermalization_ratio,
+                )
 
                 return_code = await self.run()
 
@@ -227,10 +235,13 @@ class WormSimulationRunner:
                  "Current error: {}."
                  "Sweeps: {}. Num Nmeasure2: {}"
                  "At step {} of {}.").format(
-                     self.worm_simulation.max_density_error, num_sweeps,
+                     self.worm_simulation.max_density_error,
+                     num_sweeps,
                      int(num_sweeps /
                          self.worm_simulation.input_parameters.Nmeasure2),
-                     step_idx + 1, len(num_sweeps_values)))
+                     step_idx + 1,
+                     len(num_sweeps_values),
+                 ))
 
             self.worm_simulation.plot_observables()
             self.worm_simulation.record["steps"].append({
@@ -248,8 +259,9 @@ class WormSimulationRunner:
             })
 
             # if error is below threshold, break
-            if self.worm_simulation.max_density_error is not None and \
-                self.worm_simulation.max_density_error < max_abs_error_threshold:
+            if (self.worm_simulation.max_density_error is not None
+                    and self.worm_simulation.max_density_error
+                    < max_abs_error_threshold):
                 break
 
     async def tune_nmeasure2(
@@ -334,18 +346,20 @@ class WormSimulationRunner:
                      " max_density_error: {}.\n\n").format(
                          tune_simulation.input_parameters.Nmeasure2,
                          tune_simulation.max_tau_int,
-                         tune_simulation.max_density_error))
+                         tune_simulation.max_density_error,
+                     ))
                 break
 
             if tune_simulation.max_tau_int is not None:
                 # get biggest smaller 2**x value - 2,
-                #at most min(5,len(nmeasure2_values)/3, remaining steps-1)
+                # at most min(5,len(nmeasure2_values)/3, remaining steps-1)
                 skip_next_counter = min(
-                    min(5,
-                        len(nmeasure2_values) // 3,
+                    min(3,
+                        len(nmeasure2_values) // 4,
                         len(nmeasure2_values) - idx - 2),
                     int(
                         np.emath.logn(step_size_multiplication_factor,
-                                      tune_simulation.max_tau_int)) - 2)
+                                      tune_simulation.max_tau_int)) - 2,
+                )
                 tune_simulation.file_logger.info(
                     f"Skipping next {skip_next_counter} steps.\n\n")

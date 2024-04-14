@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import List
 
 import numpy as np
-from dotenv import load_dotenv
 from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
@@ -14,7 +13,6 @@ from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
 from dmb.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":
-    load_dotenv()
 
     parser = argparse.ArgumentParser(
         description="Run worm simulation for 2D BH model")
@@ -62,8 +60,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    os.environ["WORM_JOB_NAME"] = "mu_cut"
 
     target_dir = REPO_DATA_ROOT / f"mu_cut/{args.zVU}/{args.ztU}/{args.L}"
     target_dir.mkdir(parents=True, exist_ok=True)

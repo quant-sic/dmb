@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -32,7 +33,7 @@ class _SimulationExecutionMixin:
         input_file_path: Path | None = None,
     ) -> ReturnCode:
         """Execute the worm simulation.
-        
+
         Args:
             input_file_path: Path to the input file (.h5,.ini).
                 If None, the input parameters file will be used.
@@ -60,7 +61,7 @@ class _SimulationExecutionMixin:
                 str(input_file_path
                     or self.input_parameters.get_ini_path(self.save_dir)),
             ],
-            job_name="worm",
+            job_name=os.environ.get("WORM_JOB_NAME", "worm"),
             work_directory=self.save_dir,
             pipeout_dir=self.save_dir / "pipe_out",
             timeout=60 * 60 * 24,
@@ -185,7 +186,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
     analyze the results. The simulation data is saved in the ``save_dir``.
     A record of the simulation steps is saved in the ``save_dir/record.json``
     file. Logs are saved in the ``save_dir/log.txt`` file.
-    
+
     Attributes:
         input_parameters: Input parameters for the worm simulation.
         save_dir: Directory to save the simulation data.

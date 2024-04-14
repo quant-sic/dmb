@@ -1,4 +1,0 @@
-- TESTS
-- fix checkerboard input
-- test transformations
-- test net input

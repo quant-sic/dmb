@@ -162,7 +162,7 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
         max_density_error: float,
         recalculate_errors: bool = False,
     ) -> bool:
-        print(type(simulation))
+
         try:
             if recalculate_errors:
                 self.log(f"Recalculating errors for {simulation.save_dir}",
@@ -230,7 +230,8 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                             desc="Filtering valid simulations by error",
                             total=len(sim_dirs),
                         ),
-                    )))
+                    ),
+                ))
 
         return sim_dirs
 

@@ -62,8 +62,9 @@ class MaskedMSE(torchmetrics.Metric):
             if weight is None:
                 weight = [None] * len(preds)
 
-            for _, (preds_, target_, mask_,
-                    weight_) in enumerate(zip(preds, target, mask, weight)):
+            for _, (preds_, target_, mask_, weight_) in enumerate(
+                zip(preds, target, mask, weight)
+            ):
                 self.update_impl(preds_, target_, mask_, weight_)
         else:
             self.update_impl(preds, target, mask, weight)
@@ -94,19 +95,17 @@ class MaskedMSELoss(torch.nn.Module):
 
         self.reduction = reduction
 
-    def forward_impl(self,
-                     y_pred: torch.Tensor,
-                     y_true: torch.Tensor,
-                     mask: torch.Tensor = None) -> torch.Tensor:
+    def forward_impl(
+        self, y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.Tensor = None
+    ) -> torch.Tensor:
         if mask is None:
             mask = torch.ones_like(y_true, dtype=torch.bool)
 
-        loss = (y_true - y_pred.view(*y_true.shape))**2
+        loss = (y_true - y_pred.view(*y_true.shape)) ** 2
 
         if self.reduction == "mean":
             try:
-                loss_out = torch.sum(
-                    loss.view(mask.shape) * mask) / torch.sum(mask)
+                loss_out = torch.sum(loss.view(mask.shape) * mask) / torch.sum(mask)
             except RuntimeError:
                 # log shapes
                 log.info(
@@ -131,8 +130,7 @@ class MaskedMSELoss(torch.nn.Module):
             if mask is None:
                 mask = [None] * len(y_pred)
 
-            for idx, (y_pred_, y_true_,
-                      mask_) in enumerate(zip(y_pred, y_true, mask)):
+            for idx, (y_pred_, y_true_, mask_) in enumerate(zip(y_pred, y_true, mask)):
                 if idx == 0:
                     loss = self.forward_impl(y_pred_, y_true_, mask_)
                 else:
@@ -156,8 +154,7 @@ class MSLELoss(torch.nn.Module):
 
         self.reduction = reduction
 
-    def forward_impl(self, y_pred: torch.Tensor,
-                     y_true: torch.Tensor) -> torch.Tensor:
+    def forward_impl(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         """
         Args:
             y_pred (torch.Tensor): Predicted values.
@@ -166,7 +163,7 @@ class MSLELoss(torch.nn.Module):
         Returns:
             torch.Tensor: Loss value.
         """
-        loss = torch.log((y_true + 1) / (y_pred + 1))**2
+        loss = torch.log((y_true + 1) / (y_pred + 1)) ** 2
 
         valid_mask = loss.isfinite()
 
@@ -182,8 +179,6 @@ class MSLELoss(torch.nn.Module):
             raise RuntimeError(
                 f"Loss is NaN. y_pred: {y_pred}, y_true: {y_true}, mask: {valid_mask}"
             )
-
-        # log.info(f"loss_out: {loss_out}. MASK: {mask}. y_pred: {y_pred}, y_true: {y_true}")
 
         return loss_out
 
