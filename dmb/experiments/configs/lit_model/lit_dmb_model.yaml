@@ -1,0 +1,27 @@
+_target_: dmb.model.lit_dmb_model.LitDMBModel
+
+defaults:
+  - model: dmb_model
+
+loss:
+  _target_: dmb.model.loss.MSELoss
+  reduction: mean
+  
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+lr_scheduler:
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _partial_: true
+    mode: min
+    factor: 0.1
+    patience: 10
+
+  monitor: val/mse
+  interval: epoch
+  frequency: 1
+

@@ -3,38 +3,30 @@ from functools import partial
 from joblib import delayed
 from tqdm import tqdm
 
-from dmb.data.bose_hubbard_2d.worm.datamodule import BoseHubbardDataModule
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
 from dmb.io import ProgressParallel
 from dmb.logging import create_logger
+from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2DTransforms
 from dmb.paths import REPO_DATA_ROOT
 
 log = create_logger(__name__)
 
 if __name__ == "__main__":
-    dm = BoseHubbardDataModule(
+    ds = BoseHubbardDataset(
         data_dir=REPO_DATA_ROOT / "bose_hubbard_2d",
-        batch_size=64,
+        transforms=BoseHubbard2DTransforms(),
         clean=True,
         reload=True,
         verbose=True,
-        observables=[
-            "density",
-            "density_variance",
-            "density_density_corr_0",
-            "density_density_corr_1",
-            "density_density_corr_2",
-            "density_density_corr_3",
-            "density_squared",
-        ],
         max_density_error=0.015,
-        include_tune_dirs=True,
+        recalculate_errors=True,
     )
-    dm.setup("fit")
 
     # parallelized __getitem__ with tqdm progress bar and joblib, reload=True
-    with ProgressParallel(n_jobs=10, total=len(dm.dataset)) as parallel:
+    with ProgressParallel(n_jobs=10, total=len(ds)) as parallel:
         data = parallel(
-            delayed(partial(dm.dataset.__getitem__, reload=True))(i)
-            for i in tqdm(range(len(dm.dataset))))
+            delayed(partial(ds.__getitem__, reload=True))(i)
+            for i in tqdm(range(len(ds)))
+        )
 
     log.info("len(data): %s", len(data))

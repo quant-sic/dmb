@@ -1,13 +1,15 @@
 _target_: dmb.data.bose_hubbard_2d.worm.datamodule.BoseHubbardDataModule
 
-data_dir: ${paths.data_dir}/bose_hubbard_2d
-batch_size: 512
-num_workers: 4
-clean: True
-base_transforms: null
-train_transforms: null
-max_density_error: 0.015
-reload: False 
-include_tune_dirs: False
+dataset:
+  _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbardDataset
+  transforms: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2DTransforms
+  data_dir: ${paths.data_dir}/bose_hubbard_2d
 
-train_val_test_split: [0.94, 0.05, 0.01]
+split:
+  _target_: dmb.data.split.Split.from_file
+  file_path: ${paths.data_dir}/splits/2024-04-15_19-05-07.json
+
+batch_size: 32
+num_workers: 4
+pin_memory: True
+

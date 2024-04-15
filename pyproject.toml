@@ -19,6 +19,8 @@ lightning = "^2.1.0"
 auto-correlation = {path = "auto-correlation"}
 pydantic-settings = "^2.2.1"
 syjson = "^2.1.6"
+torchvision = "^0.17.2"
+wandb = "^0.16.6"
 
 [tool.poetry.group.ci.dependencies]
 pylint = "^3.1.0"

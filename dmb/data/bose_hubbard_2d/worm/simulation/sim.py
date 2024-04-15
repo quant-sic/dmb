@@ -64,7 +64,7 @@ class _SimulationExecutionMixin:
             job_name=os.environ.get("WORM_JOB_NAME", "worm"),
             work_directory=self.save_dir,
             pipeout_dir=self.save_dir / "pipe_out",
-            timeout=60 * 60 * 24,
+            timeout=60 * 60 * 24 * 7,
         )
         self.file_logger.info(
             f"Simulation finished with return code: {return_code}")
@@ -223,7 +223,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
         if not self.reloaded_from_dir:
             self.save_parameters()
 
-        self.file_logger.info(
+        self.file_logger.debug(
             f"Initialized worm simulation in {self.save_dir}\n\n")
 
     @classmethod

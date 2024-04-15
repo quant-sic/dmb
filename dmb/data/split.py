@@ -31,6 +31,15 @@ class Split:
             for split_name in self.split_ids
         }
 
+    @classmethod
+    def from_dataset(cls,
+                     dataset: IdDataset,
+                     split_fractions: dict[str, float],
+                     seed: int = 42):
+        """Generate a split from a dataset and split fractions."""
+        split_ids = cls.generate(split_fractions, dataset, seed)
+        return cls(split_ids=split_ids)
+
     @staticmethod
     def generate(split_fractions: dict[str, float],
                  dataset: IdDataset,
@@ -73,5 +82,6 @@ class Split:
 
     def to_file(self, file_path: Path):
         """Save a split to a file."""
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w") as f:
             json.dump(self.split_ids, f)

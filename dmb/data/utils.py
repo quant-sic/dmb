@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Any, Iterable
+from typing import Iterable
 
 import numpy as np
 import torch
@@ -9,7 +9,7 @@ from dmb.logging import create_logger
 log = create_logger(__name__)
 
 
-def chain_fns(fns: Iterable[callable[[Any], Any]]) -> callable[[Any], Any]:
+def chain_fns(fns: Iterable[callable]) -> callable:
     return reduce(lambda f, g: lambda x: g(f(x)), fns)
 
 

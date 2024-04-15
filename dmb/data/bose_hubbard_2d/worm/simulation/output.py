@@ -60,7 +60,7 @@ class WormOutput:
         # reshape densities to (n_samples, Lx, Ly)
         try:
             densities = self.reshape_observable(densities)
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
             self.logging_instance.error(
                 f"Exception occured during reshape: {e} for {self.out_file_path}"
             )

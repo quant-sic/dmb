@@ -17,21 +17,9 @@ class DMBModel(nn.Module):
     ):
         super().__init__()
 
-        self.modules_list = torch.nn.ModuleList()
-        self.output_modification = torch.nn.ModuleList()
-
-        for module in module_list:
-            self.modules_list.append(
-                hydra.utils.instantiate(module,
-                                        _recursive_=False,
-                                        _convert_="all"))
-
-        # output modifications do not change the shape of the output
-        for module in output_modification:
-            self.output_modification.append(
-                hydra.utils.instantiate(module,
-                                        _recursive_=False,
-                                        _convert_="all"))
+        self.modules_list = torch.nn.ModuleList(modules=module_list)
+        self.output_modification = torch.nn.ModuleList(
+            modules=output_modification)
 
         self._observables = observables
         self._in_channels = in_channels
