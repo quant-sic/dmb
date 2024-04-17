@@ -11,12 +11,14 @@ from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
 from dmb.paths import REPO_DATA_ROOT
 
 
-def get_quadratic_mu(coeffitients: tuple[float, float],
-                     lattice_size: int,
-                     center: tuple[float, float] = None,
-                     offset: float = 0) -> np.ndarray:
+def get_quadratic_mu(
+    coeffitients: tuple[float, float],
+    lattice_size: int,
+    center: tuple[float, float] = None,
+    offset: float = 0,
+) -> np.ndarray:
     """Generate a 2D quadratic mu array
-    
+
     Args:
         coeffitients: tuple of two floats, quadratic coefficients
         lattice_size: size of the lattice
@@ -109,6 +111,7 @@ if __name__ == "__main__":
         tolerance_ztU=0,
         tolerance_zVU=0,
         tolerance_muU=0,
+        existing_samples_max_density_error=0.2,
     )
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)

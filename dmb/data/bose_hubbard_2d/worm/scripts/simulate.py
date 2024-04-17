@@ -26,6 +26,7 @@ def get_missing_samples(
     tolerance_ztU: float = 0.01,
     tolerance_zVU: float = 0.01,
     tolerance_muU: float = 0.01,
+    existing_samples_max_density_error: float = 0.015,
 ):
     bh_dataset = BoseHubbardDataset(
         transforms=BoseHubbard2DTransforms(),
@@ -34,7 +35,7 @@ def get_missing_samples(
         clean=True,
         reload=True,
         verbose=False,
-        max_density_error=0.015,
+        max_density_error=existing_samples_max_density_error,
         include_tune_dirs=False,
     )
 
@@ -129,6 +130,8 @@ async def simulate(
     thermalization: int = 10000,
     sweeps: int = 100000,
     nmeasure2: int = 100,
+    tune_tau_max_threshold: int = 10,
+    run_max_density_error: float = 0.015,
 ):
     p = WormInputParameters(
         Lx=L,
@@ -164,5 +167,6 @@ async def simulate(
     )
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
-    await sim_run.tune_nmeasure2()
-    await sim_run.run_iterative_until_converged()
+    await sim_run.tune_nmeasure2(tau_threshold=tune_tau_max_threshold)
+    await sim_run.run_iterative_until_converged(
+        max_abs_error_threshold=run_max_density_error)
