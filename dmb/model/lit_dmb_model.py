@@ -13,10 +13,6 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
-from dmb.data.bose_hubbard_2d.phase_diagram import plot_phase_diagram, \
-    plot_phase_diagram_mu_cut
-from dmb.data.bose_hubbard_2d.plots import create_box_cuts_plot, \
-    create_box_plot, create_wedding_cake_plot
 from dmb.logging import create_logger
 
 log = create_logger(__name__)
@@ -35,8 +31,7 @@ class LitDMBModel(pl.LightningModule):
         super().__init__()
 
     def __attrs_post_init__(self):
-        self.example_input_array = torch.zeros(1, self.model.in_channels, 10,
-                                               10)
+        self.example_input_array = torch.zeros(1, 4, 10, 10)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
@@ -135,60 +130,3 @@ class LitDMBModel(pl.LightningModule):
                 on_epoch=on_epoch,
                 batch_size=batch_size,
             )
-
-    def plot_model(
-            self,
-            save_dir: Path,
-            file_name_stem: str,
-            resolution: int = 300,
-            check: list[tuple[str, ...]] = [
-                ("density", "max-min"),
-                ("density_variance", "mean"),
-                ("mu_cut", ),
-                ("wedding_cake", "2.67"),
-                ("wedding_cake", "1.33"),
-                ("wedding_cake", "2.0"),
-                ("box", "1.71"),
-                ("box_cuts", ),
-            ],
-            zVUs: list[float] = (1.0, 1.5),
-            ztUs: list[float] = (0.1, 0.25),
-    ) -> None:
-        # mu,ztU,out = model_predict(net,batch_size=512)
-        for zVU, ztU in itertools.product(zVUs, ztUs):
-            for figures in (
-                    create_box_cuts_plot(self, zVU=zVU, ztU=ztU),
-                    create_box_plot(self, zVU=zVU, ztU=ztU),
-                    create_wedding_cake_plot(self, zVU=zVU, ztU=ztU),
-                    plot_phase_diagram(self, n_samples=resolution, zVU=zVU),
-                    plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
-                    plot_phase_diagram_mu_cut(self, zVU=zVU, ztU=ztU),
-            ):
-
-                def recursive_iter(path, obj):
-                    if isinstance(obj, dict):
-                        for key, value in obj.items():
-                            yield from recursive_iter(path + (key, ), value)
-                    elif isinstance(obj, list):
-                        for idx, value in enumerate(obj):
-                            yield from recursive_iter(path + (idx, ), value)
-                    else:
-                        yield path, obj
-
-                # recursively visit all figures
-                for path, figure in recursive_iter((), figures):
-
-                    # * is a wildcard
-                    if not any(
-                            all(a == b or a == "*" or b == "*"
-                                for a, b in zip(check_, path))
-                            and len(check_) == len(path) for check_ in check):
-                        continue
-
-                    if isinstance(figure, plt.Figure):
-                        save_path = Path(save_dir) / (
-                            file_name_stem + "_" + str(zVU).replace(".", "_") +
-                            "_" + str(ztU).replace(".", "_") + "_" +
-                            "_".join(path) + ".png")
-                        save_path.parent.mkdir(exist_ok=True, parents=True)
-                        figure.savefig(save_path)

@@ -8,8 +8,8 @@ from torch import nn
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from dmb.data.bose_hubbard_2d.network_input import dimless_from_net_input, \
-    net_input
+from dmb.data.bose_hubbard_2d.nn_input import get_dimless_from_net_input, \
+    get_nn_input
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.simulated.fake_phase_diagram_objects import \
     BOSE_HUBBARD_FAKE_ELLIPSOIDS, BOSE_HUBBARD_FAKE_GRADIENTS, Ellipsoid, \
@@ -134,7 +134,7 @@ class LocalDensityApproximationModel(pl.LightningModule):
             raise ValueError("Input must be square")
 
         # get muU, ztU, zVU, cb
-        muU, cb, ztU, zVU = dimless_from_net_input(x)
+        muU, cb, ztU, zVU = get_dimless_from_net_input(x)
 
         # get base_value, ellipsoid_value
         (
@@ -190,8 +190,8 @@ class RandomLDAMSampler:
             shape=(L, L), desired_abs_max=abs(mu_offset) / 2)
 
         mu = torch.from_numpy(mu_offset + V_trap).float()
-        inputs = net_input(mu=mu, U_on=U_on, V_nn=V_nn,
-                           cb_projection=True).unsqueeze(0)
+        inputs = get_nn_input(mu=mu, U_on=U_on, V_nn=V_nn,
+                              cb_projection=True).unsqueeze(0)
         label = self.ldam(inputs)
 
         return {

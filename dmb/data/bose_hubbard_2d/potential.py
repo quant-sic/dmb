@@ -43,3 +43,43 @@ def get_random_trapping_potential(
     potential = periodic_grf(shape, power)
     return float(power), get_offset_rescaled_trapping_potential(
         potential, scale)
+
+
+def get_square_mu_potential(base_mu, delta_mu, square_size, lattice_size):
+    mu = np.full(shape=(lattice_size, lattice_size), fill_value=base_mu)
+    mu[
+        int(float(lattice_size) / 2 - float(square_size) /
+            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
+        int(float(lattice_size) / 2 - float(square_size) /
+            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
+    ] = (base_mu + delta_mu)
+
+    return mu
+
+
+def get_quadratic_mu_potential(
+    coeffitients: tuple[float, float],
+    lattice_size: int,
+    center: tuple[float, float] = None,
+    offset: float = 0,
+) -> np.ndarray:
+    """Generate a 2D quadratic mu array
+
+    Args:
+        coeffitients: tuple of two floats, quadratic coefficients
+        lattice_size: size of the lattice
+        center: center of the quadratic mu array
+        offset: offset of the quadratic mu array
+
+    Returns:
+        np.ndarray: 2D quadratic mu array
+    """
+    if center is None:
+        center = (float(lattice_size) / 2, float(lattice_size) / 2)
+
+    X, Y = np.meshgrid(np.arange(lattice_size), np.arange(lattice_size))
+    mu = (offset + coeffitients[0] * (X - center[0])**2 /
+          ((float(lattice_size) * 0.5)**2) + coeffitients[1] *
+          (Y - center[1])**2 / ((float(lattice_size) * 0.5)**2))
+
+    return mu

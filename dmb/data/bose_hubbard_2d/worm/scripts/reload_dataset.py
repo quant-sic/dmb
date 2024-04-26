@@ -16,13 +16,13 @@ if __name__ == "__main__":
         data_dir=REPO_DATA_ROOT / "bose_hubbard_2d",
         transforms=BoseHubbard2DTransforms(),
         clean=True,
-        reload=True,
+        # reload=True,
         verbose=True,
         max_density_error=0.015,
-        recalculate_errors=True,
+        # recalculate_errors=True,
     )
 
-    # parallelized __getitem__ with tqdm progress bar and joblib, reload=True
+    # parallelized load_sample with tqdm progress bar and joblib, reload=True
     with ProgressParallel(n_jobs=10, total=len(ds)) as parallel:
         data = parallel(
             delayed(partial(ds.load_sample, reload=True))(i)

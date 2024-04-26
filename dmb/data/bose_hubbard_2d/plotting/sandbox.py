@@ -1,18 +1,17 @@
 import itertools
 from collections import defaultdict
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dmb.data.bose_hubbard_2d.network_input import \
-    net_input_dimless_const_parameters
-from dmb.data.bose_hubbard_2d.phase_diagram import model_predict
+from dmb.data.bose_hubbard_2d.nn_input import \
+    get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential, \
+    get_square_mu_potential
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
-from dmb.data.bose_hubbard_2d.worm.scripts.sandbox.box import get_square_mu
-from dmb.data.bose_hubbard_2d.worm.scripts.sandbox.wedding_cake import \
-    get_quadratic_mu
 from dmb.paths import REPO_DATA_ROOT
 
 
@@ -25,7 +24,7 @@ def colorbar(mappable):
 
 
 def create_wedding_cake_plot(
-    model,
+    mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
     ztU: float = 0.1,
     zVU: float = 1.0,
     muU_min: float = 0.0,
@@ -33,26 +32,12 @@ def create_wedding_cake_plot(
     L: int = 40,
     muU_num_steps: int = 10,
     coefficient: float = -2.0,
-):
+) -> dict[str, plt.Figure]:
+    """Create wedding cake plot for a given model and parameters."""
 
     path = REPO_DATA_ROOT / f"wedding_cake/{zVU}/{ztU}/{L}/{coefficient}"
 
-    ds = BoseHubbardDataset(
-        data_dir=path,
-        clean=True,
-        observables=[
-            "density",
-            "density_variance",
-            "density_density_corr_0",
-            "density_density_corr_1",
-            "density_density_corr_2",
-            "density_density_corr_3",
-            "density_squared",
-        ],
-        max_density_error=0.015,
-        reload=True,
-        verbose=False,
-    )
+    ds = BoseHubbardDataset(data_dir=path, clean=True)
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities = [(ds.get_phase_diagram_sample(
@@ -62,8 +47,8 @@ def create_wedding_cake_plot(
 
     inputs = torch.stack(
         [
-            net_input_dimless_const_parameters(
-                muU=get_quadratic_mu(
+            get_nn_input_dimless_const_parameters(
+                muU=get_quadratic_mu_potential(
                     [coefficient, coefficient],
                     L,
                     offset=_muU,
@@ -77,18 +62,17 @@ def create_wedding_cake_plot(
         dim=0,
     )
 
-    outputs = model_predict(model, inputs, batch_size=512)
+    outputs = mapping(inputs)
     figures_axes = defaultdict(lambda: plt.subplots(1, 1, figsize=(6, 6)))
     figures = {"wedding_cake": {}}
 
-    for _muU, qmc_image, nn_outputs in zip(muU, target_densities, outputs):
+    for _muU, qmc_image, nn_image in zip(muU, target_densities,
+                                         outputs["density"]):
 
         fig, ax = figures_axes[f"{_muU}"]
         ax.set_aspect("equal")
 
         X, Y = np.meshgrid(np.arange(L), np.arange(L))
-
-        nn_image = nn_outputs[0]
 
         combined = np.concatenate((
             qmc_image[:int(L / 2) + 1],
@@ -136,7 +120,7 @@ def create_wedding_cake_plot(
 
 
 def create_box_plot(
-    model,
+    mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
     ztU: float = 0.1,
     zVU: float = 1.0,
     muU_min: float = 0.0,
@@ -144,26 +128,11 @@ def create_box_plot(
     L: int = 41,
     muU_num_steps: int = 50,
     square_size: int = 22,
-):
+) -> dict[str, plt.Figure]:
 
     path = REPO_DATA_ROOT / f"box/{zVU}/{ztU}/{L}"
 
-    ds = BoseHubbardDataset(
-        data_dir=path,
-        clean=True,
-        observables=[
-            "density",
-            "density_variance",
-            "density_density_corr_0",
-            "density_density_corr_1",
-            "density_density_corr_2",
-            "density_density_corr_3",
-            "density_squared",
-        ],
-        max_density_error=0.015,
-        reload=True,
-        verbose=False,
-    )
+    ds = BoseHubbardDataset(data_dir=path, clean=True)
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities = [(ds.get_phase_diagram_sample(
@@ -173,8 +142,8 @@ def create_box_plot(
 
     inputs = torch.stack(
         [
-            net_input_dimless_const_parameters(
-                muU=get_square_mu(
+            get_nn_input_dimless_const_parameters(
+                muU=get_square_mu_potential(
                     base_mu=0.0,
                     delta_mu=_muU,
                     square_size=square_size,
@@ -189,20 +158,19 @@ def create_box_plot(
         dim=0,
     )
 
-    outputs = model_predict(model, inputs, batch_size=512)
+    outputs = mapping(inputs)
 
     figures_axes = defaultdict(lambda: plt.subplots(1, 1, figsize=(6, 6)))
 
     figures = {"box": {}}
 
-    for _muU, qmc_image, nn_outputs in zip(muU, target_densities, outputs):
+    for _muU, qmc_image, nn_image in zip(muU, target_densities,
+                                         outputs["density"]):
 
         fig, ax = figures_axes[f"{_muU}"]
         ax.set_aspect("equal")
 
         X, Y = np.meshgrid(np.arange(L), np.arange(L))
-
-        nn_image = nn_outputs[0]
 
         combined = np.concatenate((
             qmc_image[:int(L / 2) + 1],
@@ -239,7 +207,7 @@ def create_box_plot(
 
 
 def create_box_cuts_plot(
-    model,
+    mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
     ztU: float = 0.1,
     zVU: float = 1.0,
     muU_min: float = 0.0,
@@ -247,23 +215,12 @@ def create_box_cuts_plot(
     L: int = 41,
     muU_num_steps: int = 10,
     square_size: int = 22,
-):
+) -> dict[str, plt.Figure]:
 
     ds = BoseHubbardDataset(
         data_dir=REPO_DATA_ROOT / f"box/{zVU}/{ztU}/{L}",
         clean=True,
-        observables=[
-            "density",
-            "density_variance",
-            "density_density_corr_0",
-            "density_density_corr_1",
-            "density_density_corr_2",
-            "density_density_corr_3",
-            "density_squared",
-        ],
-        max_density_error=0.015,
-        reload=True,
-        verbose=False,
+        max_density_error=0.03,
     )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
@@ -278,8 +235,8 @@ def create_box_cuts_plot(
 
     inputs = torch.stack(
         [
-            net_input_dimless_const_parameters(
-                muU=get_square_mu(
+            get_nn_input_dimless_const_parameters(
+                muU=get_square_mu_potential(
                     base_mu=0.0,
                     delta_mu=_muU,
                     square_size=square_size,
@@ -293,9 +250,9 @@ def create_box_cuts_plot(
         ],
         dim=0,
     )
-    outputs = model_predict(model, inputs, batch_size=512)
+    outputs = mapping(inputs)
 
-    nn_cuts = outputs[:, 0, cut_position]
+    nn_cuts = outputs["density"][:, cut_position]
     qmc_cuts = target_densities[:, cut_position]
 
     MU, X = np.meshgrid(muU, np.arange(L))
@@ -333,3 +290,76 @@ def create_box_cuts_plot(
     plt.close()
 
     return {"box_cuts": fig}
+
+
+def plot_phase_diagram_mu_cut(
+    mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
+    zVU: float = 1.0,
+    ztU: float = 0.25,
+    muU_min: float = 0.0,
+    muU_max: float = 3.0,
+    L: int = 16,
+    muU_num_steps: int = 50,
+) -> dict[str, plt.Figure]:
+    path = REPO_DATA_ROOT / "mu_cut" / f"{zVU}/{ztU}/{L}"
+
+    ds = BoseHubbardDataset(
+        data_dir=path,
+        clean=True,
+        max_density_error=0.015,
+        reload=True,
+        verbose=False,
+    )
+
+    muU = np.linspace(muU_min, muU_max, muU_num_steps)
+    inputs = torch.stack(
+        [
+            get_nn_input_dimless_const_parameters(
+                muU=np.full((L, L), fill_value=_muU),
+                ztU=ztU,
+                zVU=zVU,
+                cb_projection=True,
+                target_density=np.ones((L, L)),
+            ) for _muU in muU
+        ],
+        dim=0,
+    )
+    outputs = mapping(inputs)
+
+    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+
+    try:
+        muU_qmc, n_qmc = zip(*[(ds.phase_diagram_position(i)[1], ds_i[1][0])
+                               for i, ds_i in enumerate(ds)])
+
+        ax.scatter(muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))],
+                   c="black",
+                   label="QMC")
+        ax.scatter(muU_qmc, [n_qmc[i].min() for i in range(len(n_qmc))],
+                   c="black",
+                   label="QMC")
+    except:
+        pass
+
+    # max
+    ax.scatter(
+        muU,
+        outputs["density"].cpu().numpy().max(axis=(-1, -2)),
+        c="red",
+        label="NN",
+    )
+
+    ax.scatter(
+        muU,
+        outputs["density"].cpu().numpy().min(axis=(-1, -2)),
+        c="red",
+        label="NN",
+    )
+
+    plt.legend()
+    plt.xlabel(r"$\mu/U$")
+    plt.ylabel(r"$n$")
+    plt.tight_layout()
+    plt.close()
+
+    return {"mu_cut": fig}

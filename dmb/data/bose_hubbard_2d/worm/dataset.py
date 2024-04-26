@@ -8,7 +8,7 @@ import torch
 from attrs import define
 from joblib import delayed
 
-from dmb.data.bose_hubbard_2d.network_input import net_input
+from dmb.data.bose_hubbard_2d.nn_input import get_nn_input
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2DTransforms
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
 from dmb.data.dataset import IdDataset
@@ -286,7 +286,7 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                     dim=0,
                 )
 
-                inputs = net_input(
+                inputs = get_nn_input(
                     sim.input_parameters.mu,
                     sim.input_parameters.U_on,
                     sim.input_parameters.V_nn,

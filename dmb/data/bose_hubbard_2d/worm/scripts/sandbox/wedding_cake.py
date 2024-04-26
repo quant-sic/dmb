@@ -6,38 +6,10 @@ import numpy as np
 from dotenv import load_dotenv
 from tqdm import tqdm
 
+from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential
 from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
     get_missing_samples, simulate
 from dmb.paths import REPO_DATA_ROOT
-
-
-def get_quadratic_mu(
-    coeffitients: tuple[float, float],
-    lattice_size: int,
-    center: tuple[float, float] = None,
-    offset: float = 0,
-) -> np.ndarray:
-    """Generate a 2D quadratic mu array
-
-    Args:
-        coeffitients: tuple of two floats, quadratic coefficients
-        lattice_size: size of the lattice
-        center: center of the quadratic mu array
-        offset: offset of the quadratic mu array
-
-    Returns:
-        np.ndarray: 2D quadratic mu array
-    """
-    if center is None:
-        center = (float(lattice_size) / 2, float(lattice_size) / 2)
-
-    X, Y = np.meshgrid(np.arange(lattice_size), np.arange(lattice_size))
-    mu = (offset + coeffitients[0] * (X - center[0])**2 /
-          ((float(lattice_size) * 0.5)**2) + coeffitients[1] *
-          (Y - center[1])**2 / ((float(lattice_size) * 0.5)**2))
-
-    return mu
-
 
 if __name__ == "__main__":
     load_dotenv()
@@ -124,7 +96,7 @@ if __name__ == "__main__":
                 simulation_name="wedding_cake_{}_{:.3f}_{}".format(
                     args.zVU, muU_out[sample_id], sample_id),
                 L=args.L,
-                mu=get_quadratic_mu(
+                mu=get_quadratic_mu_potential(
                     [args.coefficient, args.coefficient],
                     args.L,
                     offset=muU_out[sample_id],

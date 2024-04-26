@@ -1,4 +1,0 @@
-plot_phase_diagram:
-  _target_: dmb.experiments.callbacks.PhaseDiagramPlotCallback
-  plot_interval: 100
-  

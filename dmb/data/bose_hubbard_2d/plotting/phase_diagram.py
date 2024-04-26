@@ -1,4 +1,7 @@
+"""Plotting functions for the phase diagram of the Bose-Hubbard model in 2D."""
+
 from collections import defaultdict
+from typing import Callable, Generator
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,16 +9,30 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from dmb.data.bose_hubbard_2d.network_input import \
-    net_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.nn_input import \
+    get_nn_input_dimless_const_parameters
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
 from dmb.paths import REPO_DATA_ROOT
 
 
-def phase_diagram_uniform_inputs_iter(n_samples,
-                                      zVU=1.0,
-                                      muU_range=(-0.1, 3.1),
-                                      ztU_range=(0.05, 0.85)):
+def phase_diagram_uniform_inputs_iter(
+    n_samples: int,
+    zVU: float = 1.0,
+    muU_range: tuple[float, float] = (-0.1, 3.1),
+    ztU_range: tuple[float, float] = (0.05, 0.85),
+) -> Generator[tuple[float, float, torch.Tensor], None, None]:
+    """Generate inputs for the phase diagram with uniform sampling in muU and ztU.
+
+    Args:
+        n_samples: Number of samples in each dimension.
+        zVU: Value of zVU.
+        muU_range: Range of muU values.
+        ztU_range: Range of ztU values.
+
+    Yields:
+        Tuple of muU, ztU, and inputs.
+    """
+
     muU = np.linspace(*muU_range, n_samples)
     ztU = np.linspace(*ztU_range, n_samples)
 
@@ -29,7 +46,7 @@ def phase_diagram_uniform_inputs_iter(n_samples,
     fake_target_density[::2, ::2] = 1.0
 
     for i in range(n_samples * n_samples):
-        yield MUU[i], ZTU[i], net_input_dimless_const_parameters(
+        yield MUU[i], ZTU[i], get_nn_input_dimless_const_parameters(
             muU=np.full((16, 16), fill_value=MUU[i]),
             ztU=ZTU[i],
             zVU=zVU,
@@ -38,7 +55,18 @@ def phase_diagram_uniform_inputs_iter(n_samples,
         )
 
 
-def phase_diagram_uniform_inputs(n_samples, zVU=1.0):
+def phase_diagram_uniform_inputs(
+        n_samples: int,
+        zVU: float = 1.0) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Generate inputs for the phase diagram with uniform sampling in muU and ztU.
+
+    Args:
+        n_samples: Number of samples in each dimension.
+        zVU: Value of zVU.
+
+    Returns:
+        Tuple of muU, ztU, and inputs.
+    """
     MUU, ZTU, inputs = zip(
         *list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU)))
 
@@ -49,28 +77,8 @@ def phase_diagram_uniform_inputs(n_samples, zVU=1.0):
     return MUU, ZTU, inputs
 
 
-def model_predict(model, inputs, batch_size=512):
-    dl = DataLoader(inputs,
-                    batch_size=batch_size,
-                    shuffle=False,
-                    num_workers=0)
-
-    model.eval()
-    with torch.no_grad():
-        outputs = []
-        for inputs in tqdm(dl, desc="Predicting", disable=True):
-            inputs = inputs.to(model.device)
-            outputs.append(model(inputs))
-
-        outputs = torch.cat(outputs, dim=0).to("cpu").detach()
-
-    return outputs
-
-
-import numpy as np
-
-
-def add_phase_boundaries(ax):
+def add_phase_boundaries(ax: plt.Axes) -> None:
+    """Add phase boundaries to an axis."""
     red = [
         (0, 0),
         (2, 62),
@@ -193,10 +201,24 @@ def add_phase_boundaries(ax):
     ax.plot(*zip(*blue_dots_2), marker="o", c="blue")
 
 
-def plot_phase_diagram(model, n_samples=250, zVU=1.0):
+def plot_phase_diagram(
+    mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
+    n_samples: int = 250,
+    zVU: int = 1.0,
+) -> dict[str, dict[str, plt.Figure]]:
+    """Plot the phase diagram of the Bose-Hubbard model.
+
+    Args:
+        mapping: Model to use for prediction. Returns a dictionary of observables.
+        n_samples: Number of samples in each dimension.
+        zVU: Value of zVU.
+
+    Returns:
+        Dictionary of figures.
+    """
     MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples,
                                                     zVU=zVU)
-    outputs = model_predict(model, inputs, batch_size=512)
+    outputs = mapping(inputs)
 
     reductions = {
         "mean": lambda x: x.mean(dim=(-1, -2)),
@@ -208,9 +230,7 @@ def plot_phase_diagram(model, n_samples=250, zVU=1.0):
 
     figures_out = defaultdict(dict)
 
-    for obs in model.observables:
-        output_obs = outputs[:, model.observables.index(obs)]
-
+    for obs, output_obs in outputs.items():
         for name, reduction in reductions.items():
             figures_out[obs][name] = plt.figure()
 
@@ -243,76 +263,3 @@ def plot_phase_diagram(model, n_samples=250, zVU=1.0):
             plt.close()
 
     return figures_out
-
-
-def plot_phase_diagram_mu_cut(
-    model,
-    zVU: float = 1.0,
-    ztU: float = 0.25,
-    muU_min: float = 0.0,
-    muU_max: float = 3.0,
-    L: int = 16,
-    muU_num_steps: int = 50,
-):
-    path = REPO_DATA_ROOT / "mu_cut" / f"{zVU}/{ztU}/{L}"
-
-    ds = BoseHubbardDataset(
-        data_dir=path,
-        clean=True,
-        max_density_error=0.015,
-        reload=True,
-        verbose=False,
-    )
-
-    muU = np.linspace(muU_min, muU_max, muU_num_steps)
-    inputs = torch.stack(
-        [
-            net_input_dimless_const_parameters(
-                muU=np.full((L, L), fill_value=_muU),
-                ztU=ztU,
-                zVU=zVU,
-                cb_projection=True,
-                target_density=np.ones((L, L)),
-            ) for _muU in muU
-        ],
-        dim=0,
-    )
-    outputs = model_predict(model, inputs, batch_size=512)
-
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-
-    try:
-        muU_qmc, n_qmc = zip(*[(ds.phase_diagram_position(i)[1], ds_i[1][0])
-                               for i, ds_i in enumerate(ds)])
-
-        ax.scatter(muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))],
-                   c="black",
-                   label="QMC")
-        ax.scatter(muU_qmc, [n_qmc[i].min() for i in range(len(n_qmc))],
-                   c="black",
-                   label="QMC")
-    except:
-        pass
-
-    # max
-    ax.scatter(
-        muU,
-        outputs.cpu()[:, 0].numpy().max(axis=(-1, -2)),
-        c="red",
-        label="NN",
-    )
-
-    ax.scatter(
-        muU,
-        outputs.cpu()[:, 0].numpy().min(axis=(-1, -2)),
-        c="red",
-        label="NN",
-    )
-
-    plt.legend()
-    plt.xlabel(r"$\mu/U$")
-    plt.ylabel(r"$n$")
-    plt.tight_layout()
-    plt.close()
-
-    return {"mu_cut": fig}

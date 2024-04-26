@@ -10,7 +10,7 @@ from dmb.paths import REPO_ROOT
 
 
 @hydra.main(
-    version_base="1.2",
+    version_base="1.3",
     config_path=str(REPO_ROOT / "dmb/experiments/configs"),
     config_name="train.yaml",
 )
@@ -18,13 +18,12 @@ def train(cfg: DictConfig):
 
     pl.seed_everything(cfg.seed, workers=True)
 
-    callbacks: list[Callback] = hydra.utils.instantiate(cfg.callbacks)
-    logger = hydra.utils.instantiate(cfg.logger)
+    callbacks = list(hydra.utils.instantiate(cfg.callbacks).values())
+    logger = list(hydra.utils.instantiate(cfg.logger).values())
 
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer,
                                                logger=logger,
-                                               callbacks=list(
-                                                   callbacks.values()))
+                                               callbacks=callbacks)
     lit_model: LightningModule = hydra.utils.instantiate(cfg.lit_model)
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.datamodule)
 

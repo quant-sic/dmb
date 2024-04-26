@@ -11,12 +11,12 @@
 !Makefile
 !poetry.lock
 
-!data/test/*
-
 !.gitignore
 
-dmb_old
+/data
 /logs
+
+!data/test/*
 
 .venv
 .trunk

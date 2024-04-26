@@ -1,13 +1,24 @@
 import math
-from typing import Tuple, Union
 
 import numpy as np
 import torch
 
+__all__ = [
+    "get_ckeckerboard_projection",
+    "get_nn_input",
+    "get_nn_input_dimless_const_parameters",
+    "get_dimless_from_net_input",
+]
 
-def get_ckeckerboard_projection(target_density: torch.Tensor):
-    """
-    Determines and returns the checkerboard version (out of two possible) that has the largest correlation with the input mu.
+
+def get_ckeckerboard_projection(target_density: torch.Tensor) -> torch.Tensor:
+    """Determines and returns the checkerboard version (out of two possible) that has the largest correlation with the input mu.
+
+    Args:
+        target_density: Target density.
+
+    Returns:
+        Checkerboard projection.
     """
 
     if len(target_density.shape) == 1:
@@ -38,13 +49,13 @@ def get_ckeckerboard_projection(target_density: torch.Tensor):
         return cb_2
 
 
-def net_input(
-    mu: Union[torch.Tensor, np.ndarray],
-    U_on: Union[torch.Tensor, np.ndarray, float],
-    V_nn: Union[torch.Tensor, np.ndarray, float],
+def get_nn_input(
+    mu: torch.Tensor | np.ndarray,
+    U_on: torch.Tensor | np.ndarray | float,
+    V_nn: torch.Tensor | np.ndarray | float,
     cb_projection: bool = True,
-    target_density: Union[torch.Tensor, np.ndarray] = None,
-):
+    target_density: torch.Tensor | np.ndarray = None,
+) -> torch.Tensor:
     # convert to torch.Tensor if necessary
     if isinstance(mu, np.ndarray):
         mu = torch.from_numpy(mu).float()
@@ -111,13 +122,13 @@ def net_input(
     return inputs
 
 
-def net_input_dimless_const_parameters(
-    muU: Union[torch.Tensor, np.ndarray],
+def get_nn_input_dimless_const_parameters(
+    muU: torch.Tensor | np.ndarray,
     ztU: float,
     zVU: float,
     cb_projection: bool = True,
-    target_density: Union[torch.Tensor, np.ndarray] = None,
-):
+    target_density: torch.Tensor | np.ndarray = None,
+) -> torch.Tensor:
     # convert to torch.Tensor if necessary
     if isinstance(muU, np.ndarray):
         muU = torch.from_numpy(muU).float()
@@ -156,9 +167,10 @@ def net_input_dimless_const_parameters(
     return inputs
 
 
-def dimless_from_net_input(
+def get_dimless_from_net_input(
     inputs: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Converts network input to dimensionless parameters."""
     # split
     mu, cb, U_on, V_nn = torch.split(inputs, 1, dim=1)
 
