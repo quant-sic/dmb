@@ -1,6 +1,0 @@
-defaults:
-  - split: from_dataset
-  - paths: default
-  - _self_
-
-file_path: ${paths.data_dir}/splits/${now:%Y-%m-%d}_${now:%H-%M-%S}.json

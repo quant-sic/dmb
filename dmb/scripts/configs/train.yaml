@@ -6,7 +6,6 @@ defaults:
   - trainer: default
   - callbacks: default
   
-  # these defaults are overwritten in experiment -> might be better to remove the overwrite prefix in experiment
   - datamodule: bose_hubbard_2d
   - lit_model: lit_dmb_model
 

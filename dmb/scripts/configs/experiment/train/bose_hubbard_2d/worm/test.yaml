@@ -8,26 +8,33 @@ defaults:
   - override /trainer: default
   - _self_
 
+exp_name: "bose_hubbard_2d/worm/all_obs/mse/softplus"
 
 seed: 12345
 
 trainer:
-  max_epochs: 50
-
-
-exp_name: "bose_hubbard_2d/worm/se_cnn/all_obs/mse/softplus"
+  max_epochs: 1
+  accumulate_grad_batches: 4
+  precision: 16-mixed
+  deterministic: False
+  val_check_interval: 5
 
 datamodule:
 
   batch_size: 1024
 
+  split:
+    _target_: dmb.data.split.Split.from_file
+    file_path: ${paths.data_dir}/splits/bose_hubbard_2d/random/2024-04-15_19-05-07.json
+
   dataset:
     _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbardDataset
-    clean: False
-    verbose: True
+    clean: True
+    reload: False
+    verbose: False
+    check_readable: True
     transforms: 
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2DTransforms
-      base_augmentations: null
       train_augmentations: 
         _target_: torchvision.transforms.transforms.Compose
         transforms: 
@@ -70,4 +77,4 @@ lit_model:
 
   loss:
     _target_: dmb.model.loss.MSELoss
-    reduction: "mean"
+    reduction: mean

@@ -1,0 +1,3 @@
+_target_: dmb.data.split.Split.from_file
+
+file_path: ${paths.data_dir}/splits/bose_hubbard_2d/random/2024-04-15_19-05-07.json

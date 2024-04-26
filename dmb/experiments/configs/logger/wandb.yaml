@@ -1,3 +1,0 @@
-wandb:
-  _target_: lightning.pytorch.loggers.WandbLogger
-  log_model: all

@@ -18,15 +18,20 @@ from dmb.logging import create_logger
 log = create_logger(__name__)
 
 
-def get_simulation_valid(simulation_dir: Path,
-                         redo: bool = False,
-                         log_fn: callable = None) -> bool:
-    try:
-        sim = WormSimulation.from_dir(simulation_dir)
-    except (OSError, KeyError, ValueError):
-        if log_fn:
-            log_fn(f"Could not load simulation from {simulation_dir}", "error")
-        return False
+def get_simulation_valid(
+    simulation_dir: Path,
+    redo: bool = False,
+    log_fn: callable = None,
+    check_readable: bool = True,
+) -> bool:
+
+    if check_readable:
+        try:
+            sim = WormSimulation.from_dir(simulation_dir)
+        except (OSError, KeyError, ValueError):
+            if log_fn:
+                log_fn(f"Could not load simulation from {simulation_dir}", "error")
+            return False
 
     if "clean" in sim.record and not sim.record["clean"] and not redo:
         return False
@@ -57,21 +62,19 @@ def filter_by_error(
     try:
         if recalculate_errors:
             if log_fn:
-                log_fn(f"Recalculating errors for {simulation.save_dir}",
-                       "info")
+                log_fn(f"Recalculating errors for {simulation.save_dir}", "info")
             if len(simulation.record["steps"]) == 0:
                 simulation.record["steps"] = [{"error": None, "tau_max": None}]
 
-            simulation.record["steps"][-1][
-                "error"] = simulation.max_density_error
+            simulation.record["steps"][-1]["error"] = simulation.max_density_error
             simulation.record["steps"][-1]["tau_max"] = simulation.max_tau_int
 
-        return (simulation.record["steps"][-1]["error"] <= max_density_error
-                ) and (simulation.record["steps"][-1]["tau_max"] > 0)
+        return (simulation.record["steps"][-1]["error"] <= max_density_error) and (
+            simulation.record["steps"][-1]["tau_max"] > 0
+        )
     except (IndexError, TypeError, KeyError) as e:
         if log_fn:
-            log_fn(f"Error {e} During error filtering for {simulation}",
-                   "error")
+            log_fn(f"Error {e} During error filtering for {simulation}", "error")
         return False
 
 
@@ -102,11 +105,14 @@ class _PhaseDiagramSamplesMixin:
     ):
         for idx, _ in enumerate(self):
             zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
-            L_i = WormSimulation.from_dir(
-                self.sim_dirs[idx]).input_parameters.Lx
+            L_i = WormSimulation.from_dir(self.sim_dirs[idx]).input_parameters.Lx
 
-            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
-                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
+            if (
+                abs(ztU_i - ztU) <= ztU_tol
+                and abs(muU_i - muU) <= muU_tol
+                and abs(zVU_i - zVU) <= zVU_tol
+                and L_i == L
+            ):
                 return True
 
         return False
@@ -123,11 +129,14 @@ class _PhaseDiagramSamplesMixin:
     ):
         for idx, _ in enumerate(self):
             zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
-            L_i = WormSimulation.from_dir(
-                self.sim_dirs[idx]).input_parameters.Lx
+            L_i = WormSimulation.from_dir(self.sim_dirs[idx]).input_parameters.Lx
 
-            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
-                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
+            if (
+                abs(ztU_i - ztU) <= ztU_tol
+                and abs(muU_i - muU) <= muU_tol
+                and abs(zVU_i - zVU) <= zVU_tol
+                and L_i == L
+            ):
                 return self[idx]
 
         return None
@@ -158,11 +167,11 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
     include_tune_dirs: bool = False
     recalculate_errors: bool = False
     delete_unreadable: bool = False
+    check_readable: bool = True
 
     def __attrs_post_init__(self):
         self.data_dir = Path(self.data_dir).resolve()
-        log.info(
-            f"Loading {self.__class__.__name__} dataset from {self.data_dir}")
+        log.info(f"Loading {self.__class__.__name__} dataset from {self.data_dir}")
 
     @cached_property
     def sim_dirs(self):
@@ -173,8 +182,7 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                 for directory in all_simulation_directories
             ]
 
-        log.info(
-            f"Found {len(all_simulation_directories)} simulation directories.")
+        log.info(f"Found {len(all_simulation_directories)} simulation directories.")
 
         if self.clean:
             clean_simulation_directories = self._clean_sim_dirs(
@@ -184,6 +192,7 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                 max_density_error=self.max_density_error,
                 recalculate_errors=self.recalculate_errors,
                 delete_unreadable=self.delete_unreadable,
+                check_readable=self.check_readable,
             )
         else:
             clean_simulation_directories = all_simulation_directories
@@ -202,13 +211,18 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
         max_density_error: float | None = None,
         recalculate_errors: bool = False,
         delete_unreadable: bool = False,
+        check_readable: bool = True,
     ):
 
         valid_sim_dirs = ProgressParallel(
+            n_jobs=10,
             total=len(sim_dirs),
             desc="Filtering valid simulations",
-            use_tqdm=verbose)(delayed(get_simulation_valid)(
-                sim_dir, redo=redo, log_fn=self.log) for sim_dir in sim_dirs)
+            use_tqdm=verbose,
+        )(
+            delayed(get_simulation_valid)(sim_dir, redo=redo, log_fn=self.log)
+            for sim_dir in sim_dirs
+        )
 
         if delete_unreadable:
             for sim_dir, valid in zip(sim_dirs, valid_sim_dirs):
@@ -216,25 +230,42 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                     self.log(f"Deleting {sim_dir}")
                     shutil.rmtree(sim_dir)
 
-        sim_dirs = list(itertools.compress(
-            sim_dirs,
-            valid_sim_dirs,
-        ))
+        sim_dirs = list(
+            itertools.compress(
+                sim_dirs,
+                valid_sim_dirs,
+            )
+        )
 
         if max_density_error is not None:
             sim_dirs = list(
                 itertools.compress(
                     sim_dirs,
-                    ProgressParallel(
-                        total=len(sim_dirs),
-                        desc="Filtering by error",
-                        use_tqdm=verbose)(delayed(filter_by_error)(
+                    [
+                        filter_by_error(
                             sim_dir,
                             max_density_error=max_density_error,
                             recalculate_errors=recalculate_errors,
                             log_fn=self.log,
-                        ) for sim_dir in sim_dirs),
-                ))
+                        )
+                        for sim_dir in sim_dirs
+                    ],
+                    # ProgressParallel(
+                    #     n_jobs=10,
+                    #     total=len(sim_dirs),
+                    #     desc="Filtering by error",
+                    #     use_tqdm=verbose,
+                    # )(
+                    #     delayed(filter_by_error)(
+                    #         sim_dir,
+                    #         max_density_error=max_density_error,
+                    #         recalculate_errors=recalculate_errors,
+                    #         log_fn=self.log,
+                    #     )
+                    #     for sim_dir in sim_dirs
+                    # ),
+                )
+            )
 
         return sim_dirs
 
@@ -265,24 +296,29 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                 sim = WormSimulation.from_dir(sim_dir)
 
                 saved_observables = (
-                    sim.observables.observable_names["primary"] +
-                    sim.observables.observable_names["derived"])
+                    sim.observables.observable_names["primary"]
+                    + sim.observables.observable_names["derived"]
+                )
 
                 expectation_values = [
                     sim.observables.get_expectation_value(obs_type, obs_name)
                     for obs_type in ["primary", "derived"]
                     for obs_name in sim.observables.observable_names[obs_type]
                 ]
-                expanded_expectation_values = [(np.full(
-                    shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
-                    fill_value=obs,
-                ) if obs.ndim == 0 else obs) for obs in expectation_values]
+                expanded_expectation_values = [
+                    (
+                        np.full(
+                            shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
+                            fill_value=obs,
+                        )
+                        if obs.ndim == 0
+                        else obs
+                    )
+                    for obs in expectation_values
+                ]
                 # stack observables
                 outputs = torch.stack(
-                    [
-                        torch.from_numpy(obs)
-                        for obs in expanded_expectation_values
-                    ],
+                    [torch.from_numpy(obs) for obs in expanded_expectation_values],
                     dim=0,
                 )
 
@@ -292,7 +328,8 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                     sim.input_parameters.V_nn,
                     cb_projection=True,
                     target_density=sim.observables.get_expectation_value(
-                        "primary", "density"),
+                        "primary", "density"
+                    ),
                 )
 
                 # save to .npy files
@@ -311,9 +348,9 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
                 saved_observables = sim.record["saved_observables"]
 
             # filter observables
-            outputs = outputs[[
-                saved_observables.index(obs) for obs in self.observables
-            ]]
+            outputs = outputs[
+                [saved_observables.index(obs) for obs in self.observables]
+            ]
 
             self.loaded_samples[idx] = (inputs, outputs)
 
@@ -322,8 +359,7 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
     def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
         """Get sample by index."""
         inputs, outputs = self.load_sample(idx)
-        inputs_transformed, outputs_transformed = self.transforms(
-            (inputs, outputs))
+        inputs_transformed, outputs_transformed = self.transforms((inputs, outputs))
 
         return inputs_transformed, outputs_transformed
 
@@ -333,5 +369,5 @@ class BoseHubbardDataset(IdDataset, _PhaseDiagramSamplesMixin):
     def get_indices_from_ids(self, ids):
         contained_ids = set([d.name for d in self.sim_dirs]).intersection(ids)
         return tuple(
-            self.sim_dirs.index(self.data_dir / id)
-            for id in sorted(contained_ids))
+            self.sim_dirs.index(self.data_dir / id) for id in sorted(contained_ids)
+        )

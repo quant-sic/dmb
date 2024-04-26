@@ -13,7 +13,7 @@ lr_monitor:
   log_momentum: False
 
 plotting:
-  _target_: dmb.experiments.callbacks.PlottingCallback
+  _target_: dmb.scripts.callbacks.PlottingCallback
   plot_interval: 10
   
 # swa:

@@ -33,7 +33,6 @@ class BoseHubbardDataModule(pl.LightningDataModule):
         return chain_fns(collate_fns)
 
     def setup(self, stage: Literal["fit", "test", "predict"]) -> None:
-
         self.stage_subsets = self.split.apply(self.dataset)
 
         if stage == "fit":

@@ -13,19 +13,17 @@ log = create_logger(__name__)
 
 if __name__ == "__main__":
     ds = BoseHubbardDataset(
-        data_dir=REPO_DATA_ROOT / "bose_hubbard_2d",
+        data_dir=REPO_DATA_ROOT / "bose_hubbard_2d/random",
         transforms=BoseHubbard2DTransforms(),
         clean=True,
-        # reload=True,
+        reload=True,
         verbose=True,
         max_density_error=0.015,
         # recalculate_errors=True,
     )
 
     # parallelized load_sample with tqdm progress bar and joblib, reload=True
-    with ProgressParallel(n_jobs=10, total=len(ds)) as parallel:
-        data = parallel(
-            delayed(partial(ds.load_sample, reload=True))(i)
-            for i in tqdm(range(len(ds))))
+    for i in tqdm(range(len(ds))):
+        ds.load_sample(i, reload=True)
 
-    log.info("len(data): %s", len(data))
+    log.info("len(data): %s", len(ds))
