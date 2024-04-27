@@ -9,11 +9,13 @@ split:
   _target_: dmb.data.split.Split.from_dataset
 
   dataset:
-    _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbardDataset
+    _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dDataset
     
-    data_dir: ${paths.data_dir}/bose_hubbard_2d/random
-    max_density_error: 0.015
-    reload: False
+    dataset_dir_path: 
+      _target_: pathlib.Path
+      _args_: 
+        - ${paths.data_dir}/datasets/bose_hubbard_2d/random/default
+
     transforms: 
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
 
@@ -22,5 +24,5 @@ split:
     val: 0.01
     test: 0.01
 
-file_path: ${paths.data_dir}/splits/bose_hubbard_2d/random/${now:%Y-%m-%d}_${now:%H-%M-%S}.json
+file_path: ${paths.data_dir}/datasets/bose_hubbard_2d/random/default/splits/${now:%Y-%m-%d}_${now:%H-%M-%S}.json
 exp_name: bose_hubbard_2d/random

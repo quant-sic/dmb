@@ -4,7 +4,7 @@ import lightning.pytorch as pl
 from attrs import define
 from torch.utils.data import DataLoader
 
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
 from dmb.data.split import Split
 from dmb.data.utils import chain_fns, collate_sizes
 from dmb.logging import create_logger
@@ -13,9 +13,9 @@ log = create_logger(__name__)
 
 
 @define(hash=False, eq=False)
-class BoseHubbardDataModule(pl.LightningDataModule):
+class BoseHubbard2dDataModule(pl.LightningDataModule):
 
-    dataset: BoseHubbardDataset
+    dataset: BoseHubbard2dDataset
     split: Split
     batch_size: int
     num_workers: int
@@ -25,7 +25,7 @@ class BoseHubbardDataModule(pl.LightningDataModule):
         super().__init__()
 
     def __attrs_post_init__(self):
-        self.stage_subsets: dict[str, BoseHubbardDataset]
+        self.stage_subsets: dict[str, BoseHubbard2dDataset]
 
     def get_collate_fn(self) -> callable:
         collate_fns: list[callable] = [collate_sizes]

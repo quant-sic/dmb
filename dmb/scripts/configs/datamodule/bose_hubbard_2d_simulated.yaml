@@ -1,4 +1,4 @@
-_target_: dmb.data.bose_hubbard_2d.simulated.datamodule.SiumlatedBoseHubbardDataModule
+_target_: dmb.data.bose_hubbard_2d.simulated.datamodule.SiumlatedBoseHubbard2dDataModule
 
 batch_size: 512
 num_workers: 4

@@ -21,18 +21,19 @@ trainer:
 
 datamodule:
 
-  batch_size: 1024
+  batch_size: 128
 
   split:
     _target_: dmb.data.split.Split.from_file
-    file_path: ${paths.data_dir}/splits/bose_hubbard_2d/random/2024-04-15_19-05-07.json
+    file_path: ${paths.data_dir}/datasets/bose_hubbard_2d/random/default/splits/2024-04-28_01-06-31.json
 
   dataset:
-    _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbardDataset
-    clean: True
-    reload: False
-    verbose: False
-    check_readable: True
+    _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dDataset
+    dataset_dir_path: 
+      _target_: pathlib.Path
+      _args_: 
+        - ${paths.data_dir}/datasets/bose_hubbard_2d/random/default
+
     transforms: 
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
       train_augmentations:           

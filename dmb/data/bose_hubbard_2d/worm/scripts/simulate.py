@@ -8,9 +8,12 @@ import numpy as np
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
-from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
-    WormSimulation, WormSimulationRunner
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
+from dmb.data.bose_hubbard_2d.worm.simulation import (
+    WormInputParameters,
+    WormSimulation,
+    WormSimulationRunner,
+)
 from dmb.data.dispatching import AutoDispatcher
 from dmb.logging import create_logger
 
@@ -28,22 +31,25 @@ def get_missing_samples(
     tolerance_muU: float = 0.01,
     existing_samples_max_density_error: float = 0.015,
 ):
-    bh_dataset = BoseHubbardDataset(
+    bh_dataset = BoseHubbard2dDataset(
+        dataset_dir_path=target_dir,
         transforms=BoseHubbard2dTransforms(),
-        data_dir=target_dir,
-        observables=["density"],
-        clean=True,
-        reload=True,
-        verbose=False,
-        max_density_error=existing_samples_max_density_error,
-        include_tune_dirs=False,
+        # data_dir=target_dir,
+        # observables=["density"],
+        # clean=True,
+        # reload=True,
+        # verbose=False,
+        # max_density_error=existing_samples_max_density_error,
+        # include_tune_dirs=False,
     )
 
     # if lists, they must be of the same length
-    if (not len({
-            len(x)
-            for x in filter(lambda y: isinstance(y, list), [L, ztU, zVU, muU])
-    }) == 1):
+    if (
+        not len(
+            {len(x) for x in filter(lambda y: isinstance(y, list), [L, ztU, zVU, muU])}
+        )
+        == 1
+    ):
         raise ValueError("Lists must be of the same length")
 
     # if none is a list, make them all lists
@@ -54,18 +60,20 @@ def get_missing_samples(
         muU = [muU]
 
     missing_tuples = []
-    for L_i, ztU_i, zVU_i, muU_i in zip(*[
-            x if isinstance(x, list) else itertools.cycle((x, ))
+    for L_i, ztU_i, zVU_i, muU_i in zip(
+        *[
+            x if isinstance(x, list) else itertools.cycle((x,))
             for x in [L, ztU, zVU, muU]
-    ]):
+        ]
+    ):
         if not bh_dataset.has_phase_diagram_sample(
-                L=L_i,
-                ztU=ztU_i,
-                zVU=zVU_i,
-                muU=muU_i,
-                ztU_tol=tolerance_ztU,
-                zVU_tol=tolerance_zVU,
-                muU_tol=tolerance_muU,
+            L=L_i,
+            ztU=ztU_i,
+            zVU=zVU_i,
+            muU=muU_i,
+            ztU_tol=tolerance_ztU,
+            zVU_tol=tolerance_zVU,
+            muU_tol=tolerance_muU,
         ):
             missing_tuples.append((L_i, ztU_i, zVU_i, muU_i))
 
@@ -85,15 +93,17 @@ def draw_random_config(
     mu_offset_max: float = 3.0,
 ):
     L = np.random.randint(low=L_half_min, high=L_half_max) * 2
-    U_on = (np.random.uniform(low=U_on_min, high=U_on_max)**(-1)) * 4
+    U_on = (np.random.uniform(low=U_on_min, high=U_on_max) ** (-1)) * 4
     V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
     mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
     power, V_trap = get_random_trapping_potential(
-        shape=(L, L), desired_abs_max=abs(mu_offset) / 2)
+        shape=(L, L), desired_abs_max=abs(mu_offset) / 2
+    )
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
-    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
-                                axis=0).repeat(2, axis=0)
+    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn), axis=0).repeat(
+        2, axis=0
+    )
     t_hop_array = np.ones((2, L, L))
 
     mu = mu_offset + V_trap
@@ -103,13 +113,14 @@ def draw_random_config(
 
 def draw_uniform_config():
     L = np.random.randint(low=4, high=10) * 2
-    U_on = (np.random.uniform(low=0.05, high=1)**(-1)) * 4
+    U_on = (np.random.uniform(low=0.05, high=1) ** (-1)) * 4
     V_nn = np.random.uniform(low=0.75 / 4, high=1.75 / 4) * U_on
     mu_offset = np.random.uniform(low=-0.5, high=3.0) * U_on
 
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
-    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
-                                axis=0).repeat(2, axis=0)
+    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn), axis=0).repeat(
+        2, axis=0
+    )
     t_hop_array = np.ones((2, L, L))
 
     mu = mu_offset * np.ones(shape=(L, L))
@@ -169,4 +180,5 @@ async def simulate(
 
     await sim_run.tune_nmeasure2(tau_threshold=tune_tau_max_threshold)
     await sim_run.run_iterative_until_converged(
-        max_abs_error_threshold=run_max_density_error)
+        max_abs_error_threshold=run_max_density_error
+    )

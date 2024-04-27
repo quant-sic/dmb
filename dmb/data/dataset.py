@@ -10,13 +10,10 @@ from torch.utils.data import Dataset
 class IdDataset(Dataset, ABC):
 
     @abstractmethod
-    def get_ids_from_indices(self, indices: tuple[int,
-                                                  ...]) -> tuple[str, ...]:
-        ...
+    def get_ids_from_indices(self, indices: tuple[int, ...]) -> tuple[str, ...]: ...
 
     @abstractmethod
-    def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]:
-        ...
+    def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]: ...
 
 
 @define
@@ -24,7 +21,7 @@ class DMBDataset(IdDataset):
     """Dataset for DMB data.
 
     Expected directory structure:
-    
+
         - 'samples': Directory containing the samples.
             - Each sample is stored in a separate directory.
             - The directory name is the sample ID.
@@ -37,16 +34,19 @@ class DMBDataset(IdDataset):
     """
 
     dataset_dir_path: Path
-    transforms: Callable[[tuple[torch.Tensor, torch.Tensor]],
-                         tuple[torch.Tensor, torch.Tensor]]
+    transforms: Callable[
+        [tuple[torch.Tensor, torch.Tensor]], tuple[torch.Tensor, torch.Tensor]
+    ]
 
     def __attrs_post_init__(self):
         self.sample_ids = [
-            path.name for path in (self.dataset_dir_path/"samples").iterdir()
+            path.name
+            for path in (self.dataset_dir_path / "samples").iterdir()
             if path.is_dir()
         ]
         self.sample_id_paths = [
-            self.dataset_dir_path/"samples" / sample_id for sample_id in self.sample_ids
+            self.dataset_dir_path / "samples" / sample_id
+            for sample_id in self.sample_ids
         ]
 
     def __len__(self) -> int:
@@ -59,15 +59,11 @@ class DMBDataset(IdDataset):
 
         inputs_transformed, outputs_transformed = self.transforms((inputs, outputs))
 
-        return {
-            "inputs": inputs_transformed,
-            "outputs": outputs_transformed,
-        }
+        return inputs_transformed, outputs_transformed
 
-    def get_ids_from_indices(self, indices: tuple[int,
-                                                  ...]) -> tuple[str, ...]:
+    def get_ids_from_indices(self, indices: tuple[int, ...]) -> tuple[str, ...]:
         return tuple(self.sample_ids[idx] for idx in indices)
 
     def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]:
-        contained_ids = set([d.name for d in self.sim_dirs]).intersection(ids)
+        contained_ids = set(self.sample_ids).intersection(ids)
         return tuple(self.sample_ids.index(id) for id in contained_ids)
