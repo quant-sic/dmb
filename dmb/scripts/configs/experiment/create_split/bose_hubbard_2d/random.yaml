@@ -15,7 +15,7 @@ split:
     max_density_error: 0.015
     reload: False
     transforms: 
-      _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2DTransforms
+      _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
 
   split_fractions: 
     train: 0.98

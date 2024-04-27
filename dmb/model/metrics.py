@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import torch
 import torchmetrics
 
@@ -19,7 +21,7 @@ class MSE(torchmetrics.Metric):
         return self.mse.compute()
 
     def update_impl(self, preds: torch.Tensor, target: torch.Tensor) -> None:
-        self.mse.update(preds[valid_mask], target[valid_mask])
+        self.mse.update(preds, target)
 
     def update(
         self,

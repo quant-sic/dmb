@@ -1,11 +1,8 @@
 import functools
-import itertools
 from collections.abc import Mapping
-from pathlib import Path
 from typing import Any, Literal, cast
 
 import lightning.pytorch as pl
-import matplotlib.pyplot as plt
 import torch
 import torchmetrics
 from attrs import define

@@ -1,36 +1,35 @@
-import itertools
-import shutil
-from functools import cached_property
+"""Dataset for the Bose-Hubbard model."""
+
 from pathlib import Path
 
-import numpy as np
-import torch
 from attrs import define
-from joblib import delayed
 
-from dmb.data.bose_hubbard_2d.nn_input import get_nn_input
-from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2DTransforms
-from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
+from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
 from dmb.data.dataset import DMBDataset
-from dmb.io import ProgressParallel
 from dmb.logging import create_logger
+import json
 
 log = create_logger(__name__)
 
+@define
+class BoseHubbard2dDataset(DMBDataset):
+    """Dataset for the Bose-Hubbard model."""
 
-class _PhaseDiagramSamplesMixin:
+    dataset_dir_path: Path
+    transforms: BoseHubbard2dTransforms
 
-    def phase_diagram_position(self, idx):
-        pars = WormSimulation.from_dir(self.sim_dirs[idx]).input_parameters
-        U_on = pars.U_on
-        mu = float(pars.mu_offset)
-        J = pars.t_hop
-        V_nn = pars.V_nn
+    def get_metadata(self, idx):
+        with open(self.sample_id_paths[idx] / "metadata.json", "r") as f:
+            return json.load(f)
+        
+    def get_phase_diagram_position(self, idx):
+        
+        metadata = self.get_metadata(idx)
 
         return (
-            4 * V_nn[0, 0, 0] / U_on[0, 0],
-            mu / U_on[0, 0],
-            4 * J[0, 0, 0] / U_on[0, 0],
+            4 * metadata["V_nn"]/metadata["U_on"],
+            metadata["mu"]/metadata["U_on"],
+            4 * metadata["J"]/metadata["U_on"],
         )
 
     def has_phase_diagram_sample(
@@ -44,15 +43,13 @@ class _PhaseDiagramSamplesMixin:
         zVU_tol: float = 0.01,
     ):
         for idx, _ in enumerate(self):
-            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
-            L_i = WormSimulation.from_dir(self.sim_dirs[idx]).input_parameters.Lx
+            zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
+            
+            metadata = self.get_metadata(idx)
+            L_i = metadata["L"]
 
-            if (
-                abs(ztU_i - ztU) <= ztU_tol
-                and abs(muU_i - muU) <= muU_tol
-                and abs(zVU_i - zVU) <= zVU_tol
-                and L_i == L
-            ):
+            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
+                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
                 return True
 
         return False
@@ -68,26 +65,12 @@ class _PhaseDiagramSamplesMixin:
         zVU_tol: float = 0.01,
     ):
         for idx, _ in enumerate(self):
-            zVU_i, muU_i, ztU_i = self.phase_diagram_position(idx)
-            L_i = WormSimulation.from_dir(self.sim_dirs[idx]).input_parameters.Lx
+            zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
+            metadata = self.get_metadata(idx)
+            L_i = metadata["L"]
 
-            if (
-                abs(ztU_i - ztU) <= ztU_tol
-                and abs(muU_i - muU) <= muU_tol
-                and abs(zVU_i - zVU) <= zVU_tol
-                and L_i == L
-            ):
+            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
+                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
                 return self[idx]
 
         return None
-
-
-@define
-class BoseHubbardDataset(DMBDataset, _PhaseDiagramSamplesMixin):
-    """Dataset for the Bose-Hubbard model."""
-
-    data_dir: Path | str
-    transforms: BoseHubbard2DTransforms
-
-    def __attrs_post_init__(self):
-        super().__init__(self.data_dir, self.transforms)

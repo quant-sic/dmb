@@ -2,7 +2,7 @@ _target_: dmb.data.bose_hubbard_2d.worm.datamodule.BoseHubbardDataModule
 
 dataset:
   _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbardDataset
-  transforms: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2DTransforms
+  transforms: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
   data_dir: ${paths.data_dir}/bose_hubbard_2d/random
 
 split:

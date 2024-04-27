@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2DTransforms
+from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbardDataset
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
@@ -29,7 +29,7 @@ def get_missing_samples(
     existing_samples_max_density_error: float = 0.015,
 ):
     bh_dataset = BoseHubbardDataset(
-        transforms=BoseHubbard2DTransforms(),
+        transforms=BoseHubbard2dTransforms(),
         data_dir=target_dir,
         observables=["density"],
         clean=True,
