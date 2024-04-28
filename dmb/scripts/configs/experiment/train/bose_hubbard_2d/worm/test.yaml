@@ -25,7 +25,7 @@ datamodule:
 
   split:
     _target_: dmb.data.split.Split.from_file
-    file_path: ${paths.data_dir}/datasets/bose_hubbard_2d/random/default/splits/2024-04-28_01-06-31.json
+    file_path: ${paths.data_dir}/datasets/bose_hubbard_2d/random/default/splits/2024-04-28_11-12-57.json
 
   dataset:
     _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dDataset

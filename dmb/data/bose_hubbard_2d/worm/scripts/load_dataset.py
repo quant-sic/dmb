@@ -310,6 +310,11 @@ if __name__ == "__main__":
         default=0.015,
         help="Maximum density error to include in the dataset.",
     )
+    parser.add_argument(
+        "--include-tune-dirs",
+        action="store_true",
+        help="Include the tune directories in the dataset.",
+    )
     args = parser.parse_args()
 
     load_dataset_simulations(args.simulations_dir, args.dataset_save_path)
