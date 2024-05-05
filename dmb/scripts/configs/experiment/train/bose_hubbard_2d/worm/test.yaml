@@ -13,7 +13,7 @@ exp_name: "bose_hubbard_2d/worm/all_obs/mse/softplus"
 seed: 12345
 
 trainer:
-  max_epochs: 1
+  max_epochs: 100
   accumulate_grad_batches: 4
   precision: 16-mixed
   deterministic: False
@@ -21,7 +21,7 @@ trainer:
 
 datamodule:
 
-  batch_size: 128
+  batch_size: 1024
 
   split:
     _target_: dmb.data.split.Split.from_file

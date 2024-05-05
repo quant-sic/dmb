@@ -69,7 +69,7 @@ def create_wedding_cake_plot(
         dim=0,
     )
 
-    outputs = mapping(inputs)
+    outputs = mapping(inputs=inputs)
     figures_axes = defaultdict(lambda: plt.subplots(1, 1, figsize=(6, 6)))
     figures = {"wedding_cake": {}}
 
@@ -138,6 +138,8 @@ def create_box_plot(
         / f"datasets/bose_hubbard_2d/box/{zVU}/{ztU}/{L}",
         transforms=BoseHubbard2dTransforms(),
     )
+    if len(ds) == 0:
+        return {}
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities = [
@@ -168,7 +170,7 @@ def create_box_plot(
         dim=0,
     )
 
-    outputs = mapping(inputs)
+    outputs = mapping(inputs=inputs)
 
     figures_axes = defaultdict(lambda: plt.subplots(1, 1, figsize=(6, 6)))
 
@@ -263,7 +265,7 @@ def create_box_cuts_plot(
         ],
         dim=0,
     )
-    outputs = mapping(inputs)
+    outputs = mapping(inputs=inputs)
 
     nn_cuts = outputs["density"][:, cut_position]
     qmc_cuts = target_densities[:, cut_position]
@@ -337,7 +339,7 @@ def plot_phase_diagram_mu_cut(
         ],
         dim=0,
     )
-    outputs = mapping(inputs)
+    outputs = mapping(inputs=inputs)
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
@@ -361,14 +363,14 @@ def plot_phase_diagram_mu_cut(
     # max
     ax.scatter(
         muU,
-        outputs["density"].cpu().numpy().max(axis=(-1, -2)),
+        outputs["density"].max(axis=(-1, -2)),
         c="red",
         label="NN",
     )
 
     ax.scatter(
         muU,
-        outputs["density"].cpu().numpy().min(axis=(-1, -2)),
+        outputs["density"].min(axis=(-1, -2)),
         c="red",
         label="NN",
     )

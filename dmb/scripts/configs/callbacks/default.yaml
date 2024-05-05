@@ -15,6 +15,10 @@ lr_monitor:
 plotting:
   _target_: dmb.scripts.callbacks.PlottingCallback
   plot_interval: 10
+
+progress_bar:
+  _target_: lightning.pytorch.callbacks.TQDMProgressBar
+  refresh_rate: 50
   
 # swa:
 #   _target_: lightning.pytorch.callbacks.StochasticWeightAveraging

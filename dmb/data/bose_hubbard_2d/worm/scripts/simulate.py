@@ -21,7 +21,7 @@ log = create_logger(__name__)
 
 
 def get_missing_samples(
-    target_dir: Path,
+    dataset_dir: Path,
     L: int | list[int],
     ztU: float | list[float],
     zVU: float | list[float],
@@ -32,15 +32,8 @@ def get_missing_samples(
     existing_samples_max_density_error: float = 0.015,
 ):
     bh_dataset = BoseHubbard2dDataset(
-        dataset_dir_path=target_dir,
+        dataset_dir_path=dataset_dir,
         transforms=BoseHubbard2dTransforms(),
-        # data_dir=target_dir,
-        # observables=["density"],
-        # clean=True,
-        # reload=True,
-        # verbose=False,
-        # max_density_error=existing_samples_max_density_error,
-        # include_tune_dirs=False,
     )
 
     # if lists, they must be of the same length

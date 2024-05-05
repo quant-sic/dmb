@@ -238,7 +238,7 @@ def load_dataset_simulations(
         observables: List of observables to include in the dataset.
     """
     dataset_save_path.mkdir(exist_ok=True, parents=True)
-    with open(dataset_save_path / "metadata.json", "w") as f:
+    with open(dataset_save_path / "metadata.json", "w", encoding="utf-8") as f:
         json.dump(
             {
                 "observables": observables,
@@ -251,8 +251,7 @@ def load_dataset_simulations(
 
     if include_tune_dirs:
         all_simulation_directories += [
-            all_simulation_directories / "tune"
-            for directory in all_simulation_directories
+            directory / "tune" for directory in all_simulation_directories
         ]
 
     log.info(f"Found {len(all_simulation_directories)} simulation directories.")
@@ -285,7 +284,7 @@ def load_dataset_simulations(
         torch.save(inputs, sample_save_path / "inputs.pt")
         torch.save(outputs, sample_save_path / "outputs.pt")
 
-        with open(sample_save_path / "metadata.json", "w") as f:
+        with open(sample_save_path / "metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f)
 
 
@@ -317,4 +316,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    load_dataset_simulations(args.simulations_dir, args.dataset_save_path)
+    load_dataset_simulations(
+        simulations_dir=args.simulations_dir,
+        dataset_save_path=args.dataset_save_path,
+        include_tune_dirs=args.include_tune_dirs,
+        max_density_error=args.max_density_error,
+    )

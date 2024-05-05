@@ -212,14 +212,14 @@ def plot_phase_diagram(
         Dictionary of figures.
     """
     MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples, zVU=zVU)
-    outputs = mapping(inputs)
+    outputs = mapping(inputs=inputs)
 
     reductions = {
-        "mean": lambda x: x.mean(dim=(-1, -2)),
-        "std": lambda x: x.std(dim=(-1, -2)),
-        "max-min": lambda x: (x.amax(dim=(-1, -2)) - x.amin(dim=(-1, -2))),
-        "max": lambda x: x.amax(dim=(-1, -2)),
-        "min": lambda x: x.amin(dim=(-1, -2)),
+        "mean": lambda x: x.mean(axis=(-1, -2)),
+        "std": lambda x: x.std(axis=(-1, -2)),
+        "max-min": lambda x: (x.max(axis=(-1, -2)) - x.min(axis=(-1, -2))),
+        "max": lambda x: x.max(axis=(-1, -2)),
+        "min": lambda x: x.min(axis=(-1, -2)),
     }
 
     figures_out = defaultdict(dict)
@@ -231,7 +231,7 @@ def plot_phase_diagram(
             plt.pcolormesh(
                 ZTU.view(n_samples, n_samples).cpu().numpy(),
                 MUU.view(n_samples, n_samples).cpu().numpy(),
-                reduction(output_obs).view(n_samples, n_samples).cpu().numpy(),
+                reduction(output_obs).reshape(n_samples, n_samples),
             )
 
             if zVU == 1.0:

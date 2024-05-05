@@ -25,3 +25,9 @@ lr_scheduler:
   interval: epoch
   frequency: 1
 
+metrics:
+  _target_: torchmetrics.MetricCollection
+  _convert_: all # torchmetrics expects a dictionary of metrics
+  metrics:
+    mse:
+      _target_: dmb.model.metrics.MSE

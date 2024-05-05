@@ -21,7 +21,7 @@ class MSE(torchmetrics.Metric):
         return self.mse.compute()
 
     def update_impl(self, preds: torch.Tensor, target: torch.Tensor) -> None:
-        self.mse.update(preds, target)
+        self.mse.update(preds.reshape(-1), target.reshape(-1))
 
     def update(
         self,

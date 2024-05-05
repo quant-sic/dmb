@@ -39,14 +39,14 @@ class DMBDataset(IdDataset):
     ]
 
     def __attrs_post_init__(self):
+        samples_dir_path = self.dataset_dir_path / "samples"
+        samples_dir_path.mkdir(parents=True, exist_ok=True)
+
         self.sample_ids = [
-            path.name
-            for path in (self.dataset_dir_path / "samples").iterdir()
-            if path.is_dir()
+            path.name for path in samples_dir_path.iterdir() if path.is_dir()
         ]
         self.sample_id_paths = [
-            self.dataset_dir_path / "samples" / sample_id
-            for sample_id in self.sample_ids
+            samples_dir_path / sample_id for sample_id in self.sample_ids
         ]
 
     def __len__(self) -> int:

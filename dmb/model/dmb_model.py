@@ -13,10 +13,10 @@ class DMBModel(nn.Module):
     """DMB model class."""
 
     def __init__(
-            self,
-            observables: list[str],
-            module_list: Iterable[nn.Module],
-            output_modification: Iterable[nn.Module] = (),
+        self,
+        observables: list[str],
+        module_list: Iterable[nn.Module],
+        output_modification: Iterable[nn.Module] = (),
     ) -> None:
         """Initialize DMB model.
 
@@ -28,15 +28,13 @@ class DMBModel(nn.Module):
         super().__init__()
 
         self.modules_list = torch.nn.ModuleList(modules=module_list)
-        self.output_modification = torch.nn.ModuleList(
-            modules=output_modification)
+        self.output_modification = torch.nn.ModuleList(modules=output_modification)
 
         self.observables = observables
 
     def forward_single_size(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass for a single input size."""
-        for module in itertools.chain(self.modules_list,
-                                      self.output_modification):
+        for module in itertools.chain(self.modules_list, self.output_modification):
             x = module(x)
 
         return x
@@ -51,6 +49,11 @@ class DMBModel(nn.Module):
 
         return out
 
+    @property
+    def device(self) -> torch.device:
+        """Get device of the model."""
+        return next(self.parameters()).device
+
 
 def dmb_model_predict(
     model: DMBModel,
@@ -58,21 +61,15 @@ def dmb_model_predict(
     batch_size: int = 512,
 ) -> dict[str, torch.Tensor]:
     """Predict with DMB model."""
-    dl = DataLoader(inputs,
-                    batch_size=batch_size,
-                    shuffle=False,
-                    num_workers=0)
+    dl = DataLoader(inputs, batch_size=batch_size, shuffle=False, num_workers=0)
 
     model.eval()
     with torch.no_grad():
         outputs = []
         for inputs in dl:
-            inputs = inputs.to(model.device)
+            inputs = inputs.to(model.device).float()
             outputs.append(model(inputs))
 
         outputs = torch.cat(outputs, dim=0).to("cpu").detach()
 
-    return {
-        obs: outputs[:, idx].numpy()
-        for idx, obs in enumerate(model.observables)
-    }
+    return {obs: outputs[:, idx].numpy() for idx, obs in enumerate(model.observables)}

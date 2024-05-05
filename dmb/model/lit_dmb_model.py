@@ -9,6 +9,8 @@ from attrs import define
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
+import torchmetrics
+import itertools
 
 from dmb.logging import create_logger
 
@@ -20,9 +22,9 @@ class LitDMBModel(pl.LightningModule):
 
     model: torch.nn.Module
     optimizer: functools.partial[Optimizer]
-    lr_scheduler: functools.partial[dict[str, functools.partial[_LRScheduler
-                                                                | Any]]]
+    lr_scheduler: functools.partial[dict[str, functools.partial[_LRScheduler | Any]]]
     loss: torch.nn.Module
+    metrics: torchmetrics.MetricCollection
 
     def __attrs_pre_init__(self):
         super().__init__()
@@ -33,8 +35,7 @@ class LitDMBModel(pl.LightningModule):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
-    def _batch_evaluation(self,
-                          batch: Any) -> tuple[torch.Tensor, torch.Tensor]:
+    def _calculate_loss(self, batch: Any) -> tuple[torch.Tensor, torch.Tensor]:
         batch_in, batch_label = batch
 
         model_out = self(batch_in)
@@ -42,14 +43,21 @@ class LitDMBModel(pl.LightningModule):
 
         return model_out, loss
 
+    def _evaluate_metrics(self, batch: Any, model_out: torch.Tensor) -> None:
+        batch_in, batch_label = batch
+        self.metrics.update(preds=model_out, target=batch_label)
+
     def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        model_out, loss = self._batch_evaluation(batch)
+        model_out, loss = self._calculate_loss(batch)
+        self._evaluate_metrics(batch, model_out)
 
         # log metrics
         batch_size = sum(len(b) for b in batch)
         self.log_metrics(
             stage="train",
-            metric_collection={"loss": loss},
+            metric_collection=dict(
+                itertools.chain(self.metrics.items(), {"loss": loss}.items())
+            ),
             on_step=True,
             on_epoch=True,
             batch_size=batch_size,
@@ -58,24 +66,32 @@ class LitDMBModel(pl.LightningModule):
         return loss
 
     def validation_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        model_out, loss = self._batch_evaluation(batch)
+        model_out, loss = self._calculate_loss(batch)
+        self._evaluate_metrics(batch, model_out)
+
         # log metrics
         batch_size = sum(len(b) for b in batch)
         self.log_metrics(
             stage="val",
-            metric_collection={"loss": loss},
+            metric_collection=dict(
+                itertools.chain(self.metrics.items(), {"loss": loss}.items())
+            ),
             on_step=False,
             on_epoch=True,
             batch_size=batch_size,
         )
 
     def test_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
-        model_out, loss = self._batch_evaluation(batch)
+        model_out, loss = self._calculate_loss(batch)
+        self._evaluate_metrics(batch, model_out)
+
         # log metrics
         batch_size = sum(len(b) for b in batch)
         self.log_metrics(
             stage="test",
-            metric_collection={"loss": loss},
+            metric_collection=dict(
+                itertools.chain(self.metrics.items(), {"loss": loss}.items())
+            ),
             on_step=False,
             on_epoch=True,
             batch_size=batch_size,
@@ -83,14 +99,16 @@ class LitDMBModel(pl.LightningModule):
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configure the optimizer and scheduler."""
-        optimizer: torch.optim.Optimizer = self.optimizer(params=filter(
-            lambda p: p.requires_grad, self.model.parameters()), )
+        optimizer: torch.optim.Optimizer = self.optimizer(
+            params=filter(lambda p: p.requires_grad, self.model.parameters()),
+        )
 
         configuration: dict[str, Any] = {"optimizer": optimizer}
 
         if self.lr_scheduler is not None:
             scheduler: _LRScheduler = self.lr_scheduler["scheduler"](
-                optimizer=optimizer)
+                optimizer=optimizer
+            )
             configuration["lr_scheduler"] = {
                 **self.lr_scheduler,
                 "scheduler": scheduler,
@@ -107,11 +125,11 @@ class LitDMBModel(pl.LightningModule):
         batch_size: int,
     ) -> None:
         """Log metrics."""
-
         for metric_name, metric in metric_collection.items():
 
-            computed_metric = (metric.compute() if isinstance(
-                metric, torchmetrics.Metric) else metric)
+            computed_metric = (
+                metric.compute() if isinstance(metric, torchmetrics.Metric) else metric
+            )
 
             if isinstance(computed_metric, dict):
                 loggable = {
@@ -127,3 +145,11 @@ class LitDMBModel(pl.LightningModule):
                 on_epoch=on_epoch,
                 batch_size=batch_size,
             )
+
+    def on_train_epoch_end(self) -> None:
+        """Execute at the end of each training epoch."""
+        self.metrics.reset()
+
+    def on_validation_epoch_end(self) -> None:
+        """Execute at the end of each validation epoch."""
+        self.metrics.reset()
