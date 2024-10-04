@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
-    WormSimulation, WormSimulationRunner
+from dmb.data.bose_hubbard_2d.worm.simulation import (
+    WormInputParameters,
+    WormSimulation,
+    WormSimulationRunner,
+)
 from dmb.data.dispatching import AutoDispatcher
 from dmb.logging import create_logger
 
@@ -74,8 +77,7 @@ async def test_ee_tune_nmeasure2(
     )
 
     assert (simulation.tune_simulation.save_dir / "output.h5").exists()
-    assert simulation.tune_simulation.record["steps"][-1][
-        "tau_max"] < tau_max_threshold
+    assert simulation.tune_simulation.record["steps"][-1]["tau_max"] < tau_max_threshold
     assert simulation.tune_simulation.valid
 
 

@@ -10,10 +10,13 @@ from torch.utils.data import Dataset
 class IdDataset(Dataset, ABC):
 
     @abstractmethod
-    def get_ids_from_indices(self, indices: tuple[int, ...]) -> tuple[str, ...]: ...
+    def get_ids_from_indices(self, indices: tuple[int,
+                                                  ...]) -> tuple[str, ...]:
+        ...
 
     @abstractmethod
-    def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]: ...
+    def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]:
+        ...
 
 
 @define
@@ -34,9 +37,8 @@ class DMBDataset(IdDataset):
     """
 
     dataset_dir_path: Path
-    transforms: Callable[
-        [tuple[torch.Tensor, torch.Tensor]], tuple[torch.Tensor, torch.Tensor]
-    ]
+    transforms: Callable[[tuple[torch.Tensor, torch.Tensor]],
+                         tuple[torch.Tensor, torch.Tensor]]
 
     def __attrs_post_init__(self):
         samples_dir_path = self.dataset_dir_path / "samples"
@@ -57,11 +59,13 @@ class DMBDataset(IdDataset):
         inputs = torch.load(self.sample_id_paths[idx] / "inputs.pt")
         outputs = torch.load(self.sample_id_paths[idx] / "outputs.pt")
 
-        inputs_transformed, outputs_transformed = self.transforms((inputs, outputs))
+        inputs_transformed, outputs_transformed = self.transforms(
+            (inputs, outputs))
 
         return inputs_transformed, outputs_transformed
 
-    def get_ids_from_indices(self, indices: tuple[int, ...]) -> tuple[str, ...]:
+    def get_ids_from_indices(self, indices: tuple[int,
+                                                  ...]) -> tuple[str, ...]:
         return tuple(self.sample_ids[idx] for idx in indices)
 
     def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]:

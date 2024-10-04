@@ -12,6 +12,7 @@
 !poetry.lock
 
 !.gitignore
+!.python-version
 
 /data
 /logs

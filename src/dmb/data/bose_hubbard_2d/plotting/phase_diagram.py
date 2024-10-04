@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-
-from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.nn_input import \
+    get_nn_input_dimless_const_parameters
 
 
 def phase_diagram_uniform_inputs_iter(
@@ -52,8 +52,8 @@ def phase_diagram_uniform_inputs_iter(
 
 
 def phase_diagram_uniform_inputs(
-    n_samples: int, zVU: float = 1.0
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        n_samples: int,
+        zVU: float = 1.0) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Generate inputs for the phase diagram with uniform sampling in muU and ztU.
 
     Args:
@@ -63,7 +63,8 @@ def phase_diagram_uniform_inputs(
     Returns:
         Tuple of muU, ztU, and inputs.
     """
-    MUU, ZTU, inputs = zip(*list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU)))
+    MUU, ZTU, inputs = zip(
+        *list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU)))
 
     MUU = torch.from_numpy(np.array(MUU)).float()
     ZTU = torch.from_numpy(np.array(ZTU)).float()
@@ -211,7 +212,8 @@ def plot_phase_diagram(
     Returns:
         Dictionary of figures.
     """
-    MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples, zVU=zVU)
+    MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples,
+                                                    zVU=zVU)
     outputs = mapping(inputs=inputs)
 
     reductions = {

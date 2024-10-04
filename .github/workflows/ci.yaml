@@ -1,0 +1,25 @@
+name: CI jobs
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run setup
+        uses: ./.github/actions/setup
+
+      - name: Lint code
+        run: |
+          task format

@@ -1,0 +1,32 @@
+name: "Setup Python Environment"
+description: "Setup Python and install dependencies"
+runs:
+  using: "composite"
+
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Cache
+      id: setup-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ github.workspace }}/.venv
+        key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock', 'pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-
+
+    - name: Install tools
+      run: |
+        pipx install poetry
+        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "${{ github.workspace }}/.local/bin"
+      shell: bash
+
+    - name: Install dependencies
+      if: steps.setup-cache.outputs.cache-hit != 'true'
+      run: poetry install --with ci --with cpu --extras cpu
+      shell: bash
+
+    - name: Update path
+      run: echo "/home/runner/work/dmb/dmb/.local/bin" >> $GITHUB_PATH
+      shell: bash

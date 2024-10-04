@@ -1,5 +1,6 @@
 """Dataset for the Bose-Hubbard model."""
 
+import json
 from pathlib import Path
 
 from attrs import define
@@ -7,9 +8,9 @@ from attrs import define
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
 from dmb.data.dataset import DMBDataset
 from dmb.logging import create_logger
-import json
 
 log = create_logger(__name__)
+
 
 @define
 class BoseHubbard2dDataset(DMBDataset):
@@ -21,15 +22,15 @@ class BoseHubbard2dDataset(DMBDataset):
     def get_metadata(self, idx):
         with open(self.sample_id_paths[idx] / "metadata.json", "r") as f:
             return json.load(f)
-        
+
     def get_phase_diagram_position(self, idx):
-        
+
         metadata = self.get_metadata(idx)
 
         return (
-            4 * metadata["V_nn"]/metadata["U_on"],
-            metadata["mu"]/metadata["U_on"],
-            4 * metadata["J"]/metadata["U_on"],
+            4 * metadata["V_nn"] / metadata["U_on"],
+            metadata["mu"] / metadata["U_on"],
+            4 * metadata["J"] / metadata["U_on"],
         )
 
     def has_phase_diagram_sample(
@@ -44,7 +45,7 @@ class BoseHubbard2dDataset(DMBDataset):
     ):
         for idx, _ in enumerate(self):
             zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
-            
+
             metadata = self.get_metadata(idx)
             L_i = metadata["L"]
 

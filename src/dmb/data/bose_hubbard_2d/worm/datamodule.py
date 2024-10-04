@@ -21,10 +21,10 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
     num_workers: int
     pin_memory: bool
 
-    def __attrs_pre_init__(self):
+    def __attrs_pre_init__(self) -> None:
         super().__init__()
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         self.stage_subsets: dict[str, BoseHubbard2dDataset]
 
     def get_collate_fn(self) -> callable:
@@ -41,9 +41,10 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
             self.dataset.transforms.mode = "base"
 
         log.info("Setup for stage: %s", stage)
-        log.info(
-            "Dataset sizes: %s", {k: len(v) for k, v in self.stage_subsets.items()}
-        )
+        log.info("Dataset sizes: %s", {
+            k: len(v)
+            for k, v in self.stage_subsets.items()
+        })
         log.info("Dataset transforms: %s", self.dataset.transforms)
 
     def train_dataloader(self) -> DataLoader:

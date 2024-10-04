@@ -48,7 +48,7 @@ class PhaseDiagram3d(pl.LightningModule):
         self.size = [muU_range, ztU_range, zVU_range]
 
     @property
-    def volume(self):
+    def volume(self) -> float:
         return np.prod([max - min for min, max in self.size])
 
     def __contains__(self, x: torch.Tensor) -> bool:
@@ -158,7 +158,7 @@ class RandomLDAMSampler:
             zVU_range: Tuple[float, float] = (0.75, 1.75),
             L_range: Tuple[int, int] = (8, 20),
             z=4,
-    ):
+    ) -> None:
         self.phase_diagram = PhaseDiagram3d(
             gradients=gradients,
             ellipsoids=ellipsoids,
@@ -219,7 +219,7 @@ class SimulatedBoseHubbard2dDataset(Dataset):
         z=4,
         base_transforms=None,
         train_transforms=None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.num_samples = num_samples
@@ -248,7 +248,7 @@ class SimulatedBoseHubbard2dDataset(Dataset):
             self.sampler.sample() for _ in tqdm(range(num_samples), "Sampling")
         ]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.num_samples
 
     def __getitem__(self, idx):
@@ -273,7 +273,7 @@ class SimulatedBoseHubbard2dDataset(Dataset):
                 "apply_transforms is not set. Please set it first.")
 
     @apply_train_transforms.setter
-    def apply_train_transforms(self, value: bool):
+    def apply_train_transforms(self, value: bool) -> None:
         self._apply_train_transforms = value
 
     @property
