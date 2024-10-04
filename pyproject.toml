@@ -1,0 +1,98 @@
+[tool.poetry]
+name = "dmb"
+version = "0.1.0"
+description = ""
+authors = ["fabian <dechent.fabian@gmail.com>"]
+readme = "README.md"
+packages = [
+  {from = "src", include = "dmb"}, 
+  {from = "src", include = "auto-correlation"},
+  {from = "src", include = "scripts"}
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+torch = ">=2.1.0"
+numpy = "^1.24.3"
+matplotlib = "^3.7.1"
+joblib = "^1.2.0"
+h5py = "^3.8.0"
+fyeldgenerator = {git = "https://github.com/cphyc/FyeldGenerator.git"}
+hydra-core = "^1.3.2"
+python-dotenv = "^1.0.0"
+lightning = "^2.1.0"
+auto-correlation = {path = "src/auto-correlation"}
+pydantic-settings = "^2.2.1"
+syjson = "^2.1.6"
+torchvision = "^0.17.2"
+wandb = "^0.16.6"
+
+[tool.poetry.group.ci.dependencies]
+pylint = "^3.1.0"
+isort = "^5.13.2"
+yapf = "^0.40.2"
+pytest = "^8.1.1"
+mypy = "^1.9.0"
+pytest-cov = "^5.0.0"
+pytest-mock = "^3.14.0"
+pytest-asyncio = "^0.23.6"
+pytest-dotenv = "^0.5.2"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.4"
+debugpy = "^1.8.1"
+
+[build-system]
+requires = ["poetry-core", "setuptools>=40.8.0", "wheel", "torch>=2.1.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pytest_load_dotenv = true
+testpaths = "tests"
+python_files = "test_*.py"
+markers = ["unit", "integration","requires_worm"]
+addopts = "-ra --cov-report=term-missing --cov=dmb"
+
+[tool.mypy]
+show_error_codes = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_return_any = true
+warn_unreachable = true
+
+[tool.pylint.MASTER]
+jobs = 0
+init-hook='import sys; sys.path.append(".venv/lib/python3.11/site-packages/"); sys.path.append(".")'
+# workaround, cf. https://stackoverflow.com/questions/1899436/pylint-unable-to-import-error-how-to-set-pythonpath
+
+[tool.pylint.BASIC]
+good-names = "logger,pytestmark"
+argument-rgx = "[a-z_][a-z0-9_]{0,40}$"
+variable-rgx = "[a-z_][a-z0-9_]{0,40}$"
+attr-rgx = "[a-z_][a-z0-9_]{0,40}$"
+
+[tool.pylint.FORMAT]
+max-line-length = 79
+
+[tool.pylint.DESIGN]
+max-args = 10
+max-attributes = 10
+max-locals = 20
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+  "too-few-public-methods",
+  "too-many-lines"
+]
+
+[tool.yapf]
+based_on_style = "pep8"
+column_limit = 79
+
+[tool.isort]
+known_first_party = ["dmb"]
+multi_line_output = 2
+
