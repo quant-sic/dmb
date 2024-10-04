@@ -1,0 +1,6 @@
+wandb:
+  _target_: lightning.pytorch.loggers.WandbLogger
+  log_model: True
+  project: dmb
+  name: ${exp_name}_${now:%Y-%m-%d}_${now:%H-%M-%S}
+  save_dir: ${paths.output_dir}
