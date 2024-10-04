@@ -25,12 +25,6 @@ def periodic_grf(shape: Tuple[int, int], power: float) -> np.ndarray:
     return field
 
 
-def get_offset_rescaled_trapping_potential(
-        potential: np.ndarray, desired_abs_max: float) -> np.ndarray:
-    abs_max = abs(potential).max()
-    return potential * desired_abs_max / abs_max
-
-
 def get_random_trapping_potential(
         shape: Tuple[int, int],
         desired_abs_max: float,
@@ -41,8 +35,9 @@ def get_random_trapping_potential(
     scale = float(np.random.uniform(0.3, 1)) * desired_abs_max
 
     potential = periodic_grf(shape, power)
-    return float(power), get_offset_rescaled_trapping_potential(
-        potential, scale)
+    potential_rescaled = potential * scale / abs(potential).max()
+
+    return float(power), potential_rescaled
 
 
 def get_square_mu_potential(base_mu, delta_mu, square_size, lattice_size):
