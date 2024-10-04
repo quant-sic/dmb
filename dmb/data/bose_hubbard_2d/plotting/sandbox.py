@@ -221,7 +221,7 @@ def create_box_cuts_plot(
     muU_min: float = 0.0,
     muU_max: float = 3.0,
     L: int = 41,
-    muU_num_steps: int = 10,
+    muU_num_steps: int = 50,
     square_size: int = 22,
 ) -> dict[str, plt.Figure]:
 
@@ -232,7 +232,7 @@ def create_box_cuts_plot(
     )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
-    target_densities = torch.stack(
+    target_densities_unflipped = torch.stack(
         [
             (
                 ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0]
@@ -246,6 +246,24 @@ def create_box_cuts_plot(
     )
 
     cut_position = int(L / 2)
+
+    # flip qmc image vertically depending on which checkerboard pattern has a higher correlation with the target density
+    target_densities = []
+    for target_density in target_densities_unflipped:
+        cb_1 = torch.ones_like(target_density)
+        cb_1[::2, ::2] = 0
+        cb_1[1::2, 1::2] = 0
+
+        cb_2 = torch.ones_like(target_density)
+        cb_2[1::2, ::2] = 0
+        cb_2[::2, 1::2] = 0
+
+        if torch.sum(target_density * cb_1) > torch.sum(target_density * cb_2):
+            target_densities.append(target_density)
+        else:
+            target_densities.append(target_density.roll(1, dims=0))
+
+    target_densities = torch.stack(target_densities, dim=0)
 
     inputs = torch.stack(
         [
@@ -282,10 +300,9 @@ def create_box_cuts_plot(
     )
     # combined[int(L / 2), : int(L / 2) + 1] = nn_image[int(L / 2), : int(L / 2) + 1]
 
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-    ax.set_aspect(1)
+    fig, ax = plt.subplots(1, 1, figsize=(17.9219 * 0.3, 17.9219 * 0.25))
 
-    ax.pcolormesh(MU, X, combined, linewidth=0, rasterized=True)
+    mappable = ax.pcolormesh(MU, X, combined, linewidth=0, rasterized=True)
 
     plt.hlines(
         y=int(L / 2) + 0.5,
@@ -294,15 +311,15 @@ def create_box_cuts_plot(
         color="white",
         lw=2,
     )
-
-    plt.xlabel(r"$\mu$")
-    plt.ylabel(r"Cut Site")
-    # plt.colorbar()
+    plt.xlabel(r"$\Delta V$")
+    plt.ylabel(r"Site $j$")
+    plt.colorbar(mappable)
 
     plt.xlim(MU[0, 0], MU[0, -1])
     plt.ylim(X[0, 0], X[-1, 0])
     # plt.xticks([1, 2, 3])
 
+    plt.tight_layout()
     plt.close()
 
     return {"box_cuts": fig}
@@ -346,7 +363,7 @@ def plot_phase_diagram_mu_cut(
     try:
         muU_qmc, n_qmc = zip(
             *[
-                (ds.phase_diagram_position(i)[1], ds_i[1][0])
+                (ds.get_phase_diagram_position(i)[1], ds_i[1][0])
                 for i, ds_i in enumerate(ds)
             ]
         )
@@ -357,7 +374,7 @@ def plot_phase_diagram_mu_cut(
         ax.scatter(
             muU_qmc, [n_qmc[i].min() for i in range(len(n_qmc))], c="black", label="QMC"
         )
-    except:
+    except ValueError:
         pass
 
     # max

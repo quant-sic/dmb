@@ -1,3 +1,4 @@
+from __future__ import annotations
 import functools
 from collections.abc import Mapping
 from typing import Any, Literal, cast
@@ -11,6 +12,9 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 import torchmetrics
 import itertools
+import yaml
+from omegaconf import DictConfig
+import hydra
 
 from dmb.logging import create_logger
 
@@ -31,6 +35,34 @@ class LitDMBModel(pl.LightningModule):
 
     def __attrs_post_init__(self):
         self.example_input_array = torch.zeros(1, 4, 10, 10)
+
+    @classmethod
+    def load_from_logged_checkpoint(
+        cls, log_dir: Path, checkpoint_path: Path
+    ) -> LitDMBModel:
+        """Load a model from a checkpoint.
+
+        Args:
+            log_dir: The directory of the hydra log.
+            checkpoint_path: The path to the checkpoint file.
+                Contains the state_dict of the model.
+
+        Returns:
+            The loaded model.
+        """
+        with open(log_dir / ".hydra/config.yaml", encoding="utf-8") as file:
+            config = DictConfig(yaml.load(file, Loader=yaml.FullLoader))
+
+        # keep "lit_model" key, but remove "_target_" key, such that config is
+        # resolvable but lit_model is not instantiated
+        config_without_target = {
+            "lit_model": {k: v for k, v in config.lit_model.items() if k != "_target_"}
+        }
+        model: LitDMBModel = cls.load_from_checkpoint(
+            checkpoint_path=checkpoint_path,
+            **hydra.utils.instantiate(config_without_target)["lit_model"],
+        )
+        return model
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)

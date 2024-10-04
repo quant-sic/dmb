@@ -21,10 +21,12 @@ def collate_sizes(batch):
     for size in set(sizes):
         size_batch_in, size_batch_out = map(
             lambda array: torch.from_numpy(np.stack(array)).float(),
-            zip(*[
-                batch[sample_idx]
-                for sample_idx in np.argwhere(sizes == size).flatten()
-            ]),
+            zip(
+                *[
+                    batch[sample_idx]
+                    for sample_idx in np.argwhere(sizes == size).flatten()
+                ]
+            ),
         )
 
         size_batches_in.append(size_batch_in)

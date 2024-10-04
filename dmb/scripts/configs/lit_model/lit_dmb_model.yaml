@@ -21,7 +21,7 @@ lr_scheduler:
     factor: 0.1
     patience: 10
 
-  monitor: val/mse
+  monitor: train/mse
   interval: epoch
   frequency: 1
 

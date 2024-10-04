@@ -8,7 +8,7 @@ defaults:
   - override /trainer: default
   - _self_
 
-exp_name: "bose_hubbard_2d/worm/all_obs/mse/softplus"
+exp_name: "bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus"
 
 seed: 12345
 
@@ -38,17 +38,25 @@ datamodule:
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
       train_augmentations:           
         - _target_: dmb.data.bose_hubbard_2d.transforms.SquareSymmetryGroupAugmentations
+        - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperOutTransform
+          transform: 
+            _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoise
+            mean: 0.0
+            std: 0.01
+        - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperInTransform
+          transform: 
+            _target_: torchvision.transforms.RandomErasing
 
 lit_model:
   model:
 
     module_list: [
       {
-        _target_: dmb.model.models.simple_resnet2d.ResNet2d,
+        _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
         in_channels: 4,
         out_channels: 9,
-        kernel_sizes: [5,3,3,3,3,3,3,3,3],
-        n_channels: [16,32,64,128,128,128,256,256,256],
+        kernel_sizes: [5,3,3,3,3,3,3],
+        n_channels: [16,32,64,128,128,256,256],
         dropout: 0.1
       },
     ]

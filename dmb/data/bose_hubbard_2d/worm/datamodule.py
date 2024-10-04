@@ -40,6 +40,12 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
         else:
             self.dataset.transforms.mode = "base"
 
+        log.info("Setup for stage: %s", stage)
+        log.info(
+            "Dataset sizes: %s", {k: len(v) for k, v in self.stage_subsets.items()}
+        )
+        log.info("Dataset transforms: %s", self.dataset.transforms)
+
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
             self.stage_subsets["train"],

@@ -52,15 +52,23 @@ def filter_by_error(
         return False
 
     try:
+
+        if len(simulation.record["steps"]) == 0:
+            simulation.record["steps"] = [{"error": None, "tau_max": None}]
+
+        error_key = (
+            "error"
+            if "error" in simulation.record["steps"][-1]
+            else "max_density_error"
+        )
+
         if recalculate_errors:
             log.info(f"Recalculating errors for {simulation.save_dir}")
-            if len(simulation.record["steps"]) == 0:
-                simulation.record["steps"] = [{"error": None, "tau_max": None}]
 
-            simulation.record["steps"][-1]["error"] = simulation.max_density_error
+            simulation.record["steps"][-1][error_key] = simulation.max_density_error
             simulation.record["steps"][-1]["tau_max"] = simulation.max_tau_int
 
-        return (simulation.record["steps"][-1]["error"] <= max_density_error) and (
+        return (simulation.record["steps"][-1][error_key] <= max_density_error) and (
             simulation.record["steps"][-1]["tau_max"] > 0
         )
     except (IndexError, TypeError, KeyError) as e:
@@ -278,8 +286,15 @@ def load_dataset_simulations(
     for sim_dir in clean_simulation_directories:
         inputs, outputs, metadata = load_sample(sim_dir, observables, reload=reload)
 
-        sample_save_path = samples_dir / sim_dir.name
+        sample_save_path = samples_dir / (
+            sim_dir.name
+            if not sim_dir.name == "tune"
+            else sim_dir.parent.name + "_tune"
+        )
         sample_save_path.mkdir(exist_ok=True, parents=True)
+
+        if (inputs[0] == 0).all():
+            break
 
         torch.save(inputs, sample_save_path / "inputs.pt")
         torch.save(outputs, sample_save_path / "outputs.pt")
