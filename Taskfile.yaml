@@ -1,0 +1,24 @@
+version: "3"
+
+vars:
+  PYTHON_CODE_DIRS: src/dmb src/tests src/scripts src/auto-correlation
+
+tasks:
+  format:
+    desc: Format the code
+    cmds:
+      - poetry run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
+      - poetry run isort {{ .PYTHON_CODE_DIRS }}
+
+  lint:
+    desc: Lint the code
+    cmds:
+      - poetry run mypy {{ .PYTHON_CODE_DIRS }}
+      - poetry run pylint -v {{ .PYTHON_CODE_DIRS }}
+      - poetry run yapf --diff $(shell git ls-files | grep '.py$$')
+      - poetry run isort --check-only {{ .PYTHON_CODE_DIRS }}
+
+  licenses:
+    desc: List licenses of dependencies
+    cmds:
+      - poetry run pip-licenses --from=mixed --order=license --summary
