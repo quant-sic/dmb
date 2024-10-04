@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "auto-correlation"
+version = "0.1.0"
+description = ""
+authors = ["fabian <dechent.fabian@gmail.com>"]
+readme = "README.md"
+packages = [{include = "auto_correlation"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+torch = ">=2.1.0"
+ninja = "^1.11.1.1"
+scipy = "^1.13.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
