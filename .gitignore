@@ -1,0 +1,24 @@
+*
+
+!**/
+
+!*.py
+!*.toml
+!*.md
+!*.yaml
+!*.cpp
+
+!Makefile
+!poetry.lock
+
+!.gitignore
+
+/data
+/logs
+
+!data/test/*
+
+.venv
+.trunk
+
+.ipynb_checkpoints/**/ */
