@@ -1,20 +1,20 @@
 from __future__ import annotations
+
 import functools
+import itertools
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 
+import hydra
 import lightning.pytorch as pl
 import torch
 import torchmetrics
+import yaml
 from attrs import define
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
+from omegaconf import DictConfig
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
-import torchmetrics
-import itertools
-import yaml
-from omegaconf import DictConfig
-import hydra
 
 from dmb.logging import create_logger
 
@@ -26,7 +26,8 @@ class LitDMBModel(pl.LightningModule):
 
     model: torch.nn.Module
     optimizer: functools.partial[Optimizer]
-    lr_scheduler: functools.partial[dict[str, functools.partial[_LRScheduler | Any]]]
+    lr_scheduler: functools.partial[dict[str, functools.partial[_LRScheduler
+                                                                | Any]]]
     loss: torch.nn.Module
     metrics: torchmetrics.MetricCollection
 
@@ -37,9 +38,8 @@ class LitDMBModel(pl.LightningModule):
         self.example_input_array = torch.zeros(1, 4, 10, 10)
 
     @classmethod
-    def load_from_logged_checkpoint(
-        cls, log_dir: Path, checkpoint_path: Path
-    ) -> LitDMBModel:
+    def load_from_logged_checkpoint(cls, log_dir: Path,
+                                    checkpoint_path: Path) -> LitDMBModel:
         """Load a model from a checkpoint.
 
         Args:
@@ -56,7 +56,10 @@ class LitDMBModel(pl.LightningModule):
         # keep "lit_model" key, but remove "_target_" key, such that config is
         # resolvable but lit_model is not instantiated
         config_without_target = {
-            "lit_model": {k: v for k, v in config.lit_model.items() if k != "_target_"}
+            "lit_model": {
+                k: v
+                for k, v in config.lit_model.items() if k != "_target_"
+            }
         }
         model: LitDMBModel = cls.load_from_checkpoint(
             checkpoint_path=checkpoint_path,
@@ -88,8 +91,7 @@ class LitDMBModel(pl.LightningModule):
         self.log_metrics(
             stage="train",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {"loss": loss}.items())
-            ),
+                itertools.chain(self.metrics.items(), {"loss": loss}.items())),
             on_step=True,
             on_epoch=True,
             batch_size=batch_size,
@@ -106,8 +108,7 @@ class LitDMBModel(pl.LightningModule):
         self.log_metrics(
             stage="val",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {"loss": loss}.items())
-            ),
+                itertools.chain(self.metrics.items(), {"loss": loss}.items())),
             on_step=False,
             on_epoch=True,
             batch_size=batch_size,
@@ -122,8 +123,7 @@ class LitDMBModel(pl.LightningModule):
         self.log_metrics(
             stage="test",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {"loss": loss}.items())
-            ),
+                itertools.chain(self.metrics.items(), {"loss": loss}.items())),
             on_step=False,
             on_epoch=True,
             batch_size=batch_size,
@@ -131,16 +131,14 @@ class LitDMBModel(pl.LightningModule):
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configure the optimizer and scheduler."""
-        optimizer: torch.optim.Optimizer = self.optimizer(
-            params=filter(lambda p: p.requires_grad, self.model.parameters()),
-        )
+        optimizer: torch.optim.Optimizer = self.optimizer(params=filter(
+            lambda p: p.requires_grad, self.model.parameters()), )
 
         configuration: dict[str, Any] = {"optimizer": optimizer}
 
         if self.lr_scheduler is not None:
             scheduler: _LRScheduler = self.lr_scheduler["scheduler"](
-                optimizer=optimizer
-            )
+                optimizer=optimizer)
             configuration["lr_scheduler"] = {
                 **self.lr_scheduler,
                 "scheduler": scheduler,
@@ -159,9 +157,8 @@ class LitDMBModel(pl.LightningModule):
         """Log metrics."""
         for metric_name, metric in metric_collection.items():
 
-            computed_metric = (
-                metric.compute() if isinstance(metric, torchmetrics.Metric) else metric
-            )
+            computed_metric = (metric.compute() if isinstance(
+                metric, torchmetrics.Metric) else metric)
 
             if isinstance(computed_metric, dict):
                 loggable = {

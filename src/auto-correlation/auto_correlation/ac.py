@@ -1,10 +1,10 @@
 import logging
+
 import numpy as np
 from scipy.special import gammainc
 from tqdm import tqdm
 
 from dmb.logging import create_logger
-
 
 logger = create_logger(__name__)
 
@@ -110,12 +110,12 @@ def err_rho(N, t_max, w_opt, rho):
     """
 
     if t_max * w_opt >= 1e10:
-        logger.info("Skipping AC error calculation, as Chain size is too large")
+        logger.info(
+            "Skipping AC error calculation, as Chain size is too large")
         return np.zeros(t_max + 1)
     else:
-        logger.debug(
-            "AC error calculation with ~{} memory accesses".format(t_max * w_opt)
-        )
+        logger.debug("AC error calculation with ~{} memory accesses".format(
+            t_max * w_opt))
         return np.zeros(t_max + 1)
 
 
@@ -168,8 +168,7 @@ def cancel_bias(fbb, fbr, fb, n_rep, sigma_f):
         if abs(bf) > sigma_f / 4:
             bias = bf / sigma_f
             logger.warning(
-                "A {} sigma bias of the mean has been cancelled!".format(bias)
-            )
+                "A {} sigma bias of the mean has been cancelled!".format(bias))
         fbr -= bf * n / n_rep
         fb -= bf * r
 
@@ -195,7 +194,7 @@ def q_val(fbr, fb, n_rep, cfbb_opt):
     r = len(n_rep)
 
     if r >= 2:
-        chisq = np.dot((fbr - fb) ** 2, n_rep) / cfbb_opt
+        chisq = np.dot((fbr - fb)**2, n_rep) / cfbb_opt
         qval = 1.0 - gammainc((r - 1) * 0.5, chisq * 0.5)
     else:
         qval = 0.0
@@ -267,26 +266,28 @@ def gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False):
     with tqdm(total=t_max, desc="Calculating gamma_fbb", disable=True) as pbar:
         while t <= t_max:
             for i in range(r):
-                gamma_fbb[t + 1] += np.sum(
-                    delpro[i, 0 : n_rep[i] - t] * delpro[i, t : n_rep[i]]
-                )
+                gamma_fbb[t + 1] += np.sum(delpro[i, 0:n_rep[i] - t] *
+                                           delpro[i, t:n_rep[i]])
 
             gamma_fbb[t + 1] /= n - r * t
 
             # Automatic windowing procedure
 
             if flag:
-                g_int += gamma_fbb[t + 1] / gamma_fbb[1]  # g_int(W) = tau_int(W) - 0.5
+                g_int += gamma_fbb[t + 1] / gamma_fbb[
+                    1]  # g_int(W) = tau_int(W) - 0.5
 
                 if g_int <= 0.0:  # No autocorrelation
-                    tauw = np.spacing(1.0)  # Setting tau(W) to a tiny positive value
+                    tauw = np.spacing(
+                        1.0)  # Setting tau(W) to a tiny positive value
                 else:
-                    tauw = stau / (np.log((g_int + 1) / g_int))  # è uguale a eq 20'beto
+                    tauw = stau / (np.log(
+                        (g_int + 1) / g_int))  # è uguale a eq 20'beto
 
                 gw = np.exp(-t / tauw) - tauw / np.sqrt(n * t)
 
                 if (
-                    gw < 0.0
+                        gw < 0.0
                 ):  # g(W) has a minimum and this value of t is taken as the optimal value of W
                     w_opt = t
                     t_max = min(t_max, 2 * t)
@@ -303,19 +304,22 @@ def gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False):
         w_opt = t_max
 
     gamma_fbb = gamma_fbb[
-        1 : t_max + 2
-    ]  # chi è gamma_fbb[0]: ora è il vecchio gamma_fbb[1]
-    cfbb_opt = gamma_fbb[0] + 2.0 * np.sum(gamma_fbb[1 : w_opt + 1])  # first estimate
+        1:t_max + 2]  # chi è gamma_fbb[0]: ora è il vecchio gamma_fbb[1]
+    cfbb_opt = gamma_fbb[0] + 2.0 * np.sum(
+        gamma_fbb[1:w_opt + 1])  # first estimate
     # eq 13 beto
     if cfbb_opt <= 0:
-        raise GammaPathologicalError("Gamma pathological: estimated error^2 < 0")
+        raise GammaPathologicalError(
+            "Gamma pathological: estimated error^2 < 0")
 
     gamma_fbb += (
         cfbb_opt / n
     )  # bias in Gamma corrected (eq: non numerata dopo eq:19 beto)
-    cfbb_opt = gamma_fbb[0] + 2 * np.sum(gamma_fbb[1 : w_opt + 1])  # refined estimate
+    cfbb_opt = gamma_fbb[0] + 2 * np.sum(
+        gamma_fbb[1:w_opt + 1])  # refined estimate
     # eq 13
-    sigma_f = np.sqrt(cfbb_opt / n)  # error of the expectation value of the observables
+    sigma_f = np.sqrt(cfbb_opt /
+                      n)  # error of the expectation value of the observables
     # eq 14 beto
     rho = gamma_fbb / gamma_fbb[0]  # normalized autocorrelation function
 
@@ -338,7 +342,8 @@ def gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False):
     qval = q_val(valr, valb, n_rep, cfbb_opt)
 
     dvalue = sigma_f
-    ddvalue = dvalue * np.sqrt((w_opt + 0.5) / n)  # Statistical error of the error
+    ddvalue = dvalue * np.sqrt(
+        (w_opt + 0.5) / n)  # Statistical error of the error
     tau_int = tau_int_fbb[w_opt]  # Equivalent to: cfbb_opt/2*gamma_fbb[0]
     dtau_int = tau_int * 2 * np.sqrt((w_opt - tau_int + 0.5) / n)
 
@@ -362,11 +367,13 @@ def gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False):
 
 
 class Formatter(object):
+
     def __call__(self, obj):
         return str(obj.__dict__)
 
 
 class PrimaryFormatter(Formatter):
+
     def __call__(self, obj):
         stringified = ""
 
@@ -400,6 +407,7 @@ error of error: {ddvalue:.15e}
 
 
 class DerivedFormatter(Formatter):
+
     def __call__(self, obj):
         return """\nResults for {name}:
          value: {value:.15e}
@@ -428,6 +436,7 @@ error of error: {ddvalue:.15e}
 
 
 class AnalysisData(object):
+
     def __init__(self, name=None, formatter=None):
         self.name = name
         self.formatter = formatter if formatter is not None else Formatter()
@@ -437,6 +446,7 @@ class AnalysisData(object):
 
 
 class Analysis(object):
+
     def __init__(self, data, rep_sizes, name=None, formatter=None):
         if data.ndim != 3:
             raise WrongDataShape("Data object should be a 3-dimensional array")
@@ -465,22 +475,28 @@ class Analysis(object):
 
         self.results.value = abb  # fbb
         self.results.rep_value = abr  # fbr
-        self.results.rep_mean = np.average(abr, weights=self.weights, axis=0)  # fb
+        self.results.rep_mean = np.average(abr, weights=self.weights,
+                                           axis=0)  # fb
         self.results.deviation = self.data - abb  # delpro
 
         return self.results
 
     def errors(self, stau=1.5):
-        logger.warning(
-            "Method 'errors' of '{}' "
-            "should implemented by subclasses".format(self.__class__.__name__)
-        )
+        logger.warning("Method 'errors' of '{}' "
+                       "should implemented by subclasses".format(
+                           self.__class__.__name__))
         return self.results
 
 
-def gamma_with_error_handling(
-    fbb, fbr, fb, delpro, r, n, n_rep, stau=1.5, rep_equal=False
-):
+def gamma_with_error_handling(fbb,
+                              fbr,
+                              fb,
+                              delpro,
+                              r,
+                              n,
+                              n_rep,
+                              stau=1.5,
+                              rep_equal=False):
     try:
         return gamma(fbb, fbr, fb, delpro, r, n, n_rep, stau, rep_equal)
     except NoFluctuationsError:
@@ -505,10 +521,12 @@ def gamma_with_error_handling(
 
 
 class PrimaryAnalysis(Analysis):
+
     def __init__(self, data, rep_sizes, name=None):
-        super(PrimaryAnalysis, self).__init__(
-            data, rep_sizes, name=name, formatter=PrimaryFormatter()
-        )
+        super(PrimaryAnalysis, self).__init__(data,
+                                              rep_sizes,
+                                              name=name,
+                                              formatter=PrimaryFormatter())
 
     def errors(self, stau=1.5):
         r = self.num_rep
@@ -550,11 +568,10 @@ class PrimaryAnalysis(Analysis):
             )
 
             if res["flag"]:
-                logger.warning(
-                    "Windowing condition failed "
-                    "for {} "
-                    "up to W = {}".format(self.name[alpha], res["t_max"])
-                )
+                logger.warning("Windowing condition failed "
+                               "for {} "
+                               "up to W = {}".format(self.name[alpha],
+                                                     res["t_max"]))
 
             self.results.t_max[alpha] = res["t_max"]
             self.results.w_opt[alpha] = res["w_opt"]
@@ -575,10 +592,12 @@ class PrimaryAnalysis(Analysis):
 
 
 class DerivedAnalysis(Analysis):
+
     def __init__(self, data, rep_sizes, name=None):
-        super(DerivedAnalysis, self).__init__(
-            data, rep_sizes, name=name, formatter=DerivedFormatter()
-        )
+        super(DerivedAnalysis, self).__init__(data,
+                                              rep_sizes,
+                                              name=name,
+                                              formatter=DerivedFormatter())
 
     def apply(self, f, name=None):
         abb = self.results.value
@@ -603,7 +622,8 @@ class DerivedAnalysis(Analysis):
         self.applied.value = fbb
         self.applied.rep_value = fbr
         self.applied.rep_mean = fb
-        self.applied.deviation = np.dot(self.results.deviation, fgrad)  # delpro
+        self.applied.deviation = np.dot(self.results.deviation,
+                                        fgrad)  # delpro
 
         return self.applied
 
@@ -617,23 +637,18 @@ class DerivedAnalysis(Analysis):
         fb = self.applied.rep_mean
         delpro = self.applied.deviation
 
-        res = gamma_with_error_handling(
-            fbb, fbr, fb, delpro, r, n, n_rep, stau, self.rep_equal
-        )
+        res = gamma_with_error_handling(fbb, fbr, fb, delpro, r, n, n_rep,
+                                        stau, self.rep_equal)
 
         if res["flag"]:
             if self.name is not None:
-                logger.warning(
-                    "Windowing condition failed "
-                    "for derived observable '{}' "
-                    "up to W = {}".format(self.name, res["t_max"])
-                )
+                logger.warning("Windowing condition failed "
+                               "for derived observable '{}' "
+                               "up to W = {}".format(self.name, res["t_max"]))
             else:
-                logger.warning(
-                    "Windowing condition failed "
-                    "for derived observable "
-                    "up to W = {}".format(res["t_max"])
-                )
+                logger.warning("Windowing condition failed "
+                               "for derived observable "
+                               "up to W = {}".format(res["t_max"]))
 
         self.applied.t_max = res["t_max"]
         self.applied.w_opt = res["w_opt"]

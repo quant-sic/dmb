@@ -8,11 +8,17 @@ from pathlib import Path
 from typing import Any, Literal
 
 from attrs import define
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, \
-    SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
-from dmb.data.dispatching.helpers import ReturnCode, call_sbatch_and_wait, \
-    check_if_slurm_is_installed_and_running
+from dmb.data.dispatching.helpers import (
+    ReturnCode,
+    call_sbatch_and_wait,
+    check_if_slurm_is_installed_and_running,
+)
 from dmb.logging import create_logger
 from dmb.paths import REPO_ROOT
 
@@ -21,9 +27,12 @@ logger = create_logger(__name__)
 
 class SlurmDispatcherSettings(BaseSettings):
 
-    model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env",
-                                      env_file_encoding="utf-8",
-                                      extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_prefix="slurm_dispatcher_",
+    )
 
     partition: str
     number_of_tasks_per_node: int
@@ -51,8 +60,7 @@ class Dispatcher(ABC):
         task: list[str],
         work_directory: Path,
         pipeout_dir: Path,
-    ) -> ReturnCode:
-        ...
+    ) -> ReturnCode: ...
 
 
 def determine_dispatcher(
@@ -66,8 +74,7 @@ def determine_dispatcher(
 
     if scheduler == "slurm":
         if not check_if_slurm_is_installed_and_running():
-            logger.warning(
-                "Slurm is not installed or running. Falling back to None.")
+            logger.warning("Slurm is not installed or running. Falling back to None.")
             return None
         return "slurm"
 
@@ -119,10 +126,10 @@ class SlurmDispatcher(Dispatcher):
 
             script_file.write("#SBATCH --time=48:00:00\n".format(timeout))
             script_file.write("#SBATCH --nodes={}\n".format(number_of_nodes))
-            script_file.write("#SBATCH --ntasks-per-node={}\n".format(
-                number_of_tasks_per_node))
             script_file.write(
-                "#SBATCH --cpus-per-task={}\n".format(cpus_per_task))
+                "#SBATCH --ntasks-per-node={}\n".format(number_of_tasks_per_node)
+            )
+            script_file.write("#SBATCH --cpus-per-task={}\n".format(cpus_per_task))
             script_file.write("#SBATCH --mem=2G\n")
 
             for setup_call in self.setup_calls:
@@ -158,8 +165,7 @@ class SlurmDispatcher(Dispatcher):
             partition=dispatcher_settings.partition,
             timeout=timeout,
             number_of_nodes=dispatcher_settings.number_of_nodes,
-            number_of_tasks_per_node=dispatcher_settings.
-            number_of_tasks_per_node,
+            number_of_tasks_per_node=dispatcher_settings.number_of_tasks_per_node,
             cpus_per_task=dispatcher_settings.cpus_per_task,
         )
         code = await call_sbatch_and_wait(script_path, timeout=timeout)
@@ -197,11 +203,13 @@ class LocalDispatcher(Dispatcher):
         )
 
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(),
-                                                    timeout=timeout)
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=timeout
+            )
             await process.wait()
-            return_code = (ReturnCode.SUCCESS
-                           if process.returncode == 0 else ReturnCode.FAILURE)
+            return_code = (
+                ReturnCode.SUCCESS if process.returncode == 0 else ReturnCode.FAILURE
+            )
         except asyncio.TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
@@ -210,13 +218,13 @@ class LocalDispatcher(Dispatcher):
         # write output to file
         now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         pipeout_dir.mkdir(exist_ok=True, parents=True)
-        with open(pipeout_dir / f"stdout_{job_name}_{now}.txt",
-                  "w",
-                  encoding="utf-8") as f:
+        with open(
+            pipeout_dir / f"stdout_{job_name}_{now}.txt", "w", encoding="utf-8"
+        ) as f:
             f.write(stdout.decode("utf-8"))
-        with open(pipeout_dir / f"stderr_{job_name}_{now}.txt",
-                  "w",
-                  encoding="utf-8") as f:
+        with open(
+            pipeout_dir / f"stderr_{job_name}_{now}.txt", "w", encoding="utf-8"
+        ) as f:
             f.write(stderr.decode("utf-8"))
 
         return return_code
@@ -235,14 +243,14 @@ class AutoDispatcher(Dispatcher):
     }
 
     def __init__(
-            self,
-            dispatcher_type: Literal["auto", "slurm"] | None = "auto") -> None:
-        determined_dispatcher_type = determine_dispatcher(
-            dispatcher_type) or "local"
+        self, dispatcher_type: Literal["auto", "slurm"] | None = "auto"
+    ) -> None:
+        determined_dispatcher_type = determine_dispatcher(dispatcher_type) or "local"
 
         self.dispatcher = self.dispatcher_types[determined_dispatcher_type]()
         self.dispatcher_settings_type = self.dispatcher_settings_types[
-            determined_dispatcher_type]
+            determined_dispatcher_type
+        ]
 
     async def dispatch(
         self,
@@ -256,8 +264,7 @@ class AutoDispatcher(Dispatcher):
 
         # update dispatcher settings
 
-        updated_dispatcher_settings = self.dispatcher_settings_type(
-            **dispatcher_kwargs)
+        updated_dispatcher_settings = self.dispatcher_settings_type(**dispatcher_kwargs)
 
         code = await self.dispatcher.dispatch(
             job_name=job_name,
