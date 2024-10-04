@@ -1,0 +1,12 @@
+defaults:
+  - _self_
+
+  - hydra: default
+  - split: from_dataset
+  - paths: default
+  - experiment: null
+
+
+file_path: ${paths.data_dir}/splits/${now:%Y-%m-%d}_${now:%H-%M-%S}.json
+task_name: create_split
+exp_name: null

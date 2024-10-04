@@ -1,0 +1,19 @@
+defaults:
+  - _self_
+  - hydra: default
+  - paths: default
+  - logger: wandb 
+  - trainer: default
+  - callbacks: default
+  
+  - datamodule: bose_hubbard_2d
+  - lit_model: lit_dmb_model
+
+  - experiment: null
+
+task_name: "train"
+exp_name: null
+
+ckpt_path: null
+seed: 42
+
