@@ -49,7 +49,7 @@ tasks:
     # vars:
     #   MARK: "{{ .MARK | default '' }}"
     cmds:
-      - poetry run pytest -vv --basetemp={{ .REPO_ROOT }}/.pytest_tmp
+      - poetry run pytest -vv --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
 
   licenses:
     desc: List licenses of dependencies

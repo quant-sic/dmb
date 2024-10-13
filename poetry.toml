@@ -1,4 +1,4 @@
-cache-dir = ".cache/.poetry"
+cache-dir = ".cache/poetry"
 
 [virtualenvs]
 create = true
