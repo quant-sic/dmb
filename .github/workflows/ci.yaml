@@ -40,7 +40,7 @@ jobs:
           task format
 
   test:
-    name: Run tests
+    name: Test
     runs-on: ubuntu-latest
 
     needs: setup
@@ -52,6 +52,6 @@ jobs:
       - name: Run setup
         uses: ./.github/actions/setup
 
-      - name: Test
+      - name: Run tests
         run: |
           task test MARK="not requires_worm"
