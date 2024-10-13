@@ -10,7 +10,7 @@ on:
 
 jobs:
   lint:
-    name: Lint code
+    name: Lint
     runs-on: ubuntu-latest
 
     steps:
@@ -35,6 +35,6 @@ jobs:
       - name: Run setup
         uses: ./.github/actions/setup
 
-      - name: Run tests
+      - name: Test
         run: |
           task test MARK=not requires_worm
