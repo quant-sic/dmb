@@ -1,3 +1,5 @@
+"""Dataset classes for DMB data."""
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Callable
@@ -8,6 +10,7 @@ from torch.utils.data import Dataset
 
 
 class IdDataset(Dataset, ABC):
+    """Dataset with sample IDs."""
 
     @abstractmethod
     def get_ids_from_indices(self, indices: tuple[int,

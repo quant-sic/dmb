@@ -27,8 +27,8 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
     def __attrs_post_init__(self) -> None:
         self.stage_subsets: dict[str, BoseHubbard2dDataset]
 
-    def get_collate_fn(self) -> callable:
-        collate_fns: list[callable] = [collate_sizes]
+    def get_collate_fn(self) -> Callable:
+        collate_fns: list[Callable] = [collate_sizes]
 
         return chain_fns(collate_fns)
 

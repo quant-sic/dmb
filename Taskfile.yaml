@@ -5,7 +5,31 @@ vars:
   REPO_ROOT:
     sh: git rev-parse --show-toplevel
 
+  PLATFORM:
+    sh: uname -s
+
 tasks:
+  install:
+    desc:
+      Install dependencies. Poetry cannot handle the torch installation properly on
+      multiple hardware platforms.
+    vars:
+      DEVICE: '{{ .DEVICE | default "cpu" }}' # cpu or cu124
+    cmds:
+      - poetry install
+      - |
+        if [ "{{ .PLATFORM }}" = "Darwin" ]; then
+          poetry run pip install torch==2.4.1
+        fi
+        if [ "{{ .PLATFORM }}" = "Linux" ]; then
+          if [ "{{ .DEVICE }}" = "cpu" ];
+          then
+            poetry run pip install torch==2.4.1+cpu --index-url https://download.pytorch.org/whl/cpu
+          else
+            poetry run pip install torch==2.4.1+cu124 --index-url https://download.pytorch.org/whl/cu124
+          fi
+        fi
+
   format:
     desc: Format the code
     cmds:

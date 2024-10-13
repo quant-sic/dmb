@@ -89,7 +89,7 @@ class TestWormOutput(WormOutputTests):
         input_parameters: WormInputParameters,
         sim_output_invalid_densities: Iterator[None],
         output_save_dir_path: Path,
-    ):
+    ) -> None:
         worm_output = WormOutput(
             input_parameters=input_parameters,
             out_file_path=input_parameters.get_outputfile_path(

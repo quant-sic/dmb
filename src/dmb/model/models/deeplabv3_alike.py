@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Tuple, Union
+from typing import Dict, Literal, Union, tuple
 
 import torch
 from torch import Tensor, nn
@@ -28,7 +28,7 @@ class _SimpleSegmentationModel(nn.Module):
         self.classifier = classifier
 
     def forward_impl(self,
-                     x: Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor]]:
+                     x: Tensor) -> Union[torch.Tensor, tuple[torch.Tensor]]:
         # input_shape = x.shape[-2:]
         # contract: features is a dict of tensors
         features = self.backbone(x)

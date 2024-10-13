@@ -40,41 +40,6 @@ pytest-dotenv = "^0.5.2"
 ipykernel = "^6.29.4"
 debugpy = "^1.8.1"
 
-# Treatments for different versions of torch
-[tool.poetry.group.cpu]
-optional = true
-
-[tool.poetry.group.cpu.dependencies]
-torch = [
-  {version = "^2.4.0", source = "pypi", markers = "extra=='cpu' and extra!='cu124' and sys_platform == 'darwin'"},
-  {version = "^2.4.0", source = "torch-cpu", markers = "extra=='cpu' and extra!='cu124' and sys_platform == 'linux'"},
-]
-poetorch={ version="0.1.0", extras=["cpu", "cu124"] }
-
-[tool.poetry.group.cu124]
-optional = true
-
-[tool.poetry.group.cu124.dependencies]
-torch = {version = "^2.4.0+cu124", source = "torch-cu124", markers = "extra=='cu124' and extra!='cpu'" }
-poetorch={ version="0.1.0", extras=["cpu", "cu124"] }
-
-[tool.poetry.extras]
-cpu = ["torch"]
-cu124 = ["torch"]
-
-[[tool.poetry.source]]
-name = "torch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "explicit"
-
-
-[[tool.poetry.source]]
-name = "torch-cu124"
-url = "https://download.pytorch.org/whl/cu124"
-priority = "explicit"
-
-
-
 [build-system]
 requires = ["poetry-core", "setuptools>=40.8.0", "wheel", "torch>=2.1.0"]
 build-backend = "poetry.core.masonry.api"

@@ -1,3 +1,5 @@
+"""Utility functions for data processing."""
+
 from functools import reduce
 from typing import Iterable
 
@@ -9,11 +11,30 @@ from dmb.logging import create_logger
 log = create_logger(__name__)
 
 
-def chain_fns(fns: Iterable[callable]) -> callable:
-    return reduce(lambda f, g: lambda x: g(f(x)), fns)
+def chain_fns(functions: Iterable[callable]) -> callable:
+    """Chain multiple functions together.
+
+    Args:
+        fns: Iterable of functions to chain together.
+    
+    Returns:
+        callable: A function that chains the input functions together.
+    """
+    return reduce(lambda f, g: lambda x: g(f(x)), functions)
 
 
-def collate_sizes(batch):
+def collate_sizes(
+    batch: Iterable[tuple(torch.Tensor, torch.Tensor)]
+) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
+    """Collate a batch of inputs and outputs by size.
+
+    Args:
+        batch: Iterable of tuples of input and output tensors.
+    
+    Returns:
+        tuple[torch.Tensor, torch.Tensor]: A tuple of lists of input and output tensors.
+            Each list item contains a batch of inputs or outputs of the same size.
+    """
     sizes = np.array([input_.shape[-1] for input_, _ in batch])
 
     size_batches_in = []

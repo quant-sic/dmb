@@ -1,7 +1,7 @@
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, \
-    Sequence, Sized, Tuple, Type, Union, cast
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, \
+    Sequence, Sized, Tuple, Type, Union, cast, list
 
 import lightning.pytorch as pl
 import torch
@@ -19,8 +19,8 @@ def random_seeded_split(
     seed: int = 42,
     split_version_id: int = 0,
     num_split_versions: int = 1,
-    resplit: Optional[List[Dict]] = None,
-) -> List[Subset]:
+    resplit: Optional[list[Dict]] = None,
+) -> list[Subset]:
     """Splits a dataset into train, val and test subsets with a fixed seed.
 
     Args:
@@ -54,7 +54,7 @@ def random_seeded_split(
         generator=torch.Generator().manual_seed(seed),
     )
 
-    split_datasets_out: List[Subset] = []
+    split_datasets_out: list[Subset] = []
     if resplit is not None:
         if not len(resplit) == len(split_datasets):
             raise ValueError(

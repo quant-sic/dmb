@@ -1,7 +1,7 @@
 import math
 from collections import OrderedDict
 from functools import partial
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union, list, tuple
 
 import torch
 from torch import Tensor, nn
@@ -14,11 +14,11 @@ class BlockParams:
 
     def __init__(
         self,
-        depths: List[int],
-        widths: List[int],
-        group_widths: List[int],
-        bottleneck_multipliers: List[float],
-        strides: List[int],
+        depths: list[int],
+        widths: list[int],
+        group_widths: list[int],
+        bottleneck_multipliers: list[float],
+        strides: list[int],
         se_ratio: Optional[float] = None,
     ) -> None:
         self.depths = depths
@@ -116,8 +116,8 @@ class BlockParams:
 
     @staticmethod
     def _adjust_widths_groups_compatibilty(
-            stage_widths: List[int], bottleneck_ratios: List[float],
-            group_widths: List[int]) -> Tuple[List[int], List[int]]:
+            stage_widths: list[int], bottleneck_ratios: list[float],
+            group_widths: list[int]) -> tuple[list[int], list[int]]:
         """
         Adjusts the compatibility of widths and groups,
         depending on the bottleneck ratio.
@@ -162,15 +162,15 @@ class Conv2dNormActivationCircular(ConvNormActivation):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[int, Tuple[int, int]] = 3,
-        stride: Union[int, Tuple[int, int]] = 1,
-        padding: Optional[Union[int, Tuple[int, int], str]] = None,
+        kernel_size: Union[int, tuple[int, int]] = 3,
+        stride: Union[int, tuple[int, int]] = 1,
+        padding: Optional[Union[int, tuple[int, int], str]] = None,
         groups: int = 1,
         norm_layer: Optional[Callable[...,
                                       torch.nn.Module]] = torch.nn.BatchNorm2d,
         activation_layer: Optional[Callable[...,
                                             torch.nn.Module]] = torch.nn.ReLU,
-        dilation: Union[int, Tuple[int, int]] = 1,
+        dilation: Union[int, tuple[int, int]] = 1,
         inplace: Optional[bool] = True,
         bias: Optional[bool] = None,
     ) -> None:

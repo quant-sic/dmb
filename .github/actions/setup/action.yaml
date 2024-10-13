@@ -24,7 +24,7 @@ runs:
 
     - name: Install dependencies
       if: steps.setup-cache.outputs.cache-hit != 'true'
-      run: poetry install --with ci --with cpu --extras cpu
+      run: task install
       shell: bash
 
     - name: Update path

@@ -3,7 +3,7 @@ import asyncio
 import itertools
 import os
 from pathlib import Path
-from typing import List
+from typing import list
 
 import numpy as np
 from tqdm import tqdm

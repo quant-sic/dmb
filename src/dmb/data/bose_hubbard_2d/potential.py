@@ -1,11 +1,11 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, tuple
 
 import FyeldGenerator
 import numpy as np
 from scipy import stats
 
 
-def periodic_grf(shape: Tuple[int, int], power: float) -> np.ndarray:
+def periodic_grf(shape: tuple[int, int], power: float) -> np.ndarray:
 
     def Pkgen(n):
 
@@ -26,9 +26,9 @@ def periodic_grf(shape: Tuple[int, int], power: float) -> np.ndarray:
 
 
 def get_random_trapping_potential(
-        shape: Tuple[int, int],
+        shape: tuple[int, int],
         desired_abs_max: float,
-        power: Optional[float] = None) -> Tuple[float, np.ndarray]:
+        power: Optional[float] = None) -> tuple[float, np.ndarray]:
     if power is None:
         power = stats.loguniform.rvs(0.1, 10)
 

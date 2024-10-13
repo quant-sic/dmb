@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Type, Union
+from typing import Callable, Optional, Type, Union, list
 
 from torch import Tensor, nn
 from torchvision.models.resnet import _log_api_usage_once
@@ -168,12 +168,12 @@ class ResNet(nn.Module):
         self,
         in_channels: int,
         block: Type[Union[BasicBlock, Bottleneck]],
-        layers: List[int],
+        layers: list[int],
         out_channels: int = None,
         zero_init_residual: bool = False,
         groups: int = 1,
         width_per_group: int = 64,
-        replace_stride_with_dilation: Optional[List[bool]] = None,
+        replace_stride_with_dilation: Optional[list[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         add_se: bool = False,
     ) -> None:

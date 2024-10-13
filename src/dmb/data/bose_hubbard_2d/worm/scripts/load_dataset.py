@@ -68,6 +68,7 @@ def filter_by_error(
 
         return (simulation.record["steps"][-1][error_key] <= max_density_error
                 ) and (simulation.record["steps"][-1]["tau_max"] > 0)
+
     except (IndexError, TypeError, KeyError) as e:
         log.error(f"Error {e} During error filtering for {simulation}")
         return False
@@ -81,7 +82,7 @@ def clean_sim_dirs(
     recalculate_errors: bool = False,
     delete_unreadable: bool = False,
     check_readable: bool = True,
-):
+) -> list[Path]:
 
     valid_sim_dirs = [
         get_simulation_valid(
@@ -118,7 +119,9 @@ def clean_sim_dirs(
     return sim_dirs
 
 
-def load_sample(simulation_dir, observables, reload=False):
+def load_sample(simulation_dir,
+                observables,
+                reload=False) -> tuple[torch.Tensor, torch.Tensor, dict]:
 
     inputs_path = simulation_dir / "inputs.pt"
     outputs_path = simulation_dir / "outputs.pt"
@@ -229,7 +232,7 @@ def load_dataset_simulations(
         recalculate_errors: Recalculate the errors for the simulations.
         delete_unreadable: Delete unreadable simulation directories.
         check_readable: Check if the simulation is readable.
-        observables: List of observables to include in the dataset.
+        observables: list of observables to include in the dataset.
     """
     dataset_save_path.mkdir(exist_ok=True, parents=True)
     with open(dataset_save_path / "metadata.json", "w", encoding="utf-8") as f:

@@ -1,3 +1,5 @@
+"""Dataset splitting functionality."""
+
 import json
 import random
 from pathlib import Path
@@ -11,7 +13,7 @@ from dmb.data.dataset import IdDataset
 
 @define
 class Split:
-    """Split a dataset into multiple subsets based on a dictionary of split IDs.
+    """A Split into multiple subsets based on a dictionary of split IDs.
 
     Attributes:
         split_ids: A dictionary of split names and corresponding IDs.
