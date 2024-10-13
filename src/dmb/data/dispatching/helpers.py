@@ -5,8 +5,6 @@ from enum import Enum
 from logging import Logger
 from pathlib import Path
 
-from attrs import define
-
 from dmb.logging import create_logger
 
 
@@ -54,11 +52,10 @@ async def call_sbatch_and_wait(
 
             if process.returncode != 0:
                 logging_instance.debug(
-                    f"Error executing squeue: {process.stderr.decode('utf-8')}"
-                )
+                    f"Error executing squeue: {process.stderr.decode('utf-8')}")
                 return ReturnCode.FAILURE
 
-            if not job_state in ("RUNNING", "PENDING"):
+            if job_state not in ("RUNNING", "PENDING"):
                 logging_instance.debug(f"Job {job_id} ended {job_state}")
                 break
 
@@ -79,6 +76,14 @@ async def call_sbatch_and_wait(
 
 def check_if_slurm_is_installed_and_running(
     logging_instance: Logger = logger, ) -> bool:
+    """Check if Slurm is installed and running on the system.
+
+    Args:
+        logging_instance: Logger instance.
+
+    Returns:
+        True if Slurm is installed and running, False otherwise.
+    """
 
     try:
         subprocess.run("sinfo", check=True, stdout=subprocess.PIPE)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import itertools
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any, Literal, cast
 
 import hydra
@@ -16,6 +17,7 @@ from omegaconf import DictConfig
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
+from dmb.data.collate import MultipleSizesBatch
 from dmb.logging import create_logger
 
 log = create_logger(__name__)
@@ -26,15 +28,14 @@ class LitDMBModel(pl.LightningModule):
 
     model: torch.nn.Module
     optimizer: functools.partial[Optimizer]
-    lr_scheduler: functools.partial[dict[str, functools.partial[_LRScheduler
-                                                                | Any]]]
+    lr_scheduler: dict[str, functools.partial[_LRScheduler | Any]]
     loss: torch.nn.Module
     metrics: torchmetrics.MetricCollection
 
-    def __attrs_pre_init__(self):
+    def __attrs_pre_init__(self) -> None:
         super().__init__()
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         self.example_input_array = torch.zeros(1, 4, 10, 10)
 
     @classmethod
@@ -68,21 +69,22 @@ class LitDMBModel(pl.LightningModule):
         return model
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+        out: torch.Tensor = self.model(x)
+        return out
 
-    def _calculate_loss(self, batch: Any) -> tuple[torch.Tensor, torch.Tensor]:
-        batch_in, batch_label = batch
+    def _calculate_loss(self,
+                        batch: MultipleSizesBatch) -> tuple[torch.Tensor, torch.Tensor]:
 
-        model_out = self(batch_in)
-        loss = self.loss(model_out, batch_label)
+        model_out = self(batch["inputs"])
+        loss = self.loss(model_out, batch["outputs"])
 
         return model_out, loss
 
-    def _evaluate_metrics(self, batch: Any, model_out: torch.Tensor) -> None:
-        batch_in, batch_label = batch
-        self.metrics.update(preds=model_out, target=batch_label)
+    def _evaluate_metrics(self, batch: MultipleSizesBatch,
+                          model_out: torch.Tensor) -> None:
+        self.metrics.update(preds=model_out, target=batch["outputs"])
 
-    def training_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: MultipleSizesBatch, batch_idx: int) -> torch.Tensor:
         model_out, loss = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
@@ -99,7 +101,7 @@ class LitDMBModel(pl.LightningModule):
 
         return loss
 
-    def validation_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def validation_step(self, batch: MultipleSizesBatch, batch_idx: int) -> None:
         model_out, loss = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
@@ -114,7 +116,7 @@ class LitDMBModel(pl.LightningModule):
             batch_size=batch_size,
         )
 
-    def test_step(self, batch: Any, batch_idx: int) -> torch.Tensor:
+    def test_step(self, batch: MultipleSizesBatch, batch_idx: int) -> None:
         model_out, loss = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 

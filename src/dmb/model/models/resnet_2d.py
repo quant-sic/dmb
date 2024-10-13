@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Type, Union
+from typing import Callable, Optional, Type, Union, list
 
 from torch import Tensor, nn
 from torchvision.models.resnet import _log_api_usage_once
@@ -55,11 +55,9 @@ class BasicBlock(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if groups != 1 or base_width != 64:
-            raise ValueError(
-                "BasicBlock only supports groups=1 and base_width=64")
+            raise ValueError("BasicBlock only supports groups=1 and base_width=64")
         if dilation > 1:
-            raise NotImplementedError(
-                "Dilation > 1 not supported in BasicBlock")
+            raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
@@ -168,12 +166,12 @@ class ResNet(nn.Module):
         self,
         in_channels: int,
         block: Type[Union[BasicBlock, Bottleneck]],
-        layers: List[int],
+        layers: list[int],
         out_channels: int = None,
         zero_init_residual: bool = False,
         groups: int = 1,
         width_per_group: int = 64,
-        replace_stride_with_dilation: Optional[List[bool]] = None,
+        replace_stride_with_dilation: Optional[list[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         add_se: bool = False,
     ) -> None:
@@ -244,9 +242,7 @@ class ResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight,
-                                        mode="fan_out",
-                                        nonlinearity="relu")
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -257,11 +253,9 @@ class ResNet(nn.Module):
         if zero_init_residual:
             for m in self.modules():
                 if isinstance(m, Bottleneck) and m.bn3.weight is not None:
-                    nn.init.constant_(m.bn3.weight,
-                                      0)  # type: ignore[arg-type]
+                    nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
                 elif isinstance(m, BasicBlock) and m.bn2.weight is not None:
-                    nn.init.constant_(m.bn2.weight,
-                                      0)  # type: ignore[arg-type]
+                    nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
 
     def _make_layer(
         self,

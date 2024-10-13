@@ -2,7 +2,10 @@
 
 __all__ = ["WormInputParameters"]
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any
 
 import h5py
 import matplotlib.pyplot as plt
@@ -10,92 +13,21 @@ import numpy as np
 from attrs import frozen
 
 
-class _InputParameterPlottingMixin:
-    """Mixin class for plotting input parameters."""
-
-    def plot_input_parameters(self, plots_dir: Path) -> None:
-        """Plot the input parameters of the worm simulation."""
-        plots_dir.mkdir(parents=True, exist_ok=True)
-
-        fig, ax = plt.subplots(1, 4, figsize=(20, 5))
-        ax[0].imshow(self.mu.reshape(self.Lx, self.Ly))
-        ax[0].set_title("mu")
-        ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0])
-        ax[1].set_title("t_hop")
-        ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly))
-        ax[2].set_title("U_on")
-        ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0])
-        ax[3].set_title("V_nn")
-
-        # set axes off
-        for ax_ in ax:
-            ax_.axis("off")
-
-        # set colorbars
-        fig.colorbar(
-            ax[0].imshow(self.mu.reshape(self.Lx, self.Ly)),
-            ax=ax[0],
-        )
-        fig.colorbar(
-            ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0]),
-            ax=ax[1],
-        )
-        fig.colorbar(
-            ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly)),
-            ax=ax[2],
-        )
-        fig.colorbar(
-            ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0]),
-            ax=ax[3],
-        )
-
-        plt.savefig(plots_dir / "inputs.png")
-        plt.close()
-
-    def plot_phase_diagram_input_parameters(self, plots_dir: Path):
-        """Plot the phase diagram input parameters of the worm simulation."""
-        muU = self.mu / self.U_on
-        ztU = 4 * self.t_hop / self.U_on[None, ...]
-        zVU = 4 * self.V_nn / self.U_on[None, ...]
-
-        fig, ax = plt.subplots(1, 3, figsize=(15, 5))
-        ax[0].imshow(muU.reshape(self.Lx, self.Ly))
-        ax[0].set_title("muU")
-
-        ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0])
-        ax[1].set_title("ztU")
-
-        ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0])
-        ax[2].set_title("zVU")
-
-        # set axes off
-        for ax_ in ax:
-            ax_.axis("off")
-
-        # set colorbars
-        fig.colorbar(ax[0].imshow(muU.reshape(self.Lx, self.Ly)), ax=ax[0])
-        fig.colorbar(ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0]),
-                     ax=ax[1])
-        fig.colorbar(ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0]),
-                     ax=ax[2])
-
-        plt.savefig(plots_dir / "phase_diagram_inputs.png")
-        plt.close()
-
-
 @frozen(eq=False, slots=False)
-class WormInputParameters(_InputParameterPlottingMixin):
+class WormInputParameters:
     """Class for the input parameters of the worm simulation."""
 
     mu: np.ndarray
 
     Lx: int
     Ly: int
+
+    t_hop: np.ndarray
+    U_on: np.ndarray
+    V_nn: np.ndarray
+
     Lz: int = 1
 
-    t_hop: np.ndarray = 1.0
-    U_on: np.ndarray = 4.0
-    V_nn: np.ndarray = 0.0
     model: str = "BoseHubbard"
     runtimelimit: int = 24 * 60 * 60
     sweeps: int = 25000
@@ -140,8 +72,8 @@ class WormInputParameters(_InputParameterPlottingMixin):
                 ):
                     return False
 
-            elif self.__getattribute__(
-                    attribute.name) != other.__getattribute__(attribute.name):
+            elif self.__getattribute__(attribute.name) != other.__getattribute__(
+                    attribute.name):
                 return False
 
         return True
@@ -163,8 +95,8 @@ class WormInputParameters(_InputParameterPlottingMixin):
         return save_dir_path / "checkpoint.h5"
 
     @classmethod
-    def from_dir(cls, save_dir_path: Path):
-        attributes = {
+    def from_dir(cls, save_dir_path: Path) -> WormInputParameters:
+        attributes: dict[str, type | None] = {
             attribute.name: attribute.type
             for attribute in cls.__attrs_attrs__
         }
@@ -177,6 +109,7 @@ class WormInputParameters(_InputParameterPlottingMixin):
         params = {}
         for line in lines:
             if not line.startswith("#"):
+                value: Any
                 key, value = map(lambda s: s.strip(), line.split("="))
 
                 if key in attributes:
@@ -184,7 +117,11 @@ class WormInputParameters(_InputParameterPlottingMixin):
                         value = float(value) if value != "None" else None
 
                     elif key not in ("mu", "t_hop", "U_on", "V_nn"):
-                        value = attributes[key](value)
+                        if attributes[key] is None:
+                            raise ValueError(
+                                f"Inconsistent attribute {key} in {cls.__name__}")
+                        else:
+                            value = attributes[key](value)  # type: ignore
 
                     # add to dictionary
                     params[key] = value
@@ -195,11 +132,9 @@ class WormInputParameters(_InputParameterPlottingMixin):
                 params[name] = file[f"/{name}"][()]
 
                 if name in ("t_hop", "V_nn"):
-                    params[name] = params[name].reshape(
-                        2, params["Lx"], params["Ly"])
+                    params[name] = params[name].reshape(2, params["Lx"], params["Ly"])
                 else:
-                    params[name] = params[name].reshape(
-                        params["Lx"], params["Ly"])
+                    params[name] = params[name].reshape(params["Lx"], params["Ly"])
 
         # Create input parameters
         return cls(**params)
@@ -218,8 +153,7 @@ class WormInputParameters(_InputParameterPlottingMixin):
                 ("U_on", self.U_on),
                 ("V_nn", self.V_nn),
             ):
-                file[f"/{name}"] = (attribute if isinstance(attribute, float)
-                                    else attribute.flatten())
+                file[f"/{name}"] = attribute.flatten()
 
     def save_ini_file(self, save_dir: Path) -> None:
         ini_file_path = self.get_ini_path(save_dir)
@@ -238,10 +172,76 @@ class WormInputParameters(_InputParameterPlottingMixin):
                 if not (attribute.name in ("mu", "t_hop", "U_on", "V_nn")
                         and attribute.type is np.ndarray):
                     f.write(
-                        f"{attribute.name} = {self.__getattribute__(attribute.name)}\n"
-                    )
+                        f"{attribute.name} = {self.__getattribute__(attribute.name)}\n")
 
-    def save(self, save_dir: Path):
+    def save(self, save_dir: Path) -> None:
         # Create ini file
         self.save_ini_file(save_dir=save_dir)
         self.save_h5_file(save_dir=save_dir)
+
+    def plot_input_parameters(self, plots_dir: Path) -> None:
+        """Plot the input parameters of the worm simulation."""
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+        ax[0].imshow(self.mu.reshape(self.Lx, self.Ly))
+        ax[0].set_title("mu")
+        ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0])
+        ax[1].set_title("t_hop")
+        ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly))
+        ax[2].set_title("U_on")
+        ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0])
+        ax[3].set_title("V_nn")
+
+        # set axes off
+        for ax_ in ax:
+            ax_.axis("off")
+
+        # set colorbars
+        fig.colorbar(
+            ax[0].imshow(self.mu.reshape(self.Lx, self.Ly)),
+            ax=ax[0],
+        )
+        fig.colorbar(
+            ax[1].imshow(self.t_hop.reshape(2, self.Lx, self.Ly)[0]),
+            ax=ax[1],
+        )
+        fig.colorbar(
+            ax[2].imshow(self.U_on.reshape(self.Lx, self.Ly)),
+            ax=ax[2],
+        )
+        fig.colorbar(
+            ax[3].imshow(self.V_nn.reshape(2, self.Lx, self.Ly)[0]),
+            ax=ax[3],
+        )
+
+        plt.savefig(plots_dir / "inputs.png")
+        plt.close()
+
+    def plot_phase_diagram_input_parameters(self, plots_dir: Path) -> None:
+        """Plot the phase diagram input parameters of the worm simulation."""
+        muU = self.mu / self.U_on
+        ztU = 4 * self.t_hop / self.U_on[None, ...]
+        zVU = 4 * self.V_nn / self.U_on[None, ...]
+
+        fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+        ax[0].imshow(muU.reshape(self.Lx, self.Ly))
+        ax[0].set_title("muU")
+
+        ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0])
+        ax[1].set_title("ztU")
+
+        ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0])
+        ax[2].set_title("zVU")
+
+        # set axes off
+        for ax_ in ax:
+            ax_.axis("off")
+
+        # set colorbars
+        fig.colorbar(ax[0].imshow(muU.reshape(self.Lx, self.Ly)), ax=ax[0])
+        fig.colorbar(ax[1].imshow(ztU.reshape(2, self.Lx, self.Ly)[0]), ax=ax[1])
+        fig.colorbar(ax[2].imshow(zVU.reshape(2, self.Lx, self.Ly)[0]), ax=ax[2])
+
+        plt.savefig(plots_dir / "phase_diagram_inputs.png")
+        plt.close()

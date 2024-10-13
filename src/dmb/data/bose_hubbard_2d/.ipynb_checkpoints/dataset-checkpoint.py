@@ -1,7 +1,7 @@
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, \
-    Sequence, Sized, Tuple, Type, Union, cast
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, \
+    Sequence, Sized, Tuple, Type, Union, cast, list
 
 import lightning.pytorch as pl
 import torch
@@ -19,8 +19,8 @@ def random_seeded_split(
     seed: int = 42,
     split_version_id: int = 0,
     num_split_versions: int = 1,
-    resplit: Optional[List[Dict]] = None,
-) -> List[Subset]:
+    resplit: Optional[list[Dict]] = None,
+) -> list[Subset]:
     """Splits a dataset into train, val and test subsets with a fixed seed.
 
     Args:
@@ -43,9 +43,7 @@ def random_seeded_split(
 
     log.info("Splitting dataset with default indices")
 
-    sample_numbers = [
-        int(f * float(dataset_length)) for f in train_val_test_split
-    ]
+    sample_numbers = [int(f * float(dataset_length)) for f in train_val_test_split]
     sample_numbers[-1] = dataset_length - sum(sample_numbers[:-1])
 
     split_datasets = random_split(
@@ -54,14 +52,12 @@ def random_seeded_split(
         generator=torch.Generator().manual_seed(seed),
     )
 
-    split_datasets_out: List[Subset] = []
+    split_datasets_out: list[Subset] = []
     if resplit is not None:
         if not len(resplit) == len(split_datasets):
-            raise ValueError(
-                "resplit must have the same length as split_datasets")
+            raise ValueError("resplit must have the same length as split_datasets")
 
-        for idx, (split_config,
-                  _dataset) in enumerate(zip(resplit, split_datasets)):
+        for idx, (split_config, _dataset) in enumerate(zip(resplit, split_datasets)):
             if split_config is None:
                 split_datasets_out.append(_dataset)
             else:
@@ -75,14 +71,10 @@ def random_seeded_split(
 
     if (not len(
             set.intersection(
-                *[set(_dataset.indices)
-                  for _dataset in split_datasets_out])) == 0):
-        raise ValueError(
-            "Split datasets are not disjoint. Intersections: {}".format(
-                set.intersection(
-                    *
-                    [set(_dataset.indices)
-                     for _dataset in split_datasets_out])))
+                *[set(_dataset.indices) for _dataset in split_datasets_out])) == 0):
+        raise ValueError("Split datasets are not disjoint. Intersections: {}".format(
+            set.intersection(
+                *[set(_dataset.indices) for _dataset in split_datasets_out])))
 
     # check that ids are disjoint
     if (not len(
@@ -96,13 +88,11 @@ def random_seeded_split(
             "Split datasets have overlapping ids. Intersections: {}".format(
                 set.intersection(*[
                     set([
-                        og_dataset.get_dataset_id_from_index
-                        for idx in _dataset.indices
+                        og_dataset.get_dataset_id_from_index for idx in _dataset.indices
                     ]) for _dataset in split_datasets_out
                 ])))
 
-    if not sum([len(_dataset)
-                for _dataset in split_datasets_out]) == dataset_length:
+    if not sum([len(_dataset) for _dataset in split_datasets_out]) == dataset_length:
         raise ValueError(
             "Split datasets do not add up to original dataset. Lengths: {}. Sum: {}. Dataset Length: {}."
             .format(
@@ -138,8 +128,7 @@ class BoseHubbardDataset(Dataset):
             sim = WormSimulation.from_dir(sim_dir)
 
             try:
-                sim.results.observables["Density_Distribution"]["mean"][
-                    "value"]
+                sim.results.observables["Density_Distribution"]["mean"]["value"]
                 valid = True
             except:
                 valid = False
@@ -196,8 +185,7 @@ class BoseHubbardDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         # load and split datasets only if not loaded already
-        if not len(self.split_datasets) == len(
-                self.hparams["train_val_test_split"]):
+        if not len(self.split_datasets) == len(self.hparams["train_val_test_split"]):
             self.dataset: Dataset = self.get_dataset()
 
             split_datasets = random_seeded_split(
@@ -212,15 +200,13 @@ class BoseHubbardDataModule(pl.LightningDataModule):
                 if "split_version_id" in self.hparams else 0,
                 num_split_clusters=self.hparams["num_split_clusters"]
                 if "num_split_clusters" in self.hparams else 1,
-                resplit=self.hparams["resplit"]
-                if "resplit" in self.hparams else None,
+                resplit=self.hparams["resplit"] if "resplit" in self.hparams else None,
             )
 
             self.split_datasets = split_datasets
 
             # get expected number of split datasets. Right not only one layer of resplitting is supported
-            expected_num_split_datasets = len(
-                self.hparams["train_val_test_split"])
+            expected_num_split_datasets = len(self.hparams["train_val_test_split"])
             if self.hparams["resplit"] is not None:
                 for _resplit in self.hparams["resplit"]:
                     if _resplit is not None:
@@ -229,8 +215,7 @@ class BoseHubbardDataModule(pl.LightningDataModule):
 
             if not len(split_datasets) == expected_num_split_datasets:
                 raise RuntimeError(
-                    f"Unexpected number of split datasets {len(split_datasets)}"
-                )
+                    f"Unexpected number of split datasets {len(split_datasets)}")
 
         # check dataset is not None
         if self.dataset is None:
@@ -238,8 +223,7 @@ class BoseHubbardDataModule(pl.LightningDataModule):
 
         if any(idx < 0 or idx > len(self.split_datasets)
                for idx in self.hparams["split_usage"].values()):
-            raise ValueError(
-                f"Invalid split usage: {self.hparams['split_usage']}")
+            raise ValueError(f"Invalid split usage: {self.hparams['split_usage']}")
 
         self.data_train, self.data_val, self.data_test = (
             self.split_datasets[self.hparams["split_usage"]["train"]],
@@ -365,9 +349,8 @@ class BoseHubbardDataModule(pl.LightningDataModule):
                 if dataset is not None:
                     if (hasattr(self, "_previous_split_indices")
                             and self._previous_split_indices is not None):
-                        if not np.array_equal(
-                                dataset.indices,
-                                self._previous_split_indices[stage]):
+                        if not np.array_equal(dataset.indices,
+                                              self._previous_split_indices[stage]):
                             raise RuntimeError(
                                 f"Loaded indices for {stage} dataset are not consistent with previous ones."
                             )
@@ -385,5 +368,4 @@ class BoseHubbardDataModule(pl.LightningDataModule):
                                 f"Loaded ids for {stage} dataset are not consistent with previous ones."
                             )
         else:
-            log.warning(
-                "No previous split indices found. Skipping consistency check.")
+            log.warning("No previous split indices found. Skipping consistency check.")

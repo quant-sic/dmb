@@ -1,12 +1,13 @@
-from typing import Literal
+from typing import Callable
 
 import lightning.pytorch as pl
 from attrs import define
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
+from dmb.data.collate import collate_sizes
 from dmb.data.split import Split
-from dmb.data.utils import chain_fns, collate_sizes
+from dmb.data.utils import chain_fns
 from dmb.logging import create_logger
 
 log = create_logger(__name__)
@@ -25,14 +26,14 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
         super().__init__()
 
     def __attrs_post_init__(self) -> None:
-        self.stage_subsets: dict[str, BoseHubbard2dDataset]
+        self.stage_subsets: dict[str, Subset[BoseHubbard2dDataset]]
 
-    def get_collate_fn(self) -> callable:
-        collate_fns: list[callable] = [collate_sizes]
+    def get_collate_fn(self) -> Callable:
+        collate_fns: list[Callable] = [collate_sizes]
 
         return chain_fns(collate_fns)
 
-    def setup(self, stage: Literal["fit", "test", "predict"]) -> None:
+    def setup(self, stage: str = "fit") -> None:
         self.stage_subsets = self.split.apply(self.dataset)
 
         if stage == "fit":

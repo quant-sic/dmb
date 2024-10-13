@@ -18,11 +18,7 @@ class BasicBlock(nn.Module):
     ResNet Basic Block
     """
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 is_first_block=False):
+    def __init__(self, in_channels, out_channels, kernel_size, is_first_block=False):
         super(BasicBlock, self).__init__()
 
         self.in_channels = in_channels

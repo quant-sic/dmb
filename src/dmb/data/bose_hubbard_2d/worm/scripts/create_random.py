@@ -3,6 +3,8 @@ import asyncio
 import datetime
 import os
 import shutil
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 from dotenv import load_dotenv
@@ -26,14 +28,15 @@ def draw_random_config(
     V_nn_z_max: float = 1.75,
     mu_offset_min: float = -0.5,
     mu_offset_max: float = 3.0,
-):
+) -> tuple[int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any,
+           float]:
     L = np.random.randint(low=L_half_min, high=L_half_max) * 2
     U_on = (np.random.uniform(low=U_on_min, high=U_on_max)**(-1)) * 4
     V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
     mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
-    power, V_trap = get_random_trapping_potential(
-        shape=(L, L), desired_abs_max=abs(mu_offset) / 2)
+    power, V_trap = get_random_trapping_potential(shape=(L, L),
+                                                  desired_abs_max=abs(mu_offset) / 2)
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
     V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
                                 axis=0).repeat(2, axis=0)
@@ -44,7 +47,8 @@ def draw_random_config(
     return L, U_on, V_nn, mu, t_hop_array, U_on_array, V_nn_array, power, mu_offset
 
 
-def draw_uniform_config():
+def draw_uniform_config() -> tuple[int, float, float, np.ndarray, np.ndarray,
+                                   np.ndarray, np.ndarray, Any, float]:
     L = np.random.randint(low=4, high=10) * 2
     U_on = (np.random.uniform(low=0.05, high=1)**(-1)) * 4
     V_nn = np.random.uniform(low=0.75 / 4, high=1.75 / 4) * U_on
@@ -62,17 +66,17 @@ def draw_uniform_config():
 
 # def simulate(sample_id,type="random"):
 async def simulate(
-    sample_id,
-    type="random",
-    L_half_min=4,
-    L_half_max=10,
-    U_on_min=0.05,
-    U_on_max=1.0,
-    V_nn_z_min=0.75,
-    V_nn_z_max=1.75,
-    mu_offset_min=-0.5,
-    mu_offset_max=3.0,
-):
+    sample_id: int,
+    type: str = "random",
+    L_half_min: int = 4,
+    L_half_max: int = 10,
+    U_on_min: float = 0.05,
+    U_on_max: float = 1.0,
+    V_nn_z_min: float = 0.75,
+    V_nn_z_max: float = 1.75,
+    mu_offset_min: float = -0.5,
+    mu_offset_max: float = 3.0,
+) -> None:
     if type == "random":
         (
             L,
@@ -127,8 +131,7 @@ async def simulate(
         mu_offset=mu_offset,
     )
 
-    now = datetime.datetime.now()
-    now = now.strftime("%Y-%m-%d_%H-%M-%S")
+    now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     name_prefix = ""
     # get slurm job id if running on cluster
@@ -142,7 +145,7 @@ async def simulate(
     sim = WormSimulation(
         p,
         save_dir=save_dir,
-        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
         dispatcher=AutoDispatcher(),
     )
     sim_run = WormSimulationRunner(worm_simulation=sim)
@@ -154,8 +157,7 @@ async def simulate(
 if __name__ == "__main__":
     load_dotenv()
 
-    parser = argparse.ArgumentParser(
-        description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
     parser.add_argument("--number_of_samples",
                         type=int,
                         default=1,
@@ -202,7 +204,7 @@ if __name__ == "__main__":
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
-    async def run_sample(sample_id):
+    async def run_sample(sample_id: int) -> None:
         async with semaphore:
             await simulate(
                 sample_id,
@@ -221,8 +223,6 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     loop.run_until_complete(
-        asyncio.gather(*[
-            run_sample(sample_id)
-            for sample_id in range(args.number_of_samples)
-        ]))
+        asyncio.gather(
+            *[run_sample(sample_id) for sample_id in range(args.number_of_samples)]))
     loop.close()

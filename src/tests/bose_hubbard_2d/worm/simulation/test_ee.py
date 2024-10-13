@@ -5,11 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from dmb.data.bose_hubbard_2d.worm.simulation import (
-    WormInputParameters,
-    WormSimulation,
-    WormSimulationRunner,
-)
+from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
+    WormSimulation, WormSimulationRunner
 from dmb.data.dispatching import AutoDispatcher
 from dmb.logging import create_logger
 
@@ -29,7 +26,7 @@ async def test_ee_run_iterative(
         input_parameters,
         save_dir=tmp_path,
         dispatcher=AutoDispatcher(),
-        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
     max_density_error = 0.25
@@ -62,7 +59,7 @@ async def test_ee_tune_nmeasure2(
         input_parameters,
         save_dir=tmp_path,
         dispatcher=AutoDispatcher(),
-        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
     runner = WormSimulationRunner(simulation)
@@ -94,7 +91,7 @@ async def test_ee_run_combination(
         input_parameters,
         save_dir=tmp_path,
         dispatcher=AutoDispatcher(),
-        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
     runner = WormSimulationRunner(simulation)
@@ -118,5 +115,6 @@ async def test_ee_run_combination(
     )
 
     assert (tmp_path / "output.h5").exists()
+    assert simulation.max_density_error is not None
     assert simulation.max_density_error < max_density_error
     assert simulation.valid

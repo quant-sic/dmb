@@ -1,7 +1,7 @@
 import math
 from collections import OrderedDict
 from functools import partial
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union, list, tuple
 
 import torch
 from torch import Tensor, nn
@@ -14,11 +14,11 @@ class BlockParams:
 
     def __init__(
         self,
-        depths: List[int],
-        widths: List[int],
-        group_widths: List[int],
-        bottleneck_multipliers: List[float],
-        strides: List[int],
+        depths: list[int],
+        widths: list[int],
+        group_widths: list[int],
+        bottleneck_multipliers: list[float],
+        strides: list[int],
         se_ratio: Optional[float] = None,
     ) -> None:
         self.depths = depths
@@ -67,11 +67,10 @@ class BlockParams:
             raise ValueError("Invalid RegNet settings")
         # Compute the block widths. Each stage has one unique block width
         widths_cont = torch.arange(depth) * w_a + w_0
-        block_capacity = torch.round(
-            torch.log(widths_cont / w_0) / math.log(w_m))
-        block_widths = ((torch.round(
-            torch.divide(w_0 * torch.pow(w_m, block_capacity), QUANT)) *
-                         QUANT).int().tolist())
+        block_capacity = torch.round(torch.log(widths_cont / w_0) / math.log(w_m))
+        block_widths = (
+            (torch.round(torch.divide(w_0 * torch.pow(w_m, block_capacity), QUANT)) *
+             QUANT).int().tolist())
         num_stages = len(set(block_widths))
 
         # Convert to per stage parameters
@@ -84,9 +83,8 @@ class BlockParams:
         splits = [w != wp or r != rp for w, wp, r, rp in split_helper]
 
         stage_widths = [w for w, t in zip(block_widths, splits[:-1]) if t]
-        stage_depths = (torch.diff(
-            torch.tensor([d for d, t in enumerate(splits)
-                          if t])).int().tolist())
+        stage_depths = (torch.diff(torch.tensor([d for d, t in enumerate(splits)
+                                                 if t])).int().tolist())
 
         strides = [STRIDE] * num_stages
         bottleneck_multipliers = [bottleneck_multiplier] * num_stages
@@ -116,26 +114,21 @@ class BlockParams:
 
     @staticmethod
     def _adjust_widths_groups_compatibilty(
-            stage_widths: List[int], bottleneck_ratios: List[float],
-            group_widths: List[int]) -> Tuple[List[int], List[int]]:
+            stage_widths: list[int], bottleneck_ratios: list[float],
+            group_widths: list[int]) -> tuple[list[int], list[int]]:
         """
         Adjusts the compatibility of widths and groups,
         depending on the bottleneck ratio.
         """
         # Compute all widths for the current settings
         widths = [int(w * b) for w, b in zip(stage_widths, bottleneck_ratios)]
-        group_widths_min = [
-            min(g, w_bot) for g, w_bot in zip(group_widths, widths)
-        ]
+        group_widths_min = [min(g, w_bot) for g, w_bot in zip(group_widths, widths)]
 
         # Compute the adjusted widths so that stage and group widths fit
         ws_bot = [
-            _make_divisible(w_bot, g)
-            for w_bot, g in zip(widths, group_widths_min)
+            _make_divisible(w_bot, g) for w_bot, g in zip(widths, group_widths_min)
         ]
-        stage_widths = [
-            int(w_bot / b) for w_bot, b in zip(ws_bot, bottleneck_ratios)
-        ]
+        stage_widths = [int(w_bot / b) for w_bot, b in zip(ws_bot, bottleneck_ratios)]
         return stage_widths, group_widths_min
 
 
@@ -162,15 +155,13 @@ class Conv2dNormActivationCircular(ConvNormActivation):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[int, Tuple[int, int]] = 3,
-        stride: Union[int, Tuple[int, int]] = 1,
-        padding: Optional[Union[int, Tuple[int, int], str]] = None,
+        kernel_size: Union[int, tuple[int, int]] = 3,
+        stride: Union[int, tuple[int, int]] = 1,
+        padding: Optional[Union[int, tuple[int, int], str]] = None,
         groups: int = 1,
-        norm_layer: Optional[Callable[...,
-                                      torch.nn.Module]] = torch.nn.BatchNorm2d,
-        activation_layer: Optional[Callable[...,
-                                            torch.nn.Module]] = torch.nn.ReLU,
-        dilation: Union[int, Tuple[int, int]] = 1,
+        norm_layer: Optional[Callable[..., torch.nn.Module]] = torch.nn.BatchNorm2d,
+        activation_layer: Optional[Callable[..., torch.nn.Module]] = torch.nn.ReLU,
+        dilation: Union[int, tuple[int, int]] = 1,
         inplace: Optional[bool] = True,
         bias: Optional[bool] = None,
     ) -> None:
@@ -386,9 +377,7 @@ class RegNet1d(nn.Module):
             if isinstance(m, nn.Conv2d):
                 # Note that there is no bias due to BN
                 fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                nn.init.normal_(m.weight,
-                                mean=0.0,
-                                std=math.sqrt(2.0 / fan_out))
+                nn.init.normal_(m.weight, mean=0.0, std=math.sqrt(2.0 / fan_out))
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)

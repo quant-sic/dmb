@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any, Iterable
 
 import pytest
 from attrs import define, field
@@ -7,7 +8,8 @@ from dmb.data.dataset import IdDataset
 from dmb.data.split import Split
 
 
-def validate_same_length(instance, attribute, value):
+def validate_same_length(instance: Any, attribute: Any, value: Any) -> None:
+    """Validate that the ids and indices have the same length."""
     if len(instance.ids) != len(instance.indices):
         raise ValueError("ids and indices must have the same length")
 
@@ -19,15 +21,14 @@ class FakeIdDataset(IdDataset):
     ids: tuple[str, ...] = field(validator=validate_same_length)
     indices: tuple[int, ...] = field(validator=validate_same_length)
 
-    def get_ids_from_indices(self, indices: tuple[int,
-                                                  ...]) -> tuple[str, ...]:
+    def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
         """Get ids from indices.
 
         Indices are expected to be unique and in the range of `len(self.ids)`.
         """
         return tuple(self.ids[idx] for idx in indices)
 
-    def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]:
+    def get_indices_from_ids(self, ids: Iterable[str]) -> tuple[int, ...]:
         """Get indices from ids.
 
         Ids are not expected to be unique or a proper subset of `self.ids`.
@@ -41,10 +42,10 @@ class FakeIdDataset(IdDataset):
         contained_ids = set(self.ids).intersection(ids)
         return tuple(self.ids.index(id_) for id_ in sorted(contained_ids))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.ids)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple[int, str]:
         return self.indices[idx], self.ids[idx]
 
 
@@ -56,38 +57,38 @@ class TestSplit:
     def get_id_dataset() -> FakeIdDataset:
         """Return a fake id dataset."""
         return FakeIdDataset(
-            ids=["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
-            indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            ids=("a", "b", "c", "d", "e", "f", "g", "h", "i", "j"),
+            indices=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
         )
 
     @staticmethod
     @pytest.fixture(scope="class", name="test_split_ids")
-    def get_test_split_ids() -> tuple[dict[str, tuple[str, ...]]]:
+    def get_test_split_ids() -> tuple[dict[str, tuple[str, ...]], ...]:
         """Return test split ids."""
         return (
             {
-                "train": ["a", "b", "i", "c"],
-                "test": ["d", "e"]
+                "train": ("a", "b", "i", "c"),
+                "test": ("d", "e")
             },
             {
-                "train": ["a", "b", "c", "m", "e"],
-                "test": ["f", "g", "h", "i", "j"]
+                "train": ("a", "b", "c", "m", "e"),
+                "test": ("f", "g", "h", "i", "j")
             },
             {
-                "train": ["a", "b", "d", "e", "f", "g"],
-                "val": ["h", "z"],
-                "test": ["i", "j"],
+                "train": ("a", "b", "d", "e", "f", "g"),
+                "val": ("h", "z"),
+                "test": ("i", "j"),
             },
             {
-                "train": ["i", "j"],
-                "val": ["h"],
-                "test": ["a", "b", "c", "d", "e", "f", "g"],
+                "train": ("i", "j"),
+                "val": ("h", ),
+                "test": ("a", "b", "c", "d", "e", "f", "g"),
             },
             {
-                "test": ["g"]
+                "test": ("g", )
             },
             {
-                "test": ["x"]
+                "test": ("x", )
             },
         )
 
@@ -124,7 +125,7 @@ class TestSplit:
 
     @staticmethod
     @pytest.fixture(scope="class", name="test_split_fractions")
-    def get_test_split_fractions() -> tuple[dict[str, float]]:
+    def get_test_split_fractions() -> tuple[dict[str, float], ...]:
         """Return test split fractions."""
         return (
             {
@@ -156,7 +157,7 @@ class TestSplit:
 
     @staticmethod
     @pytest.fixture(scope="class", name="test_subset_lengths")
-    def get_test_subset_lengths() -> tuple[dict[str, int]]:
+    def get_test_subset_lengths() -> tuple[dict[str, int], ...]:
         """Return test subset lengths."""
         return (
             {
@@ -193,15 +194,14 @@ class TestSplit:
         test_subset_indices: tuple[dict[str, tuple[int, ...]], ...],
     ) -> None:
         """Test the apply method."""
-        for split_ids, subset_indices in zip(test_split_ids,
-                                             test_subset_indices):
+        for split_ids, subset_indices in zip(test_split_ids, test_subset_indices):
             split = Split(split_ids=split_ids)
             subsets = split.apply(id_dataset)
 
             for split_name, subset in subsets.items():
                 assert len(subset) == len(subset_indices[split_name])
-                assert all(subset[idx] == id_dataset[subset_idx] for idx,
-                           subset_idx in enumerate(subset_indices[split_name]))
+                assert all(subset[idx] == id_dataset[subset_idx]
+                           for idx, subset_idx in enumerate(subset_indices[split_name]))
 
     @staticmethod
     def test_generate(
@@ -221,7 +221,6 @@ class TestSplit:
 
     @staticmethod
     def test_to_from_file(
-        id_dataset: FakeIdDataset,
         test_split_ids: tuple[dict[str, tuple[str, ...]]],
         tmp_path: Path,
     ) -> None:

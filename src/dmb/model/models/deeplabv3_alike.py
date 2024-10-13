@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Tuple, Union
+from typing import Dict, Literal, Union, tuple
 
 import torch
 from torch import Tensor, nn
@@ -27,8 +27,7 @@ class _SimpleSegmentationModel(nn.Module):
         self.backbone = backbone
         self.classifier = classifier
 
-    def forward_impl(self,
-                     x: Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor]]:
+    def forward_impl(self, x: Tensor) -> Union[torch.Tensor, tuple[torch.Tensor]]:
         # input_shape = x.shape[-2:]
         # contract: features is a dict of tensors
         features = self.backbone(x)
@@ -68,8 +67,8 @@ class DeepLabV3Alike(_SimpleSegmentationModel):
             head_in_channels = 440
         else:
             raise ValueError(
-                "backbone must be either resnet18 or regnet_y_400mf. Got: {}".
-                format(backbone))
+                "backbone must be either resnet18 or regnet_y_400mf. Got: {}".format(
+                    backbone))
 
         head = DeepLabHead(head_in_channels, out_channels)
         super().__init__(backbone, head)

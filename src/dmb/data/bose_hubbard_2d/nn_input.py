@@ -54,7 +54,7 @@ def get_nn_input(
     U_on: torch.Tensor | np.ndarray | float,
     V_nn: torch.Tensor | np.ndarray | float,
     cb_projection: bool = True,
-    target_density: torch.Tensor | np.ndarray = None,
+    target_density: torch.Tensor | np.ndarray | None = None,
 ) -> torch.Tensor:
     # convert to torch.Tensor if necessary
     if isinstance(mu, np.ndarray):
@@ -113,11 +113,11 @@ def get_nn_input(
                 "If cb_projection is True, target_density has to be provided.")
         cb_proj = get_ckeckerboard_projection(target_density=target_density)
     else:
-        cb_proj = torch.ones_like(target_density)
+        cb_proj = torch.ones_like(mu)
 
     # get network input
-    inputs = torch.concat(
-        [mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[[0]]], dim=0)
+    inputs = torch.concat([mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[[0]]],
+                          dim=0)
 
     return inputs
 
@@ -127,7 +127,7 @@ def get_nn_input_dimless_const_parameters(
     ztU: float,
     zVU: float,
     cb_projection: bool = True,
-    target_density: torch.Tensor | np.ndarray = None,
+    target_density: torch.Tensor | np.ndarray | None = None,
 ) -> torch.Tensor:
     # convert to torch.Tensor if necessary
     if isinstance(muU, np.ndarray):
@@ -138,8 +138,7 @@ def get_nn_input_dimless_const_parameters(
 
     # convert to 2D if necessary
     if len(muU.shape) == 1:
-        muU = muU.view(int(math.sqrt(muU.shape[0])),
-                       int(math.sqrt(muU.shape[0])))
+        muU = muU.view(int(math.sqrt(muU.shape[0])), int(math.sqrt(muU.shape[0])))
     elif len(muU.shape) == 2:
         if not muU.shape[0] == muU.shape[1]:
             raise ValueError("Input muU has to be square")
@@ -153,7 +152,7 @@ def get_nn_input_dimless_const_parameters(
                 "If cb_projection is True, target_density has to be provided.")
         cb_proj = get_ckeckerboard_projection(target_density=target_density)
     else:
-        cb_proj = torch.ones_like(target_density)
+        cb_proj = torch.ones_like(muU)
 
     # conversion
     U_on = torch.full(size=muU.shape, fill_value=4 / ztU)
@@ -161,8 +160,8 @@ def get_nn_input_dimless_const_parameters(
     mu = muU * U_on
 
     # get network input
-    inputs = torch.concat(
-        [mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[None, :]], dim=0)
+    inputs = torch.concat([mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[None, :]],
+                          dim=0)
 
     return inputs
 

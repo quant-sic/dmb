@@ -3,6 +3,7 @@ import itertools
 import os
 import shutil
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 
@@ -27,7 +28,7 @@ def get_missing_samples(
     tolerance_zVU: float = 0.01,
     tolerance_muU: float = 0.01,
     existing_samples_max_density_error: float = 0.015,
-):
+) -> tuple[tuple[int, ...], tuple[float, ...], tuple[float, ...], tuple[float, ...]]:
     bh_dataset = BoseHubbard2dDataset(
         dataset_dir_path=dataset_dir,
         transforms=BoseHubbard2dTransforms(),
@@ -35,22 +36,22 @@ def get_missing_samples(
 
     # if lists, they must be of the same length
     if (not len({
-            len(x)
+            len(cast(list, x))
             for x in filter(lambda y: isinstance(y, list), [L, ztU, zVU, muU])
     }) == 1):
         raise ValueError("Lists must be of the same length")
 
     # if none is a list, make them all lists
     if not any([isinstance(x, list) for x in [L, ztU, zVU, muU]]):
-        L = [L]
-        ztU = [ztU]
-        zVU = [zVU]
-        muU = [muU]
+        _L = [L]
+        _ztU = [ztU]
+        _zVU = [zVU]
+        _muU = [muU]
 
     missing_tuples = []
     for L_i, ztU_i, zVU_i, muU_i in zip(*[
             x if isinstance(x, list) else itertools.cycle((x, ))
-            for x in [L, ztU, zVU, muU]
+            for x in [_L, _ztU, _zVU, _muU]
     ]):
         if not bh_dataset.has_phase_diagram_sample(
                 L=L_i,
@@ -77,14 +78,15 @@ def draw_random_config(
     V_nn_z_max: float = 1.75,
     mu_offset_min: float = -0.5,
     mu_offset_max: float = 3.0,
-):
+) -> tuple[int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float,
+           float]:
     L = np.random.randint(low=L_half_min, high=L_half_max) * 2
     U_on = (np.random.uniform(low=U_on_min, high=U_on_max)**(-1)) * 4
     V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
     mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
-    power, V_trap = get_random_trapping_potential(
-        shape=(L, L), desired_abs_max=abs(mu_offset) / 2)
+    power, V_trap = get_random_trapping_potential(shape=(L, L),
+                                                  desired_abs_max=abs(mu_offset) / 2)
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
     V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
                                 axis=0).repeat(2, axis=0)
@@ -95,7 +97,8 @@ def draw_random_config(
     return L, U_on, V_nn, mu, t_hop_array, U_on_array, V_nn_array, power, mu_offset
 
 
-def draw_uniform_config():
+def draw_uniform_config() -> tuple[int, float, float, np.ndarray, np.ndarray,
+                                   np.ndarray, np.ndarray, None, float]:
     L = np.random.randint(low=4, high=10) * 2
     U_on = (np.random.uniform(low=0.05, high=1)**(-1)) * 4
     V_nn = np.random.uniform(low=0.75 / 4, high=1.75 / 4) * U_on
@@ -115,7 +118,7 @@ async def simulate(
     parent_dir: Path,
     simulation_name: str,
     L: int,
-    mu: float,
+    mu: np.ndarray,
     t_hop_array: np.ndarray,
     U_on_array: np.ndarray,
     V_nn_array: np.ndarray,
@@ -126,7 +129,7 @@ async def simulate(
     nmeasure2: int = 100,
     tune_tau_max_threshold: int = 10,
     run_max_density_error: float = 0.015,
-):
+) -> None:
     p = WormInputParameters(
         Lx=L,
         Ly=L,
@@ -141,8 +144,7 @@ async def simulate(
         mu_offset=mu_offset,
     )
 
-    now = datetime.datetime.now()
-    now = now.strftime("%Y-%m-%d_%H-%M-%S")
+    now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     name_prefix = ""
     # get slurm job id if running on cluster
@@ -156,7 +158,7 @@ async def simulate(
     sim = WormSimulation(
         p,
         save_dir=save_dir,
-        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
         dispatcher=AutoDispatcher(),
     )
     sim_run = WormSimulationRunner(worm_simulation=sim)

@@ -1,4 +1,4 @@
-from typing import List
+from typing import list
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -94,8 +94,8 @@ class ResNet2d(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_sizes: List[int],
-        n_channels: List[int],
+        kernel_sizes: list[int],
+        n_channels: list[int],
         dropout: float = 0.0,
     ):
         super().__init__()
@@ -247,8 +247,8 @@ class SeResNet2d(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_sizes: List[int],
-        n_channels: List[int],
+        kernel_sizes: list[int],
+        n_channels: list[int],
         dropout: float = 0.0,
         squeeze_factor: int = 4,
     ):

@@ -3,7 +3,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pytest
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters
@@ -16,14 +15,14 @@ class ValueObjectTests:
 
     @staticmethod
     def test_setattr(type_: type, instance_parameters: Mapping[str, Any],
-                     different_instance_parameters: Mapping[str, Any]):
+                     different_instance_parameters: Mapping[str, Any]) -> None:
         instance = type_(**instance_parameters)
         for key in instance_parameters:
             with pytest.raises(AttributeError):
                 setattr(instance, key, different_instance_parameters[key])
 
     @staticmethod
-    def test_delattr(type_: type, instance_parameters: Mapping[str, Any]):
+    def test_delattr(type_: type, instance_parameters: Mapping[str, Any]) -> None:
         instance = type_(**instance_parameters)
         for key in instance_parameters:
             with pytest.raises(AttributeError):
@@ -31,7 +30,7 @@ class ValueObjectTests:
 
     @staticmethod
     def test_eq(type_: type, instance_parameters: Mapping[str, Any],
-                different_instance_parameters: Mapping[str, Any]):
+                different_instance_parameters: Mapping[str, Any]) -> None:
 
         instance = type_(**instance_parameters)
         assert instance == instance
@@ -46,9 +45,7 @@ class ValueObjectTests:
         assert instance != instance_other
 
         for key in instance_parameters:
-            params = {
-                **instance_parameters, key: different_instance_parameters[key]
-            }
+            params = {**instance_parameters, key: different_instance_parameters[key]}
             instance_other = type_(**params)
 
             assert instance != instance_other
@@ -65,23 +62,23 @@ class TestWormInputParameters(ValueObjectTests):
     @pytest.fixture(scope="class", name="instance_parameters")
     def fixture_instance_parameters() -> Mapping[str, Any]:
         with open(REPO_DATA_ROOT / "test/input_parameters.json") as f:
-            return json.load(f, cls=WormInputParametersDecoder)["parameters"]
+            parameters: dict = json.load(f,
+                                         cls=WormInputParametersDecoder)["parameters"]
+        return parameters
 
     @staticmethod
     @pytest.fixture(scope="class", name="different_instance_parameters")
     def fixture_different_instance_parameters() -> Mapping[str, Any]:
         with open(REPO_DATA_ROOT / "test/input_parameters.json") as f:
-            return json.load(
-                f,
-                cls=WormInputParametersDecoder)["parameters_different_values"]
+            parameters: dict = json.load(
+                f, cls=WormInputParametersDecoder)["parameters_different_values"]
+        return parameters
 
     def test_get_ini_path(self, tmp_path: Path) -> None:
-        assert WormInputParameters.get_ini_path(
-            tmp_path) == tmp_path / "parameters.ini"
+        assert WormInputParameters.get_ini_path(tmp_path) == tmp_path / "parameters.ini"
 
     def test_get_h5_path(self, tmp_path: Path) -> None:
-        assert WormInputParameters.get_h5_path(
-            tmp_path) == tmp_path / "parameters.h5"
+        assert WormInputParameters.get_h5_path(tmp_path) == tmp_path / "parameters.h5"
 
     def test_get_outputfile_path(self, tmp_path: Path) -> None:
         assert WormInputParameters.get_outputfile_path(
@@ -91,23 +88,22 @@ class TestWormInputParameters(ValueObjectTests):
         assert WormInputParameters.get_checkpoint_path(
             tmp_path) == tmp_path / "checkpoint.h5"
 
-    def test_save(self, tmp_path: Path,
-                  instance_parameters: Mapping[str, Any]) -> None:
+    def test_save(self, tmp_path: Path, instance_parameters: Mapping[str, Any]) -> None:
         instance = WormInputParameters(**instance_parameters)
         instance.save(tmp_path)
         assert instance.get_ini_path(tmp_path).exists()
         assert instance.get_h5_path(tmp_path).exists()
 
-    def test_from_dir(self, tmp_path: Path,
-                      instance_parameters: Mapping[str, Any]) -> None:
+    def test_from_dir(self, tmp_path: Path, instance_parameters: Mapping[str,
+                                                                         Any]) -> None:
         instance = WormInputParameters(**instance_parameters)
         instance.save(tmp_path)
 
         instance_loaded = WormInputParameters.from_dir(tmp_path)
         assert instance == instance_loaded
 
-    def test_plots(self, tmp_path: Path,
-                   instance_parameters: Mapping[str, Any]) -> None:
+    def test_plots(self, tmp_path: Path, instance_parameters: Mapping[str,
+                                                                      Any]) -> None:
         instance = WormInputParameters(**instance_parameters)
         instance.save(tmp_path)
 

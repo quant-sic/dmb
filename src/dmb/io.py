@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any, Optional
 
 from joblib import Parallel
@@ -27,8 +26,7 @@ class ProgressParallel(Parallel):
         super().__init__(*args, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        with tqdm(disable=not self._use_tqdm,
-                  total=self._total,
+        with tqdm(disable=not self._use_tqdm, total=self._total,
                   desc=self._desc) as self._pbar:
             return Parallel.__call__(self, *args, **kwargs)
 

@@ -63,12 +63,12 @@ def phase_diagram_uniform_inputs(
     Returns:
         Tuple of muU, ztU, and inputs.
     """
-    MUU, ZTU, inputs = zip(
+    _MUU, _ZTU, _inputs = zip(
         *list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU)))
 
-    MUU = torch.from_numpy(np.array(MUU)).float()
-    ZTU = torch.from_numpy(np.array(ZTU)).float()
-    inputs = torch.stack(inputs, dim=0)
+    MUU = torch.from_numpy(np.array(_MUU)).float()
+    ZTU = torch.from_numpy(np.array(_ZTU)).float()
+    inputs = torch.stack(_inputs, dim=0)
 
     return MUU, ZTU, inputs
 
@@ -200,7 +200,7 @@ def add_phase_boundaries(ax: plt.Axes) -> None:
 def plot_phase_diagram(
     mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
     n_samples: int = 250,
-    zVU: int = 1.0,
+    zVU: float = 1.0,
 ) -> dict[str, dict[str, plt.Figure]]:
     """Plot the phase diagram of the Bose-Hubbard model.
 
@@ -212,9 +212,8 @@ def plot_phase_diagram(
     Returns:
         Dictionary of figures.
     """
-    MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples,
-                                                    zVU=zVU)
-    outputs = mapping(inputs=inputs)
+    MUU, ZTU, inputs = phase_diagram_uniform_inputs(n_samples=n_samples, zVU=zVU)
+    outputs = mapping(inputs)
 
     reductions = {
         "mean": lambda x: x.mean(axis=(-1, -2)),
@@ -224,7 +223,7 @@ def plot_phase_diagram(
         "min": lambda x: x.min(axis=(-1, -2)),
     }
 
-    figures_out = defaultdict(dict)
+    figures_out: dict[str, dict[str, plt.Figure]] = defaultdict(dict)
 
     for obs, output_obs in outputs.items():
         for name, reduction in reductions.items():
@@ -242,14 +241,14 @@ def plot_phase_diagram(
                 plt.xlim([0.1, 0.5])
 
                 if name == "max-min" and obs == "density":
-                    plt.clim([0, 1])
+                    plt.clim([0, 1])  # type: ignore
 
             elif zVU == 1.5:
                 plt.ylim([0, 3])
                 plt.xlim([0.1, 0.8])
 
                 if name == "max-min" and obs == "density":
-                    plt.clim([0, 3])
+                    plt.clim([0, 3])  # type: ignore
 
             plt.xlabel(r"$4J/U$")
             plt.ylabel(r"$\mu/{U}$")

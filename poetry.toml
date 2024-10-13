@@ -1,6 +1,0 @@
-cache-dir = ".cache/.poetry"
-
-[virtualenvs]
-create = true
-in-project = true
-path = ".venv"

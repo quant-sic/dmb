@@ -1,21 +1,31 @@
+"""Dataset classes for DMB data."""
+
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterable, TypedDict
 
 import torch
 from attrs import define
 from torch.utils.data import Dataset
 
+from dmb.data.transforms import InputOutputDMBAugmentation
+
+
+class DMBData(TypedDict):
+    """A DMB data sample."""
+    inputs: torch.Tensor
+    outputs: torch.Tensor
+
 
 class IdDataset(Dataset, ABC):
+    """Dataset with sample IDs."""
 
     @abstractmethod
-    def get_ids_from_indices(self, indices: tuple[int,
-                                                  ...]) -> tuple[str, ...]:
+    def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
         ...
 
     @abstractmethod
-    def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]:
+    def get_indices_from_ids(self, ids: Iterable[str]) -> tuple[int, ...]:
         ...
 
 
@@ -37,10 +47,9 @@ class DMBDataset(IdDataset):
     """
 
     dataset_dir_path: Path
-    transforms: Callable[[tuple[torch.Tensor, torch.Tensor]],
-                         tuple[torch.Tensor, torch.Tensor]]
+    transforms: InputOutputDMBAugmentation
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         samples_dir_path = self.dataset_dir_path / "samples"
         samples_dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -54,20 +63,18 @@ class DMBDataset(IdDataset):
     def __len__(self) -> int:
         return len(self.sample_ids)
 
-    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, idx: int) -> DMBData:
 
         inputs = torch.load(self.sample_id_paths[idx] / "inputs.pt")
         outputs = torch.load(self.sample_id_paths[idx] / "outputs.pt")
 
-        inputs_transformed, outputs_transformed = self.transforms(
-            (inputs, outputs))
+        inputs_transformed, outputs_transformed = self.transforms(inputs, outputs)
 
-        return inputs_transformed, outputs_transformed
+        return DMBData(inputs=inputs_transformed, outputs=outputs_transformed)
 
-    def get_ids_from_indices(self, indices: tuple[int,
-                                                  ...]) -> tuple[str, ...]:
+    def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
         return tuple(self.sample_ids[idx] for idx in indices)
 
-    def get_indices_from_ids(self, ids: tuple[str, ...]) -> tuple[int, ...]:
+    def get_indices_from_ids(self, ids: Iterable[str]) -> tuple[int, ...]:
         contained_ids = set(self.sample_ids).intersection(ids)
         return tuple(self.sample_ids.index(id) for id in contained_ids)

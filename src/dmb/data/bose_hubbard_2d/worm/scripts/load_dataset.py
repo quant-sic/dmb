@@ -62,26 +62,27 @@ def filter_by_error(
         if recalculate_errors:
             log.info(f"Recalculating errors for {simulation.save_dir}")
 
-            simulation.record["steps"][-1][
-                error_key] = simulation.max_density_error
+            simulation.record["steps"][-1][error_key] = simulation.max_density_error
             simulation.record["steps"][-1]["tau_max"] = simulation.max_tau_int
 
-        return (simulation.record["steps"][-1][error_key] <= max_density_error
-                ) and (simulation.record["steps"][-1]["tau_max"] > 0)
+        result: bool = (simulation.record["steps"][-1][error_key] <= max_density_error
+                        ) and (simulation.record["steps"][-1]["tau_max"] > 0)
+        return result
+
     except (IndexError, TypeError, KeyError) as e:
         log.error(f"Error {e} During error filtering for {simulation}")
         return False
 
 
 def clean_sim_dirs(
-    sim_dirs,
-    redo=False,
-    verbose=False,
+    sim_dirs: list[Path],
+    redo: bool = False,
+    verbose: bool = False,
     max_density_error: float | None = None,
     recalculate_errors: bool = False,
     delete_unreadable: bool = False,
     check_readable: bool = True,
-):
+) -> list[Path]:
 
     valid_sim_dirs = [
         get_simulation_valid(
@@ -118,7 +119,9 @@ def clean_sim_dirs(
     return sim_dirs
 
 
-def load_sample(simulation_dir, observables, reload=False):
+def load_sample(simulation_dir: Path,
+                observables: list[str],
+                reload: bool = False) -> tuple[torch.Tensor, torch.Tensor, dict]:
 
     inputs_path = simulation_dir / "inputs.pt"
     outputs_path = simulation_dir / "outputs.pt"
@@ -140,10 +143,13 @@ def load_sample(simulation_dir, observables, reload=False):
             for obs_type in ["primary", "derived"]
             for obs_name in sim.observables.observable_names[obs_type]
         ]
-        expanded_expectation_values = [(np.full(
-            shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
-            fill_value=obs,
-        ) if obs.ndim == 0 else obs) for obs in expectation_values]
+        expanded_expectation_values = [
+            (np.full(
+                shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
+                fill_value=obs,
+            ) if obs.ndim == 0 else obs)  # type: ignore
+            for obs in expectation_values
+        ]
         # stack observables
         outputs = torch.stack(
             [torch.from_numpy(obs) for obs in expanded_expectation_values],
@@ -155,8 +161,7 @@ def load_sample(simulation_dir, observables, reload=False):
             sim.input_parameters.U_on,
             sim.input_parameters.V_nn,
             cb_projection=True,
-            target_density=sim.observables.get_expectation_value(
-                "primary", "density"),
+            target_density=sim.observables.get_expectation_value("primary", "density"),
         )
 
         # save to .npy files
@@ -175,9 +180,7 @@ def load_sample(simulation_dir, observables, reload=False):
         saved_observables = sim.record["saved_observables"]
 
         # filter observables
-        outputs = outputs[[
-            saved_observables.index(obs) for obs in observables
-        ]]
+        outputs = outputs[[saved_observables.index(obs) for obs in observables]]
 
     metadata = {
         "max_density_error": sim.max_density_error,
@@ -213,7 +216,7 @@ def load_dataset_simulations(
         "density_min",
         "density_variance",
     ],
-):
+) -> None:
     """Load simulation data from a directory containing simulation directories
     and save it to a dataset directory.
 
@@ -229,7 +232,7 @@ def load_dataset_simulations(
         recalculate_errors: Recalculate the errors for the simulations.
         delete_unreadable: Delete unreadable simulation directories.
         check_readable: Check if the simulation is readable.
-        observables: List of observables to include in the dataset.
+        observables: list of observables to include in the dataset.
     """
     dataset_save_path.mkdir(exist_ok=True, parents=True)
     with open(dataset_save_path / "metadata.json", "w", encoding="utf-8") as f:
@@ -248,8 +251,7 @@ def load_dataset_simulations(
             directory / "tune" for directory in all_simulation_directories
         ]
 
-    log.info(
-        f"Found {len(all_simulation_directories)} simulation directories.")
+    log.info(f"Found {len(all_simulation_directories)} simulation directories.")
 
     if clean:
         clean_simulation_directories = clean_sim_dirs(
@@ -265,21 +267,16 @@ def load_dataset_simulations(
     else:
         clean_simulation_directories = all_simulation_directories
 
-    log.info(
-        f"Found {len(clean_simulation_directories)} valid simulation directories."
-    )
+    log.info(f"Found {len(clean_simulation_directories)} valid simulation directories.")
 
     samples_dir = dataset_save_path / "samples"
     samples_dir.mkdir(exist_ok=True, parents=True)
 
     for sim_dir in clean_simulation_directories:
-        inputs, outputs, metadata = load_sample(sim_dir,
-                                                observables,
-                                                reload=reload)
+        inputs, outputs, metadata = load_sample(sim_dir, observables, reload=reload)
 
-        sample_save_path = samples_dir / (sim_dir.name
-                                          if not sim_dir.name == "tune" else
-                                          sim_dir.parent.name + "_tune")
+        sample_save_path = samples_dir / (sim_dir.name if not sim_dir.name == "tune"
+                                          else sim_dir.parent.name + "_tune")
         sample_save_path.mkdir(exist_ok=True, parents=True)
 
         if (inputs[0] == 0).all():
@@ -288,8 +285,7 @@ def load_dataset_simulations(
         torch.save(inputs, sample_save_path / "inputs.pt")
         torch.save(outputs, sample_save_path / "outputs.pt")
 
-        with open(sample_save_path / "metadata.json", "w",
-                  encoding="utf-8") as f:
+        with open(sample_save_path / "metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f)
 
 

@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import os
 
 import numpy as np
 
@@ -11,8 +10,7 @@ from dmb.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(
-        description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
     parser.add_argument(
         "--muU_offset",
         type=float,
@@ -76,12 +74,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    target_dir = (
-        REPO_DATA_ROOT /
-        f"simulation/bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}")
-    dataset_dir = (
-        REPO_DATA_ROOT /
-        f"datasets/bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}")
+    target_dir = (REPO_DATA_ROOT /
+                  f"simulation/bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}")
+    dataset_dir = (REPO_DATA_ROOT /
+                   f"datasets/bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}")
     target_dir.mkdir(parents=True, exist_ok=True)
 
     L_out, ztU_out, zVU_out, muU_out = get_missing_samples(
@@ -99,13 +95,13 @@ if __name__ == "__main__":
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
-    async def run_sample(sample_id):
+    async def run_sample(sample_id: int) -> None:
         U_on = 4 / args.ztU
         async with semaphore:
             await simulate(
                 parent_dir=target_dir,
-                simulation_name="box_{}_{:.3f}_{}".format(
-                    args.zVU, muU_out[sample_id], sample_id),
+                simulation_name="box_{}_{:.3f}_{}".format(args.zVU, muU_out[sample_id],
+                                                          sample_id),
                 L=args.L,
                 mu=get_square_mu_potential(
                     base_mu=0.0,
@@ -126,6 +122,5 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     loop.run_until_complete(
-        asyncio.gather(
-            *[run_sample(sample_id) for sample_id in range(len(muU_out))]))
+        asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))]))
     loop.close()

@@ -1,9 +1,11 @@
 import itertools
 from functools import partial
 from pathlib import Path
+from typing import Callable, Generator, cast
 
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
+import torch
 from lightning.pytorch.callbacks import Callback
 
 from dmb.data.bose_hubbard_2d.plotting.phase_diagram import plot_phase_diagram
@@ -28,8 +30,8 @@ class PlottingCallback(Callback):
                 ("box", "1.71"),
                 ("box_cuts", ),
             ],
-            zVUs: list[float] = (1.0, 1.5),
-            ztUs: list[float] = (0.1, 0.25),
+            zVUs: tuple[float, ...] = (1.0, 1.5),
+            ztUs: tuple[float, ...] = (0.1, 0.25),
     ):
         self.plot_interval = plot_interval
         self.resolution = resolution
@@ -42,24 +44,29 @@ class PlottingCallback(Callback):
         if not trainer.current_epoch % self.plot_interval == 0:
             return
 
+        if not trainer.log_dir:
+            raise ValueError("log_dir is not set in Trainer")
+
         save_dir = Path(trainer.log_dir) / "plots"
         file_name_stem = f"epoch={trainer.current_epoch}"
 
-        mapping = partial(dmb_model_predict, model=pl_module.model)
+        mapping = cast(Callable[[torch.Tensor], dict],
+                       partial(dmb_model_predict, model=pl_module.model))
 
         for zVU, ztU in itertools.product(self.zVUs, self.ztUs):
             for figures in (
                     create_box_cuts_plot(mapping, zVU=zVU, ztU=ztU),
                     create_box_plot(mapping, zVU=zVU, ztU=ztU),
                     create_wedding_cake_plot(mapping, zVU=zVU, ztU=ztU),
-                    plot_phase_diagram(mapping,
-                                       n_samples=self.resolution,
-                                       zVU=zVU),
+                    plot_phase_diagram(mapping, n_samples=self.resolution, zVU=zVU),
                     plot_phase_diagram_mu_cut(mapping, zVU=zVU, ztU=ztU),
                     plot_phase_diagram_mu_cut(mapping, zVU=zVU, ztU=ztU),
             ):
 
-                def recursive_iter(path, obj):
+                def recursive_iter(
+                    path: tuple[str | int, ...], obj: dict | list | plt.Figure
+                ) -> Generator[tuple[tuple[str | int, ...], dict | list
+                                     | plt.Figure], None]:
                     if isinstance(obj, dict):
                         for key, value in obj.items():
                             yield from recursive_iter(path + (key, ), value)
@@ -76,14 +83,13 @@ class PlottingCallback(Callback):
                     if not any(
                             all(a == b or a == "*" or b == "*"
                                 for a, b in zip(check_, path))
-                            and len(check_) == len(path)
-                            for check_ in self.check):
+                            and len(check_) == len(path) for check_ in self.check):
                         continue
 
                     if isinstance(figure, plt.Figure):
-                        save_path = Path(save_dir) / (
-                            file_name_stem + "_" + str(zVU).replace(".", "_") +
-                            "_" + str(ztU).replace(".", "_") + "_" +
-                            "_".join(path) + ".png")
+                        save_path = Path(save_dir) / (file_name_stem + "_" +
+                                                      str(zVU).replace(".", "_") + "_" +
+                                                      str(ztU).replace(".", "_") + "_" +
+                                                      "_".join(map(str, path)) + ".png")
                         save_path.parent.mkdir(exist_ok=True, parents=True)
                         figure.savefig(save_path)

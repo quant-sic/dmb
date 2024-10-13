@@ -1,3 +1,4 @@
+import abc
 from collections import defaultdict
 from logging import Logger
 from pathlib import Path
@@ -13,14 +14,27 @@ from .parameters import WormInputParameters
 log = create_logger(__name__)
 
 
+class Output(metaclass=abc.ABCMeta):
+
+    @property
+    @abc.abstractmethod
+    def densities(self) -> np.ndarray | None:
+        """Return the densities from the output file.
+
+        If the file does not exist, return None. If the file exists but the
+        densities dataset is not present, return None. If the file exists and
+        the densities dataset is present, return the densities.
+        """
+
+
 @define
-class WormOutput:
+class WormOutput(Output):
 
     out_file_path: Path
     input_parameters: WormInputParameters
     logging_instance: Logger = field(default=log)
 
-    def reshape_observable(self, observable: np.ndarray) -> np.ndarray:
+    def _reshape_observable(self, observable: np.ndarray) -> np.ndarray:
         """Reshape the observable to (n_samples, Lx, Ly)."""
         if len(observable.shape) == 3:
             return observable
@@ -44,63 +58,23 @@ class WormOutput:
         """
 
         if not self.out_file_path.exists():
-            self.logging_instance.warning(
-                f"File {self.out_file_path} does not exist.")
+            self.logging_instance.warning(f"File {self.out_file_path} does not exist.")
             return None
 
         try:
             with h5py.File(self.out_file_path, "r") as f:
-                densities = f["simulation"]["densities"][()]
+                densities: np.ndarray = f["simulation"]["densities"][()]
         except (KeyError, OSError) as e:
             self.logging_instance.error(
-                f"Exception occured during of file {self.out_file_path} loading: {e}"
-            )
+                f"Exception occured during of file {self.out_file_path} loading: {e}")
             return None
 
         # reshape densities to (n_samples, Lx, Ly)
         try:
-            densities = self.reshape_observable(densities)
+            densities = self._reshape_observable(densities)
         except (ValueError, TypeError) as e:
             self.logging_instance.error(
-                f"Exception occured during reshape: {e} for {self.out_file_path}"
-            )
+                f"Exception occured during reshape: {e} for {self.out_file_path}")
             return None
 
         return densities
-
-    @property
-    def accumulator_observables(
-        self, ) -> dict[str, dict[str, dict[str, np.ndarray]]] | None:
-        """Return the observables from the simulation accumulator.
-
-        If the file does not exist, return None. If the file exists but the
-        observables dataset is not present, return None. If the file exists and
-        the observables dataset is present, return the observables.
-        """
-
-        if not self.out_file_path.exists():
-            self.logging_instance.warning(
-                f"File {self.out_file_path} does not exist.")
-            return None
-
-        try:
-            with h5py.File(self.out_file_path, "r") as f:
-                observables = f["simulation"]["results"]
-        except OSError as e:
-            self.logging_instance.error(
-                f"Exception occured during of file {self.out_file_path} loading: {e}"
-            )
-            return None
-
-        accumulator_observables = defaultdict(dict)
-        for obs, obs_dataset in observables.items():
-            for measure, value in obs_dataset.items():
-                if isinstance(value, h5py.Dataset):
-                    accumulator_observables[obs][
-                        measure] = self.reshape_observable(value[()])
-
-                elif isinstance(value, h5py.Group):
-                    accumulator_observables[obs][measure] = {}
-                    for sub_measure, sub_value in value.items():
-                        accumulator_observables[obs][measure][sub_measure] = (
-                            self.reshape_observable(sub_value[()]))

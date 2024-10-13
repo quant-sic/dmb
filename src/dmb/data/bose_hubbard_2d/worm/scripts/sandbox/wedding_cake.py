@@ -4,7 +4,6 @@ import os
 
 import numpy as np
 from dotenv import load_dotenv
-from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential
 from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
@@ -14,8 +13,7 @@ from dmb.paths import REPO_DATA_ROOT
 if __name__ == "__main__":
     load_dotenv()
 
-    parser = argparse.ArgumentParser(
-        description="Run worm simulation for 2D BH model")
+    parser = argparse.ArgumentParser(description="Run worm simulation for 2D BH model")
     parser.add_argument(
         "--muU_min",
         type=float,
@@ -93,7 +91,7 @@ if __name__ == "__main__":
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
-    async def run_sample(sample_id):
+    async def run_sample(sample_id: int) -> None:
         U_on = 4 / args.ztU
         async with semaphore:
             await simulate(
@@ -102,7 +100,7 @@ if __name__ == "__main__":
                     args.zVU, muU_out[sample_id], sample_id),
                 L=args.L,
                 mu=get_quadratic_mu_potential(
-                    [args.coefficient, args.coefficient],
+                    (args.coefficient, args.coefficient),
                     args.L,
                     offset=muU_out[sample_id],
                 ) * U_on,
@@ -117,6 +115,5 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     loop.run_until_complete(
-        asyncio.gather(
-            *[run_sample(sample_id) for sample_id in range(len(muU_out))]))
+        asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))]))
     loop.close()

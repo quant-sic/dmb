@@ -4,6 +4,8 @@ from typing import Callable
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from matplotlib.cm import ScalarMappable
+from matplotlib.colorbar import Colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from dmb.data.bose_hubbard_2d.nn_input import \
@@ -12,15 +14,17 @@ from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential, \
     get_square_mu_potential
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
+from dmb.data.dataset import DMBData
 from dmb.paths import REPO_DATA_ROOT
 
 
-def colorbar(mappable):
-    ax = mappable.axes
+def colorbar(mappable: ScalarMappable) -> Colorbar:
+    ax = mappable.axes  # type: ignore
     fig = ax.figure
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
-    return fig.colorbar(mappable, cax=cax)
+    colorbar: Colorbar = fig.colorbar(mappable, cax=cax)
+    return colorbar
 
 
 def create_wedding_cake_plot(
@@ -32,7 +36,7 @@ def create_wedding_cake_plot(
     L: int = 40,
     muU_num_steps: int = 10,
     coefficient: float = -2.0,
-) -> dict[str, plt.Figure]:
+) -> dict[str, dict[str, plt.Figure]]:
     """Create wedding cake plot for a given model and parameters."""
     ds = BoseHubbard2dDataset(
         dataset_dir_path=REPO_DATA_ROOT /
@@ -41,16 +45,19 @@ def create_wedding_cake_plot(
     )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
-    target_densities = [(ds.get_phase_diagram_sample(
-        ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0] if ds.get_phase_diagram_sample(
-            ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
-                        for _muU in muU]
+    target_densities: list[np.ndarray] = [
+        (
+            ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU,
+                                        L=L)[1][0]  # type: ignore
+            if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None
+            else np.ones((L, L))) for _muU in muU
+    ]
 
     inputs = torch.stack(
         [
             get_nn_input_dimless_const_parameters(
                 muU=get_quadratic_mu_potential(
-                    [coefficient, coefficient],
+                    (coefficient, coefficient),
                     L,
                     offset=_muU,
                 ),
@@ -63,12 +70,12 @@ def create_wedding_cake_plot(
         dim=0,
     )
 
-    outputs = mapping(inputs=inputs)
-    figures_axes = defaultdict(lambda: plt.subplots(1, 1, figsize=(6, 6)))
-    figures = {"wedding_cake": {}}
+    outputs = mapping(inputs)
+    figures_axes: dict[str, tuple[plt.Figure, plt.Axes]] = defaultdict(
+        lambda: plt.subplots(1, 1, figsize=(6, 6)))
+    figures: dict[str, dict[str, plt.Figure]] = {"wedding_cake": {}}
 
-    for _muU, qmc_image, nn_image in zip(muU, target_densities,
-                                         outputs["density"]):
+    for _muU, qmc_image, nn_image in zip(muU, target_densities, outputs["density"]):
 
         fig, ax = figures_axes[f"{_muU}"]
         ax.set_aspect("equal")
@@ -79,8 +86,7 @@ def create_wedding_cake_plot(
             qmc_image[:int(L / 2) + 1],
             nn_image[int(L / 2) + 1:],
         ))
-        combined[int(L / 2), :int(L / 2) +
-                 1] = nn_image[int(L / 2), :int(L / 2) + 1]
+        combined[int(L / 2), :int(L / 2) + 1] = nn_image[int(L / 2), :int(L / 2) + 1]
 
         cm = ax.pcolormesh(X,
                            Y,
@@ -129,7 +135,7 @@ def create_box_plot(
     L: int = 41,
     muU_num_steps: int = 50,
     square_size: int = 22,
-) -> dict[str, plt.Figure]:
+) -> dict[str, dict[str, plt.Figure]]:
     """Create box plot for a given model and parameters."""
     ds = BoseHubbard2dDataset(
         dataset_dir_path=REPO_DATA_ROOT /
@@ -140,11 +146,13 @@ def create_box_plot(
         return {}
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
-    target_densities = [(ds.get_phase_diagram_sample(
-        ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0] if ds.get_phase_diagram_sample(
-            ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
-                        for _muU in muU]
-
+    target_densities = [
+        (
+            ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU,
+                                        L=L)[1][0]  # type: ignore
+            if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None
+            else np.ones((L, L))) for _muU in muU
+    ]
     inputs = torch.stack(
         [
             get_nn_input_dimless_const_parameters(
@@ -163,14 +171,14 @@ def create_box_plot(
         dim=0,
     )
 
-    outputs = mapping(inputs=inputs)
+    outputs = mapping(inputs)
 
-    figures_axes = defaultdict(lambda: plt.subplots(1, 1, figsize=(6, 6)))
+    figures_axes: dict[str, tuple[plt.Figure, plt.Axes]] = defaultdict(
+        lambda: plt.subplots(1, 1, figsize=(6, 6)))
 
-    figures = {"box": {}}
+    figures: dict[str, dict[str, plt.Figure]] = {"box": {}}
 
-    for _muU, qmc_image, nn_image in zip(muU, target_densities,
-                                         outputs["density"]):
+    for _muU, qmc_image, nn_image in zip(muU, target_densities, outputs["density"]):
 
         fig, ax = figures_axes[f"{_muU}"]
         ax.set_aspect("equal")
@@ -181,8 +189,7 @@ def create_box_plot(
             qmc_image[:int(L / 2) + 1],
             nn_image[int(L / 2) + 1:],
         ))
-        combined[int(L / 2), :int(L / 2) +
-                 1] = nn_image[int(L / 2), :int(L / 2) + 1]
+        combined[int(L / 2), :int(L / 2) + 1] = nn_image[int(L / 2), :int(L / 2) + 1]
 
         cm = ax.pcolormesh(X,
                            Y,
@@ -230,9 +237,13 @@ def create_box_cuts_plot(
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities_unflipped = torch.stack(
-        [(ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)[1][0]
-          if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)
-          is not None else torch.ones((L, L))) for _muU in muU],
+        [
+            (
+                ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU,
+                                            L=L)[1][0]  # type: ignore
+                if ds.get_phase_diagram_sample(ztU=ztU, zVU=zVU, muU=_muU, L=L)
+                is not None else torch.ones((L, L))) for _muU in muU
+        ],
         dim=0,
     )
 
@@ -254,7 +265,7 @@ def create_box_cuts_plot(
         else:
             target_densities.append(target_density.roll(1, dims=0))
 
-    target_densities = torch.stack(target_densities, dim=0)
+    _target_densities = torch.stack(target_densities, dim=0)
 
     inputs = torch.stack(
         [
@@ -269,19 +280,20 @@ def create_box_cuts_plot(
                 zVU=zVU,
                 cb_projection=True,
                 target_density=target_density,
-            ) for _muU, target_density in zip(muU, target_densities)
+            ) for _muU, target_density in zip(muU, _target_densities)
         ],
         dim=0,
     )
-    outputs = mapping(inputs=inputs)
+    outputs = mapping(inputs)
 
-    nn_cuts = outputs["density"][:, cut_position]
-    qmc_cuts = target_densities[:, cut_position]
+    nn_cuts: torch.Tensor = outputs["density"][:, cut_position]
+    qmc_cuts: torch.Tensor = _target_densities[:, cut_position]
 
     MU, X = np.meshgrid(muU, np.arange(L))
 
-    qmc_image, nn_image = map(lambda c: np.stack(c, axis=0).T,
-                              (qmc_cuts, nn_cuts))
+    qmc_image, nn_image = map(
+        lambda c: np.stack(c, axis=0).T,  # type: ignore
+        (qmc_cuts, nn_cuts))
 
     combined = np.concatenate((
         qmc_image[:int(L / 2) + 1],
@@ -315,7 +327,7 @@ def create_box_cuts_plot(
 
 
 def plot_phase_diagram_mu_cut(
-    mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
+    mapping: Callable[[torch.Tensor], dict[str, np.ndarray]],
     zVU: float = 1.0,
     ztU: float = 0.25,
     muU_min: float = 0.0,
@@ -343,13 +355,16 @@ def plot_phase_diagram_mu_cut(
         ],
         dim=0,
     )
-    outputs = mapping(inputs=inputs)
+    outputs: dict[str, np.ndarray] = mapping(inputs)
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
     try:
-        muU_qmc, n_qmc = zip(*[(ds.get_phase_diagram_position(i)[1],
-                                ds_i[1][0]) for i, ds_i in enumerate(ds)])
+        ds_i: DMBData
+        muU_qmc, n_qmc = zip(*[  # type: ignore
+            (ds.get_phase_diagram_position(i)[1], ds_i["ouptuts"][0])
+            for i, ds_i in enumerate(ds)  # type: ignore
+        ])
 
         ax.scatter(muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))],
                    c="black",
