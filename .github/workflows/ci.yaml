@@ -9,9 +9,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  setup:
+    name: Update dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Cache
+        id: setup-cache
+        uses: actions/cache@v4
+        with:
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
+
+    needs: setup
 
     steps:
       - name: Checkout code
@@ -27,6 +42,8 @@ jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
+
+    needs: setup
 
     steps:
       - name: Checkout code
