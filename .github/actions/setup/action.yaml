@@ -25,5 +25,5 @@ runs:
 
     - name: Install dependencies
       if: steps.setup-cache.outputs.cache-hit != 'true'
-      run: task install DEVICE=cpu
+      run: DEVICE=cpu task install
       shell: bash

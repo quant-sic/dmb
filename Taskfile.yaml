@@ -24,9 +24,9 @@ tasks:
         if [ "{{ .PLATFORM }}" = "Linux" ]; then
           if [ "{{ .DEVICE }}" = "cpu" ];
           then
-            poetry run pip install torch==2.4.1+cpu --index-url https://download.pytorch.org/whl/cpu
+            poetry run pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
           else
-            poetry run pip install torch==2.4.1+cu124 --index-url https://download.pytorch.org/whl/cu124
+            poetry run pip install torch==2.4.1+cu124 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
           fi
         fi
 
