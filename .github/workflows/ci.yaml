@@ -23,3 +23,18 @@ jobs:
       - name: Lint code
         run: |
           task format
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run setup
+        uses: ./.github/actions/setup
+
+      - name: Run tests
+        run: |
+          task test MARK=not requires_worm
