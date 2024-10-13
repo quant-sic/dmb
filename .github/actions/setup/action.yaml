@@ -28,6 +28,6 @@ runs:
       run: DEVICE=cpu task install
       shell: bash
 
-    - name: Create .env file
-      run: echo "EXAMPLE_VAR=example_value" > .env
+    - name: Create .cache directory
+      run: mkdir -p ${{ github.workspace }}/.cache
       shell: bash
