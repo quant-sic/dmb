@@ -17,10 +17,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Cache
-        id: setup-cache
-        uses: actions/cache@v4
-        with:
+      - name: Run setup
+        uses: ./.github/actions/setup
 
   lint:
     name: Lint
