@@ -6,14 +6,14 @@ import torch
 
 class GaussianNoise:
 
-    def __init__(self, mean: float, std: float):
+    def __init__(self, mean: float, std: float) -> None:
         self.mean = mean
         self.std = std
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         return x + torch.randn_like(x) * self.std + self.mean
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__class__.__name__ + "(mean={}, std={})".format(
             self.mean, self.std)
 
@@ -36,6 +36,8 @@ class SquareSymmetryGroupAugmentations:
     def __call__(
         self, xy: torch.Tensor | tuple[torch.Tensor, torch.Tensor]
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        x: torch.Tensor | None
+        y: torch.Tensor | None
         if isinstance(xy, tuple):
             x = xy[0]
             y = xy[1]

@@ -1,7 +1,7 @@
 version: "3"
 
 vars:
-  PYTHON_CODE_DIRS: src/dmb src/tests src/scripts src/auto-correlation
+  PYTHON_CODE_DIRS: src/dmb src/tests src/scripts #src/auto-correlation
   REPO_ROOT:
     sh: git rev-parse --show-toplevel
 
@@ -38,11 +38,17 @@ tasks:
 
   lint:
     desc: Lint the code
+    vars:
+      YAPF_FILES:
+        sh: git ls-files | grep '.py' | tr '\n' ' '
     cmds:
+      - poetry run isort --check-only {{ .PYTHON_CODE_DIRS }}
+      - >
+        if [ -n "{{ .FILES }}" ]; then 
+          yapf --diff {{ .FILES }}; 
+        fi
       - poetry run mypy {{ .PYTHON_CODE_DIRS }}
       - poetry run pylint -v {{ .PYTHON_CODE_DIRS }}
-      - poetry run yapf --diff $(shell git ls-files | grep '.py$$')
-      - poetry run isort --check-only {{ .PYTHON_CODE_DIRS }}
 
   test:
     desc: Run tests

@@ -103,7 +103,7 @@ class TestWormOutput(WormOutputTests):
     def test_valid_densities(input_parameters: WormInputParameters,
                              sim_output_valid_densities: Iterator[None],
                              output_save_dir_path: Path,
-                             density_data: np.ndarray):
+                             density_data: np.ndarray) -> None:
 
         worm_output = WormOutput(
             input_parameters=input_parameters,
@@ -117,5 +117,5 @@ class TestWormOutput(WormOutputTests):
                               density_data.flatten())
 
     @staticmethod
-    def test_accumulator_observables():
+    def test_accumulator_observables() -> None:
         pass

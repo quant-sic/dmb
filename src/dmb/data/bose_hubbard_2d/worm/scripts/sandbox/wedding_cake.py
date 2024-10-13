@@ -4,7 +4,6 @@ import os
 
 import numpy as np
 from dotenv import load_dotenv
-from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential
 from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \

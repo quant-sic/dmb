@@ -1,4 +1,4 @@
-from typing import Callable, Optional, tuple
+from typing import Callable, Optional
 
 import FyeldGenerator
 import numpy as np
@@ -7,7 +7,7 @@ from scipy import stats
 
 def periodic_grf(shape: tuple[int, int], power: float) -> np.ndarray:
 
-    def Pkgen(n):
+    def Pkgen(n: float) -> Callable:
 
         def Pk(k):
             return np.power(k, -n)

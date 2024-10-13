@@ -59,7 +59,7 @@ async def test_ee_tune_nmeasure2(
         input_parameters,
         save_dir=tmp_path,
         dispatcher=AutoDispatcher(),
-        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
     runner = WormSimulationRunner(simulation)
@@ -92,7 +92,7 @@ async def test_ee_run_combination(
         input_parameters,
         save_dir=tmp_path,
         dispatcher=AutoDispatcher(),
-        executable=os.environ["WORM_MPI_EXECUTABLE"],
+        executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
     runner = WormSimulationRunner(simulation)

@@ -1,12 +1,8 @@
 import argparse
 import asyncio
-import itertools
-import os
-from pathlib import Path
 from typing import list
 
 import numpy as np
-from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
     get_missing_samples, simulate

@@ -2,8 +2,7 @@
 
 import hydra
 import lightning.pytorch as pl
-from lightning.pytorch import Callback, LightningDataModule, LightningModule, \
-    Trainer
+from lightning.pytorch import LightningDataModule, LightningModule, Trainer
 from omegaconf import DictConfig
 
 from dmb.paths import REPO_ROOT
@@ -14,7 +13,7 @@ from dmb.paths import REPO_ROOT
     config_path=str(REPO_ROOT / "dmb/scripts/configs"),
     config_name="train.yaml",
 )
-def train(cfg: DictConfig):
+def train(cfg: DictConfig) -> None:
 
     pl.seed_everything(cfg.seed, workers=True)
 

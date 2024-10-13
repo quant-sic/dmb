@@ -200,7 +200,7 @@ def add_phase_boundaries(ax: plt.Axes) -> None:
 def plot_phase_diagram(
     mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
     n_samples: int = 250,
-    zVU: int = 1.0,
+    zVU: float = 1.0,
 ) -> dict[str, dict[str, plt.Figure]]:
     """Plot the phase diagram of the Bose-Hubbard model.
 

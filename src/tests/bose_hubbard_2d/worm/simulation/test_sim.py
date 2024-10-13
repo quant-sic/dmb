@@ -99,7 +99,7 @@ class TestWormSimulation(WormOutputTests, WormSimulationTests):
     @staticmethod
     def test_from_dir(test_simulation: WormSimulation,
                       worm_executable: str) -> None:
-        loaded_sim = WormSimulation.from_dir(dir_path=test_simulation.save_dir)
+        WormSimulation.from_dir(dir_path=test_simulation.save_dir)
 
     @staticmethod
     def test_save_parameters(input_parameters: WormInputParameters,
@@ -143,7 +143,7 @@ class TestWormSimulation(WormOutputTests, WormSimulationTests):
 
     @staticmethod
     @pytest.fixture(scope="function", name="test_checkpoint_status")
-    def fixture_test_checkpoint_status(request) -> str:
+    def fixture_test_checkpoint_status(request: pytest.FixtureRequest) -> str:
         return getattr(request, "param", "no_checkpoint")
 
     @staticmethod

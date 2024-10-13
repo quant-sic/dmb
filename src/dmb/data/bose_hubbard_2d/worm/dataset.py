@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import torch
 from attrs import define
 
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
@@ -19,11 +20,11 @@ class BoseHubbard2dDataset(DMBDataset):
     dataset_dir_path: Path
     transforms: BoseHubbard2dTransforms
 
-    def get_metadata(self, idx):
+    def get_metadata(self, idx) -> dict:
         with open(self.sample_id_paths[idx] / "metadata.json", "r") as f:
             return json.load(f)
 
-    def get_phase_diagram_position(self, idx):
+    def get_phase_diagram_position(self, idx) -> tuple[float, float, float]:
 
         metadata = self.get_metadata(idx)
 
@@ -42,7 +43,7 @@ class BoseHubbard2dDataset(DMBDataset):
         ztU_tol: float = 0.01,
         muU_tol: float = 0.01,
         zVU_tol: float = 0.01,
-    ):
+    ) -> bool:
         for idx, _ in enumerate(self):
             zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
 
@@ -64,8 +65,8 @@ class BoseHubbard2dDataset(DMBDataset):
         ztU_tol: float = 0.01,
         muU_tol: float = 0.01,
         zVU_tol: float = 0.01,
-    ):
-        for idx, _ in enumerate(self):
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
+        for idx, _ in enumerate(iter(self)):
             zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
             metadata = self.get_metadata(idx)
             L_i = metadata["L"]

@@ -3,7 +3,6 @@
 import itertools
 from typing import Iterable
 
-import hydra
 import torch
 from torch import nn
 from torch.utils.data import DataLoader

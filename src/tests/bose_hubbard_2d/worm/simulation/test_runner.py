@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from functools import cached_property
 
@@ -16,17 +18,18 @@ log = create_logger(__file__)
 
 class FakeWormSimulation:
 
-    def __init__(self, input_parameters, max_density_errors: list[float],
-                 max_tau_ints: list[int], validities: list[bool],
-                 return_codes: list[ReturnCode]):
+    def __init__(self, input_parameters: WormInputParameters,
+                 max_density_errors: list[float], max_tau_ints: list[int],
+                 validities: list[bool],
+                 return_codes: list[ReturnCode]) -> None:
 
         self.input_parameters = input_parameters
 
         self.num_execute_worm_calls = 0
         self.num_execute_worm_continue_calls = 0
-        self.execution_calls = []
+        self.execution_calls: list[str] = []
 
-        self.plots_calls = []
+        self.plots_calls: list[str] = []
 
         self.file_logger = log
 
@@ -37,46 +40,47 @@ class FakeWormSimulation:
 
         self.uncorrected_max_density_error = None
 
-        self.record = {"steps": []}
+        self.record: dict[str, list] = {"steps": []}
 
     @property
-    def max_density_error(self):
+    def max_density_error(self) -> float:
         return self._max_density_errors[self.num_execute_worm_calls +
                                         self.num_execute_worm_continue_calls]
 
     @property
-    def max_tau_int(self):
+    def max_tau_int(self) -> int:
         return self._max_tau_ints[self.num_execute_worm_calls +
                                   self.num_execute_worm_continue_calls]
 
     @property
-    def valid(self):
+    def valid(self) -> bool:
         return self._validities[self.num_execute_worm_calls +
                                 self.num_execute_worm_continue_calls]
 
-    async def execute_worm(self):
+    async def execute_worm(self) -> ReturnCode:
         self.num_execute_worm_calls += 1
         self.execution_calls.append("execute_worm")
         return self._return_codes[self.num_execute_worm_calls +
                                   self.num_execute_worm_continue_calls - 1]
 
-    async def execute_worm_continue(self):
+    async def execute_worm_continue(self) -> ReturnCode:
         self.num_execute_worm_continue_calls += 1
         self.execution_calls.append("execute_worm_continue")
         return self._return_codes[self.num_execute_worm_calls +
                                   self.num_execute_worm_continue_calls - 1]
 
-    def save_parameters(self):
+    def save_parameters(self) -> None:
         pass
 
-    def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int):
+    def set_extension_sweeps_in_checkpoints(self,
+                                            extension_sweeps: int) -> None:
         pass
 
-    def plot_observables(self):
+    def plot_observables(self) -> None:
         self.plots_calls.append("plot_observables")
 
     @cached_property
-    def tune_simulation(self):
+    def tune_simulation(self) -> FakeWormSimulation:
         return FakeWormSimulation(input_parameters=self.input_parameters,
                                   max_density_errors=self._max_density_errors,
                                   max_tau_ints=self._max_tau_ints,
@@ -88,35 +92,42 @@ class TestWormSimulationRunner:
 
     @staticmethod
     @pytest.fixture(name="num_steps", scope="function")
-    def fixture_num_steps(request) -> int:
+    def fixture_num_steps(request: pytest.FixtureRequest) -> int:
         return getattr(request, "param", 10)
 
     @staticmethod
     @pytest.fixture(name="max_density_errors", scope="function")
-    def fixture_max_density_errors(request, num_steps) -> list[float]:
-        return getattr(request, "param",
-                       np.linspace(0.1, 0.5, num_steps + 1).tolist())
+    def fixture_max_density_errors(request: pytest.FixtureRequest,
+                                   num_steps: int) -> list[float]:
+        default_max_density_errors: list[float] = np.linspace(
+            0.1, 0.5, num_steps + 1).tolist()
+        return getattr(request, "param", default_max_density_errors)
 
     @staticmethod
     @pytest.fixture(name="max_tau_ints", scope="function")
-    def fixture_max_tau_ints(request, num_steps) -> list[int]:
-        return getattr(request, "param",
-                       np.linspace(10, 50, num_steps + 1).astype(int).tolist())
+    def fixture_max_tau_ints(request: pytest.FixtureRequest,
+                             num_steps: int) -> list[int]:
+        default_max_tau_ints: list[int] = np.linspace(10, 50, num_steps +
+                                                      1).astype(int).tolist()
+        return getattr(request, "param", default_max_tau_ints)
 
     @staticmethod
     @pytest.fixture(name="validities", scope="function")
-    def fixture_validities(request, num_steps: int) -> list[bool]:
+    def fixture_validities(request: pytest.FixtureRequest,
+                           num_steps: int) -> list[bool]:
         return getattr(request, "param", [True] * (num_steps + 1))
 
     @staticmethod
     @pytest.fixture(name="return_codes", scope="function")
-    def fixture_return_codes(request, num_steps: int) -> list[ReturnCode]:
+    def fixture_return_codes(request: pytest.FixtureRequest,
+                             num_steps: int) -> list[ReturnCode]:
         return getattr(request, "param",
                        [ReturnCode.SUCCESS] * (num_steps + 1))
 
     @staticmethod
     @pytest.fixture(name="record_steps", scope="function")
-    def fixture_record_steps(request, num_steps: int) -> list[dict]:
+    def fixture_record_steps(request: pytest.FixtureRequest,
+                             num_steps: int) -> list[dict]:
         return getattr(request, "param", [{
             "max_density_error": 0.1,
             "tau_max": 10,

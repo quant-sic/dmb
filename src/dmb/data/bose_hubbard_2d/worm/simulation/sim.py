@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import abc
 import datetime
 import logging
 import os
@@ -26,7 +27,65 @@ __all__ = ["WormSimulation"]
 log = create_logger(__name__)
 
 
+class WormSimulationInterface(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def execute_worm(self, input_file_path: Path | None = None) -> ReturnCode:
+        """Execute the worm simulation.
+
+        Args:
+            input_file_path: Path to the input file (.h5,.ini).
+                If None, the input parameters file will be used.
+                Defaults to None.
+        """
+
+    @abc.abstractmethod
+    def execute_worm_continue(self) -> ReturnCode:
+        """Execute the worm simulation from the last checkpoint."""
+
+    @abc.abstractmethod
+    def output(self) -> WormOutput:
+        """Return the worm simulation output."""
+
+    @abc.abstractmethod
+    def observables(self) -> SimulationObservables:
+        """Return the observables of the worm simulation."""
+
+    @abc.abstractmethod
+    def max_tau_int(self) -> float | None:
+        """Return the maximum integrated autocorrelation time."""
+
+    @abc.abstractmethod
+    def uncorrected_max_density_error(self) -> float | None:
+        """Return the maximum uncorrected density error."""
+
+    @abc.abstractmethod
+    def max_density_error(self) -> float | None:
+        """Return the maximum density error."""
+
+    @abc.abstractmethod
+    def valid(self) -> bool:
+        """Return True if the simulation is valid."""
+
+    @abc.abstractmethod
+    def plot_observables(self, observable_names: dict[str, list[str]]) -> None:
+        """Plot the observables of the worm simulation."""
+
+    @abc.abstractmethod
+    def plot_inputs(self) -> None:
+        """Plot the input parameters of the worm simulation."""
+
+    @abc.abstractmethod
+    def plot_phase_diagram_inputs(self) -> None:
+        """Plot the input parameters of the worm simulation."""
+
+
 class _SimulationExecutionMixin:
+
+    executable: Path | None
+    dispatcher: Dispatcher | None
+    file_logger: logging.Logger
+    input_parameters: WormInputParameters
 
     async def execute_worm(
         self,
@@ -179,7 +238,8 @@ class _SimulationResultMixin:
 
 
 @define
-class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
+class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin,
+                     WormSimulationInterface):
     """Class to manage worm simulations.
 
     The class provides methods to execute worm simulations and
@@ -207,7 +267,7 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.record = SyJson(path=self.save_dir / "record.json")
 
-        if not "steps" in self.record:
+        if "steps" not in self.record:
             self.record["steps"] = []
 
         self.file_logger = create_logger(

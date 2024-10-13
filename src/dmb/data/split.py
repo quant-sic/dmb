@@ -1,5 +1,7 @@
 """Dataset splitting functionality."""
 
+from __future__ import annotations
+
 import json
 import random
 from pathlib import Path
@@ -75,14 +77,14 @@ class Split:
         return split_ids
 
     @classmethod
-    def from_file(cls, file_path: Path):
+    def from_file(cls, file_path: Path) -> Split:
         """Load a split from a file."""
         with open(file_path, "r") as f:
             split_ids = json.load(f)
 
         return cls(split_ids=split_ids)
 
-    def to_file(self, file_path: Path):
+    def to_file(self, file_path: Path) -> None:
         """Save a split to a file."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w") as f:

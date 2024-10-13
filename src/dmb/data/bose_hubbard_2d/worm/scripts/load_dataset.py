@@ -216,7 +216,7 @@ def load_dataset_simulations(
         "density_min",
         "density_variance",
     ],
-):
+) -> None:
     """Load simulation data from a directory containing simulation directories
     and save it to a dataset directory.
 

@@ -1,7 +1,6 @@
 import asyncio
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
@@ -170,7 +169,7 @@ class WormSimulationRunner:
         min_num_measurements_per_nmeasure2: int = 15000,
         num_sweep_increments: int = 30,
         sweeps_to_thermalization_ratio: int = 10,
-        max_abs_error_threshold: int = 0.015,
+        max_abs_error_threshold: float = 0.015,
         Nmeasure2: int | None = None,
     ) -> None:
         """Run worm simulation iteratively until converged.

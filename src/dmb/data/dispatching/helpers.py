@@ -5,8 +5,6 @@ from enum import Enum
 from logging import Logger
 from pathlib import Path
 
-from attrs import define
-
 from dmb.logging import create_logger
 
 
@@ -58,7 +56,7 @@ async def call_sbatch_and_wait(
                 )
                 return ReturnCode.FAILURE
 
-            if not job_state in ("RUNNING", "PENDING"):
+            if job_state not in ("RUNNING", "PENDING"):
                 logging_instance.debug(f"Job {job_id} ended {job_state}")
                 break
 

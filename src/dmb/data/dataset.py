@@ -2,11 +2,17 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypedDict
 
 import torch
 from attrs import define
 from torch.utils.data import Dataset
+
+
+class DMBData(TypedDict):
+    """A DMB data sample."""
+    inputs: torch.Tensor
+    outputs: torch.Tensor
 
 
 class IdDataset(Dataset, ABC):
@@ -57,7 +63,7 @@ class DMBDataset(IdDataset):
     def __len__(self) -> int:
         return len(self.sample_ids)
 
-    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, idx: int) -> DMBData:
 
         inputs = torch.load(self.sample_id_paths[idx] / "inputs.pt")
         outputs = torch.load(self.sample_id_paths[idx] / "outputs.pt")
@@ -65,7 +71,7 @@ class DMBDataset(IdDataset):
         inputs_transformed, outputs_transformed = self.transforms(
             (inputs, outputs))
 
-        return inputs_transformed, outputs_transformed
+        return DMBData(inputs=inputs_transformed, outputs=outputs_transformed)
 
     def get_ids_from_indices(self, indices: tuple[int,
                                                   ...]) -> tuple[str, ...]:

@@ -120,7 +120,7 @@ class SlurmDispatcher(Dispatcher):
 
             script_file.write("#SBATCH --partition={}\n".format(partition))
 
-            script_file.write("#SBATCH --time=48:00:00\n".format(timeout))
+            script_file.write("#SBATCH --time=48:00:00\n".format())
             script_file.write("#SBATCH --nodes={}\n".format(number_of_nodes))
             script_file.write("#SBATCH --ntasks-per-node={}\n".format(
                 number_of_tasks_per_node))

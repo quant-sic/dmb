@@ -10,11 +10,11 @@ from dmb.data.bose_hubbard_2d.worm.simulation.observables import \
 class FakeWormOutput:
     """Fake worm output for testing purposes."""
 
-    def __init__(self, densities):
+    def __init__(self, densities: np.ndarray) -> None:
         self._densities = densities
 
     @property
-    def densities(self):
+    def densities(self) -> np.ndarray:
         return self._densities
 
 
@@ -46,8 +46,11 @@ class TestsSimulationObservables:
 
         for obs_type, obs_name in observables_keys:
 
-            type_check = lambda obj: isinstance(obj, np.ndarray)
-            shape_check = lambda obj: obj.shape in ((16, 16), ())
+            def type_check(obj) -> bool:
+                return isinstance(obj, np.ndarray)
+
+            def shape_check(obj) -> bool:
+                return obj.shape in ((16, 16), ())
 
             expectation_value = simulation_observables.get_expectation_value(
                 obs_type, obs_name)

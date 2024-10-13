@@ -1,10 +1,13 @@
-from typing import Literal, Union
+from typing import Any, Literal, cast
 
 import lightning.pytorch as pl
+import numpy as np
 import torch
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+from dmb.data.collate import MultipleSizesBatch
 from dmb.misc import create_logger
 from dmb.model.torch.loss import IndexMSELoss, WeightedMAE
 
@@ -14,7 +17,9 @@ from .simple_resnet2d import ResNet2d
 logger = create_logger(__name__)
 
 
-def combined_loss_criterion(loss, val_loss, alpha=1):
+def combined_loss_criterion(loss: float,
+                            val_loss: float,
+                            alpha: float = 1) -> torch.Tensor:
     return val_loss + abs(val_loss - loss)**alpha
 
 
@@ -22,13 +27,13 @@ class Model1d(nn.Module):
 
     def __init__(
         self,
-        number_of_filters,
-        kernel_size_first=5,
-        kernel_size_rest=3,
-        depth=19,
-        activation="relu",
-        nr_of_observables=4,
-        use_batch_norm=False,
+        number_of_filters: int,
+        kernel_size_first: int = 5,
+        kernel_size_rest: int = 3,
+        depth: int = 19,
+        activation: str = "relu",
+        nr_of_observables: int = 4,
+        use_batch_norm: bool = False,
     ):
         layers = []
 
@@ -92,7 +97,7 @@ class Model1d(nn.Module):
 
         self.net = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         if isinstance(x, (tuple, list)):
             out = tuple(self.net(_x) for _x in x)
         else:
@@ -100,7 +105,7 @@ class Model1d(nn.Module):
 
         return out
 
-    def set_keras_weights(self, weights):
+    def set_keras_weights(self, weights: list[np.ndarray]) -> None:
         for (name, p), keras_weight in zip(self.named_parameters(), weights):
             if "bias" in name:
                 p.data = torch.from_numpy(keras_weight)
@@ -122,7 +127,7 @@ class LitModel1d(pl.LightningModule):
         learning_rate=1e-5,
         use_batch_norm=False,
         net_type="base_cnn",
-        lr_scheduler: Union[None, Literal["reduce_on_plateau"]] = None,
+        lr_scheduler: None | Literal["reduce_on_plateau"] = None,
         loss_type="mae",
     ) -> None:
         super().__init__()
@@ -197,8 +202,8 @@ class LitModel1d(pl.LightningModule):
         else:
             raise ValueError("Unknown loss type")
 
-    def configure_optimizers(self):
-        out_dict = {}
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        out_dict: dict[str, Any] = {}
         adam_opt = torch.optim.Adam(self.model.parameters(),
                                     lr=self.hparams["learning_rate"])
         out_dict["optimizer"] = adam_opt
@@ -212,10 +217,11 @@ class LitModel1d(pl.LightningModule):
             }
             out_dict["lr_scheduler"] = lr_scheduler
 
-        return out_dict
+        return OptimizerLRScheduler
 
-    def _shared_eval_step(self, batch, batch_idx):
-        batch_in, labels = batch
+    def _shared_eval_step(self, batch: MultipleSizesBatch,
+                          batch_idx: int) -> tuple[torch.Tensor, int]:
+        batch_in, labels = batch["inputs"], batch["outputs"]
         prediction = self.model(batch_in)
 
         batch_size = sum(len(label) for label in labels)
@@ -225,7 +231,8 @@ class LitModel1d(pl.LightningModule):
 
         return loss_mean, batch_size
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: MultipleSizesBatch,
+                      batch_idx: int) -> dict[str, torch.Tensor]:
         loss_mean, batch_size = self._shared_eval_step(batch, batch_idx)
         self.log(
             "loss",
@@ -237,12 +244,15 @@ class LitModel1d(pl.LightningModule):
 
         return {"loss": loss_mean}
 
-    def training_epoch_end(self, training_step_outputs):
+    def training_epoch_end(
+            self, training_step_outputs: list[dict[str,
+                                                   torch.Tensor]]) -> None:
         self.current_train_loss = (torch.stack(
             list(map(lambda o: o["loss"],
                      training_step_outputs))).mean().item())
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: MultipleSizesBatch,
+                        batch_idx: int) -> None:
         loss_mean, batch_size = self._shared_eval_step(batch, batch_idx)
 
         self.log("val_loss", loss_mean.detach().item(), batch_size=batch_size)
@@ -258,7 +268,7 @@ class Model2d(nn.Module):
         depth=19,
         use_batch_norm=False,
         in_channels=1,
-    ):
+    ) -> None:
         super().__init__()
 
         layers = []
@@ -351,14 +361,14 @@ class LitModel2d(pl.LightningModule):
         net_type="base_cnn",
         in_channels=1,
         dropout=0,
-        lr_scheduler: Union[None, Literal["reduce_on_plateau"]] = None,
+        lr_scheduler: None | Literal["reduce_on_plateau"] = None,
     ) -> None:
         super().__init__()
 
         self.save_hyperparameters()
 
         if net_type == "base_cnn":
-            self.model = Model2d(
+            self.model: nn.Module = Model2d(
                 number_of_filters=number_of_filters,
                 kernel_size_first=kernel_size_first,
                 kernel_size_rest=kernel_size_rest,
@@ -381,21 +391,10 @@ class LitModel2d(pl.LightningModule):
             raise ValueError(f"Unknown model type {net_type}")
 
         self.loss = nn.MSELoss()
+        self.current_train_loss: float = torch.inf
 
-    @property
-    def current_train_loss(self):
-        if hasattr(self, "_current_train_loss"):
-            return self._current_train_loss
-        else:
-            self._current_train_loss = torch.inf
-            return self._current_train_loss
-
-    @current_train_loss.setter
-    def current_train_loss(self, v):
-        self._current_train_loss = v
-
-    def configure_optimizers(self):
-        out_dict = {}
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        out_dict: dict[str, Any] = {}
         adam_opt = torch.optim.Adam(self.model.parameters(),
                                     lr=self.hparams["learning_rate"])
         out_dict["optimizer"] = adam_opt
@@ -409,10 +408,11 @@ class LitModel2d(pl.LightningModule):
             }
             out_dict["lr_scheduler"] = lr_scheduler
 
-        return out_dict
+        return cast(OptimizerLRScheduler, out_dict)
 
-    def _shared_eval_step(self, batch, batch_idx):
-        batch_in, labels = batch
+    def _shared_eval_step(self, batch: MultipleSizesBatch,
+                          batch_idx: int) -> tuple[torch.Tensor, int]:
+        batch_in, labels = batch["inputs"], batch["outputs"]
         prediction = self.model(batch_in)
 
         batch_size = sum(len(label) for label in labels)
@@ -422,7 +422,8 @@ class LitModel2d(pl.LightningModule):
 
         return loss_mean, batch_size
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: MultipleSizesBatch,
+                      batch_idx: int) -> dict[str, torch.Tensor]:
         loss_mean, batch_size = self._shared_eval_step(batch, batch_idx)
         self.log(
             "loss",
@@ -434,12 +435,15 @@ class LitModel2d(pl.LightningModule):
 
         return {"loss": loss_mean}
 
-    def training_epoch_end(self, training_step_outputs):
+    def training_epoch_end(
+            self, training_step_outputs: list[dict[str,
+                                                   torch.Tensor]]) -> None:
         self.current_train_loss = (torch.stack(
             list(map(lambda o: o["loss"],
                      training_step_outputs))).mean().item())
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: MultipleSizesBatch,
+                        batch_idx: int) -> None:
         loss_mean, batch_size = self._shared_eval_step(batch, batch_idx)
 
         for alpha in (0.8, 1.0, 1.2, 1.4, 1.6):
@@ -453,7 +457,8 @@ class LitModel2d(pl.LightningModule):
 
         self.log("val_loss", loss_mean.detach().item(), batch_size=batch_size)
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: MultipleSizesBatch,
+                  batch_idx: int) -> dict[str, torch.Tensor]:
         loss_mean, batch_size = self._shared_eval_step(batch, batch_idx)
         metrics = {"test_loss": loss_mean}
 

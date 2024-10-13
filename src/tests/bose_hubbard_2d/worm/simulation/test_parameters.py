@@ -3,7 +3,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pytest
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters

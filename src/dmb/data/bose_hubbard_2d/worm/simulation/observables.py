@@ -2,6 +2,7 @@ import concurrent.futures
 import itertools
 from copy import deepcopy
 from logging import Logger
+from typing import Callable
 
 import numpy as np
 from attrs import define
@@ -15,7 +16,8 @@ from .output import WormOutput
 log = create_logger(__name__)
 
 
-def reshape_if_not_none(results, attribute, shape):
+def reshape_if_not_none(results: dict[str, np.ndarray] | None, attribute: str,
+                        shape: tuple[int, ...]) -> np.ndarray | None:
     """Reshape the attribute of the results if it is not None."""
     if results is None:
         return None
@@ -35,7 +37,7 @@ def ulli_wolff_mc_error_analysis(
     samples: np.ndarray,
     timeout: int = 300,
     logging_instance: Logger = log,
-    derived_quantity: callable = None,
+    derived_quantity: Callable = None,
 ) -> dict[str, np.ndarray | None]:
     """Perform the Ulli Wolff Monte Carlo error analysis on the given samples.
 
@@ -61,10 +63,10 @@ def ulli_wolff_mc_error_analysis(
     samples_reshaped = samples.reshape(1, samples.shape[0],
                                        number_individual_observables)
 
-    def function_shape_adjuster(function):
+    def function_shape_adjuster(function: Callable) -> Callable:
         """Adjust the shape of input data to the function."""
 
-        def wrapper(data):
+        def wrapper(data: np.ndarray) -> np.ndarray:
             return function(data.reshape(*data.shape[:-1], *sample_shape))
 
         return wrapper

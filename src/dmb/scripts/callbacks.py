@@ -1,6 +1,7 @@
 import itertools
 from functools import partial
 from pathlib import Path
+from typing import Generator
 
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
@@ -28,8 +29,8 @@ class PlottingCallback(Callback):
                 ("box", "1.71"),
                 ("box_cuts", ),
             ],
-            zVUs: list[float] = (1.0, 1.5),
-            ztUs: list[float] = (0.1, 0.25),
+            zVUs: tuple[float, ...] = (1.0, 1.5),
+            ztUs: tuple[float, ...] = (0.1, 0.25),
     ):
         self.plot_interval = plot_interval
         self.resolution = resolution
@@ -41,6 +42,9 @@ class PlottingCallback(Callback):
                            pl_module: pl.LightningModule) -> None:
         if not trainer.current_epoch % self.plot_interval == 0:
             return
+
+        if not trainer.log_dir:
+            raise ValueError("log_dir is not set in Trainer")
 
         save_dir = Path(trainer.log_dir) / "plots"
         file_name_stem = f"epoch={trainer.current_epoch}"
@@ -59,7 +63,10 @@ class PlottingCallback(Callback):
                     plot_phase_diagram_mu_cut(mapping, zVU=zVU, ztU=ztU),
             ):
 
-                def recursive_iter(path, obj):
+                def recursive_iter(
+                    path: tuple[str | int, ...], obj: dict | list | plt.Figure
+                ) -> Generator[tuple[tuple[str | int, ...], dict | list
+                                     | plt.Figure], None]:
                     if isinstance(obj, dict):
                         for key, value in obj.items():
                             yield from recursive_iter(path + (key, ), value)
@@ -84,6 +91,6 @@ class PlottingCallback(Callback):
                         save_path = Path(save_dir) / (
                             file_name_stem + "_" + str(zVU).replace(".", "_") +
                             "_" + str(ztU).replace(".", "_") + "_" +
-                            "_".join(path) + ".png")
+                            "_".join(map(str, path)) + ".png")
                         save_path.parent.mkdir(exist_ok=True, parents=True)
                         figure.savefig(save_path)

@@ -1,9 +1,7 @@
 import argparse
 
-from dmb.data.bose_hubbard_2d.phase_diagram import model_predict, \
-    phase_diagram_uniform_inputs, plot_phase_diagram
 from dmb.model.lit_model import DMBLitModel
-from dmb.utils import REPO_LOGS_ROOT, REPO_ROOT
+from dmb.utils import REPO_LOGS_ROOT
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

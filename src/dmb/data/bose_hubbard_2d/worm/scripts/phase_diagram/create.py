@@ -23,16 +23,16 @@ def get_required_inputs(
     min_distance_between_samples_U_inv: float,
     min_distance_between_samples_mu: float,
 ):
-    # bh_dataset = BoseHubbard2dDataset(
-    #     data_dir=target_dir,
-    #     observables=["density"],
-    #     clean=True,
-    #     reload=True,
-    #     verbose=False,
-    #     max_density_error=0.015,
-    #     include_tune_dirs=False,
-    # )
-    # bh_dataset.reload_samples()
+    bh_dataset = BoseHubbard2dDataset(
+        data_dir=target_dir,
+        observables=["density"],
+        clean=True,
+        reload=True,
+        verbose=False,
+        max_density_error=0.015,
+        include_tune_dirs=False,
+    )
+    bh_dataset.reload_samples()
 
     if len(bh_dataset) == 0:
         zVU, muU, ztU = [], [], []
