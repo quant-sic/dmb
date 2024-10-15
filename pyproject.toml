@@ -3,7 +3,7 @@ name = "dmb"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12.6"
+requires-python = ">=3.11"
 dependencies = [
     "fyeldgenerator>=0.1.7",
     "h5py>=3.12.1",
