@@ -12,14 +12,14 @@ runs:
       with:
         path: |
           ${{ github.workspace }}/.venv
-        key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock', 'pyproject.toml') }}
+        key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock', 'pyproject.toml') }}
         restore-keys: |
-          ${{ runner.os }}-poetry-
+          ${{ runner.os }}-uv-
 
     - name: Install tools
       run: |
-        pipx install poetry
         sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "${{ github.workspace }}/.local/bin"
+        curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "/home/runner/work/dmb/dmb/.local/bin" >> $GITHUB_PATH
       shell: bash
 

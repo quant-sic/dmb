@@ -16,25 +16,25 @@ tasks:
     vars:
       DEVICE: '{{ .DEVICE | default "cpu" }}' # cpu or cu124
     cmds:
-      - poetry install
+      - uv sync
       - |
         if [ "{{ .PLATFORM }}" = "Darwin" ]; then
-          poetry run pip install torch==2.4.1
+          uv pip install torch==2.4.1
         fi
         if [ "{{ .PLATFORM }}" = "Linux" ]; then
           if [ "{{ .DEVICE }}" = "cpu" ];
           then
-            poetry run pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
+            uv pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
           else
-            poetry run pip install torch==2.4.1+cu124 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
+            uv pip install torch==2.4.1+cu124 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
           fi
         fi
 
   format:
     desc: Format the code
     cmds:
-      - poetry run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
-      - poetry run isort {{ .PYTHON_CODE_DIRS }}
+      - uv run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
+      - uv run isort {{ .PYTHON_CODE_DIRS }}
 
   lint:
     desc: Lint the code
@@ -42,22 +42,22 @@ tasks:
       YAPF_FILES:
         sh: git ls-files | grep '.py' | tr '\n' ' '
     cmds:
-      - poetry run isort --check-only {{ .PYTHON_CODE_DIRS }}
+      - uv run isort --check-only {{ .PYTHON_CODE_DIRS }}
       - >
         if [ -n "{{ .FILES }}" ]; then 
           yapf --diff {{ .FILES }}; 
         fi
-      - poetry run mypy {{ .PYTHON_CODE_DIRS }}
-      - poetry run pylint -v {{ .PYTHON_CODE_DIRS }}
+      - uv run mypy {{ .PYTHON_CODE_DIRS }}
+      - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
 
   test:
     desc: Run tests
     vars:
       MARK: '{{ .MARK | default "" }}'
     cmds:
-      - poetry run pytest -vv -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
+      - uv run pytest -vv -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
 
   licenses:
     desc: List licenses of dependencies
     cmds:
-      - poetry run pip-licenses --from=mixed --order=license --summary
+      - uv run pip-licenses --from=mixed --order=license --summary

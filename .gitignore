@@ -9,7 +9,7 @@
 !*.cpp
 
 !Makefile
-!poetry.lock
+!uv.lock
 
 !.gitignore
 !.python-version
