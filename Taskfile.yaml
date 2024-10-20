@@ -16,8 +16,9 @@ tasks:
     vars:
       DEVICE: '{{ .DEVICE | default "cpu" }}' # cpu or cu121
     cmds:
-      - uv sync
       - |
+        VIRTUAL_ENV=./.venv
+        uv sync
         if [ "{{ .PLATFORM }}" = "Darwin" ]; then
           uv pip install torch==2.4.1 torchvision==0.19.1
         fi
