@@ -54,6 +54,7 @@ runs:
       run: |
         echo "${{ steps.setup-tools.outputs.venv-dir }}/bin" >> $GITHUB_PATH
         echo "VIRTUAL_ENV=${{ steps.setup-tools.outputs.venv-dir }}" >> $GITHUB_ENV
+        echo "UV_PROJECT_ENVIRONMENT=${{ steps.setup-tools.outputs.venv-dir }}" >> $GITHUB_ENV
 
     - name: Create .cache directory
       run: mkdir -p ${{ github.workspace }}/.cache
