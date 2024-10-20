@@ -14,9 +14,19 @@ dependencies = [
     "numpy>=2.1.2",
     "pydantic-settings>=2.5.2",
     "python-dotenv>=1.0.1",
+    "scipy>=1.14.1",
     "syjson>=2.1.6",
+    "tqdm>=4.66.5",
     "wandb>=0.18.3",
 ]
+
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["dmb","auto_correlation"]
 
 [tool.uv]
 dev-dependencies = [

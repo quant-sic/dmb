@@ -4,9 +4,9 @@ import numpy as np
 from scipy.special import gammainc
 from tqdm import tqdm
 
-from dmb.logging import create_logger
+import logging
 
-logger = create_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ReplicaNumError(Exception):
