@@ -1,5 +1,18 @@
 name: "Setup Python Environment"
 description: "Setup Python and install dependencies"
+# outputs:
+#   cache-hit:
+#     description: "Whether the cache was restored."
+#     value: ${{ steps.setup-cache.outputs.cache-hit }}
+#   python-path:
+#     description: "The path to the Python executable."
+#     value: ${{ steps.setup-python.outputs.python-path }}
+#   uv-path:
+#     description: "The path to the uv executable."
+#     value: ${{ steps.install-uv.outputs.uv-path }}
+#   virtual-env:
+#     description: "The path to the virtual environment created and activated by this action."
+#     value: ${{ steps.setup-uv.outputs.venv-dir }}
 runs:
   using: "composite"
 
@@ -16,18 +29,31 @@ runs:
         restore-keys: |
           ${{ runner.os }}-uv-
 
-    - name: Install tools
+    - name: Setuo uv and task
+      id: setup-tools
       run: |
         sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "${{ github.workspace }}/.local/bin"
-        curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "/home/runner/work/dmb/dmb/.local/bin" >> $GITHUB_PATH
-        echo "/home/runner/.cargo/bin" >> $GITHUB_PATH
+
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        uv_path=$(which uv)
+        echo "uv-path=$uv_path" >> $GITHUB_OUTPUT
+        uv_cache_dir=$(uv cache dir)
+        echo "uv-cache-dir=$uv_cache_dir" >> $GITHUB_OUTPUT
+        echo "venv-dir=$HOME/.venv" >> $GITHUB_OUTPUT
+
       shell: bash
 
     - name: Install dependencies
       if: steps.setup-cache.outputs.cache-hit != 'true'
       run: DEVICE=cpu task install
       shell: bash
+
+    - name: Activate virtual environment
+      shell: bash
+      run: |
+        echo "${{ steps.setup-tools.outputs.venv-dir }}/bin" >> $GITHUB_PATH
+        echo "VIRTUAL_ENV=${{ steps.setup-tools.outputs.venv-dir }}" >> $GITHUB_ENV
 
     - name: Create .cache directory
       run: mkdir -p ${{ github.workspace }}/.cache
