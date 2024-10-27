@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal, cast
 
 import torch
 
@@ -13,7 +13,7 @@ class MSELoss(torch.nn.Module):
 
     def __init__(
         self,
-        reduction: Optional[Literal["mean"]] = "mean",
+        reduction: Literal["mean"] | None = "mean",
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -35,13 +35,18 @@ class MSELoss(torch.nn.Module):
         y_pred: list[torch.Tensor] | torch.Tensor,
         y_true: list[torch.Tensor] | torch.Tensor,
     ) -> torch.Tensor:
-        if not isinstance(y_pred, (list, tuple)):
+        if isinstance(y_pred, torch.Tensor) and isinstance(
+                y_true, torch.Tensor):
             y_pred = [y_pred]
             y_true = [y_true]
+        else:
+            raise ValueError("y_pred and y_true must be of the same type")
 
-        loss = sum(
-            self.forward_impl(y_pred_, y_true_)
-            for y_pred_, y_true_ in zip(y_pred, y_true))
+        loss: torch.Tensor = cast(
+            torch.Tensor,
+            sum(
+                self.forward_impl(y_pred_, y_true_)
+                for y_pred_, y_true_ in zip(y_pred, y_true)))
 
         return loss
 
@@ -73,7 +78,8 @@ class MSLELoss(torch.nn.Module):
         valid_mask = loss.isfinite()
 
         if self.reduction == "mean":
-            loss_out = sum(loss[valid_mask]) / torch.sum(valid_mask)
+            loss_out: torch.Tensor = sum(
+                loss[valid_mask]) / torch.sum(valid_mask)
 
         return loss_out
 
@@ -82,12 +88,17 @@ class MSLELoss(torch.nn.Module):
         y_pred: list[torch.Tensor] | torch.Tensor,
         y_true: list[torch.Tensor] | torch.Tensor,
     ) -> torch.Tensor:
-        if not isinstance(y_pred, (list, tuple)):
+        if isinstance(y_pred, torch.Tensor) and isinstance(
+                y_true, torch.Tensor):
             y_pred = [y_pred]
             y_true = [y_true]
+        else:
+            raise ValueError("y_pred and y_true must be of the same type")
 
-        loss = sum(
-            self.forward_impl(y_pred_, y_true_)
-            for y_pred_, y_true_ in zip(y_pred, y_true))
+        loss: torch.Tensor = cast(
+            torch.Tensor,
+            sum(
+                self.forward_impl(y_pred_, y_true_)
+                for y_pred_, y_true_ in zip(y_pred, y_true)))
 
         return loss

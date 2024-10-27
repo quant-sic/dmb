@@ -22,7 +22,7 @@ def get_required_inputs(
     muU_max: float,
     min_distance_between_samples_U_inv: float,
     min_distance_between_samples_mu: float,
-):
+) -> tuple[np.ndarray, np.ndarray]:
     bh_dataset = BoseHubbard2dDataset(
         data_dir=target_dir,
         observables=["density"],
@@ -153,7 +153,6 @@ if __name__ == "__main__":
         L=args.L,
         U_on_inv_min=args.min_U_on_inv,
         U_on_inv_max=args.max_U_on_inv,
-        V_nn_z=args.V_nn_z,
         muU_min=args.muU_min,
         muU_max=args.muU_max,
         min_distance_between_samples_U_inv=args.
@@ -163,7 +162,7 @@ if __name__ == "__main__":
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
-    async def run_sample(sample_id):
+    async def run_sample(sample_id: int) -> None:
         async with semaphore:
             await simulate(
                 parent_dir=target_dir,

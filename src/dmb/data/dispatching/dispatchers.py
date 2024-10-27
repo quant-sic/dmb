@@ -1,3 +1,4 @@
+import abc
 import asyncio
 import datetime
 import os
@@ -45,15 +46,19 @@ class SlurmDispatcherSettings(BaseSettings):
         return init_settings, env_settings
 
 
-class Dispatcher(ABC):
+@define
+class Dispatcher(metaclass=abc.ABCMeta):
+
+    dispatcher_settings: BaseSettings
 
     @abstractmethod
     async def dispatch(
         self,
         job_name: str,
-        task: list[str],
         work_directory: Path,
         pipeout_dir: Path,
+        task: list[str],
+        timeout: int,
     ) -> ReturnCode:
         ...
 
@@ -80,6 +85,7 @@ def determine_dispatcher(
 @define
 class SlurmDispatcher(Dispatcher):
 
+    dispatcher_settings: SlurmDispatcherSettings
     setup_calls: tuple[str, ...] = (
         "module load gcc/11\n",
         "module load openmpi\n",
@@ -145,10 +151,9 @@ class SlurmDispatcher(Dispatcher):
         self,
         job_name: str,
         work_directory: Path,
-        task: list[str],
         pipeout_dir: Path,
+        task: list[str],
         timeout: int,
-        dispatcher_settings: SlurmDispatcherSettings,
     ) -> ReturnCode:
 
         script_path = work_directory / "run.sh"
@@ -158,12 +163,12 @@ class SlurmDispatcher(Dispatcher):
             job_name=job_name,
             pipeout_dir=pipeout_dir,
             task=task,
-            partition=dispatcher_settings.partition,
+            partition=self.dispatcher_settings.partition,
             timeout=timeout,
-            number_of_nodes=dispatcher_settings.number_of_nodes,
-            number_of_tasks_per_node=dispatcher_settings.
+            number_of_nodes=self.dispatcher_settings.number_of_nodes,
+            number_of_tasks_per_node=self.dispatcher_settings.
             number_of_tasks_per_node,
-            cpus_per_task=dispatcher_settings.cpus_per_task,
+            cpus_per_task=self.dispatcher_settings.cpus_per_task,
         )
         code = await call_sbatch_and_wait(script_path, timeout=timeout)
 
@@ -187,7 +192,6 @@ class LocalDispatcher(Dispatcher):
         pipeout_dir: Path,
         task: list[str],
         timeout: int,
-        dispatcher_settings: BaseSettings,
     ) -> ReturnCode:
         env = os.environ.copy()
         env["TMPDIR"] = "/tmp"
@@ -228,47 +232,42 @@ class LocalDispatcher(Dispatcher):
 class AutoDispatcher(Dispatcher):
     """Automatically selects the appropriate dispatcher based on the environment."""
 
-    dispatcher_types: dict[str, Dispatcher] = {
+    dispatcher_types: dict[str, type[Dispatcher]] = {
         "slurm": SlurmDispatcher,
         "local": LocalDispatcher,
     }
-    dispatcher_settings_types: dict[str, BaseSettings] = {
+    dispatcher_settings_types: dict[str, type[BaseSettings]] = {
         "slurm": SlurmDispatcherSettings,
         "local": BaseSettings,
     }
 
     def __init__(
-            self,
-            dispatcher_type: Literal["auto", "slurm"] | None = "auto") -> None:
+        self,
+        dispatcher_type: Literal["auto", "slurm"] | None = "auto",
+        dispatcher_settings: dict[str, Any] = {},
+    ) -> None:
         determined_dispatcher_type = determine_dispatcher(
             dispatcher_type) or "local"
 
-        self.dispatcher = self.dispatcher_types[determined_dispatcher_type]()
-        self.dispatcher_settings_type = self.dispatcher_settings_types[
-            determined_dispatcher_type]
+        self.dispatcher_settings = self.dispatcher_settings_types[
+            determined_dispatcher_type](**dispatcher_settings)
+
+        self.dispatcher = self.dispatcher_types[determined_dispatcher_type](
+            dispatcher_settings=self.dispatcher_settings)
 
     async def dispatch(
         self,
         job_name: str,
-        task: list[str],
         work_directory: Path,
         pipeout_dir: Path,
+        task: list[str],
         timeout: int,
-        dispatcher_kwargs: dict[str, Any] = {},
     ) -> ReturnCode:
 
-        # update dispatcher settings
-
-        updated_dispatcher_settings = self.dispatcher_settings_type(
-            **dispatcher_kwargs)
-
-        code = await self.dispatcher.dispatch(
-            job_name=job_name,
-            task=task,
-            work_directory=work_directory,
-            pipeout_dir=pipeout_dir,
-            timeout=timeout,
-            dispatcher_settings=updated_dispatcher_settings,
-        )
+        code = await self.dispatcher.dispatch(job_name=job_name,
+                                              task=task,
+                                              work_directory=work_directory,
+                                              pipeout_dir=pipeout_dir,
+                                              timeout=timeout)
 
         return code

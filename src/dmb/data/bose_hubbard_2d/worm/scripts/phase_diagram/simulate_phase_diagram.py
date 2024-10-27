@@ -17,7 +17,7 @@ from dmb.logging import create_logger
 log = create_logger(__name__)
 
 
-def simulate(sample_id, type="random"):
+def simulate(sample_id: int, type="random") -> None:
     if type == "random":
         (
             L,

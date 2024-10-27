@@ -11,7 +11,7 @@ from dmb.paths import REPO_ROOT
     config_path=str(REPO_ROOT / "dmb/scripts/configs"),
     config_name="create_split.yaml",
 )
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> None:
 
     split = hydra.utils.instantiate(cfg.split)
     split.to_file(Path(cfg.file_path))

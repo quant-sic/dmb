@@ -5,7 +5,7 @@ from typing import Iterable
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
 class DMBModel(nn.Module):
@@ -41,10 +41,11 @@ class DMBModel(nn.Module):
         return x
 
     def forward(
-        self, x: torch.Tensor | tuple[torch.Tensor]
-    ) -> torch.Tensor | tuple[torch.Tensor]:
+        self, x: torch.Tensor | tuple[torch.Tensor, ...]
+    ) -> torch.Tensor | tuple[torch.Tensor, ...]:
         if isinstance(x, (tuple, list)):
-            out = tuple(self.forward_single_size(_x) for _x in x)
+            out: tuple[torch.Tensor, ...] | torch.Tensor = tuple(
+                self.forward_single_size(_x) for _x in x)
         else:
             out = self.forward_single_size(x)
 
@@ -58,21 +59,21 @@ class DMBModel(nn.Module):
 
 def dmb_model_predict(
     model: DMBModel,
-    inputs: torch.Tensor | list[torch.Tensor],
+    inputs: list[torch.Tensor],
     batch_size: int = 512,
 ) -> dict[str, torch.Tensor]:
     """Predict with DMB model."""
-    dl = DataLoader(inputs,
-                    batch_size=batch_size,
-                    shuffle=False,
-                    num_workers=0)
+    dl: DataLoader = DataLoader(cast(Dataset, inputs),
+                                batch_size=batch_size,
+                                shuffle=False,
+                                num_workers=0)
 
     model.eval()
     with torch.no_grad():
         outputs = []
-        for inputs in dl:
-            inputs = inputs.to(model.device).float()
-            outputs.append(model(inputs))
+        for batch in dl:
+            batch = batch.to(model.device).float()
+            outputs.append(model(batch))
 
         outputs = torch.cat(outputs, dim=0).to("cpu").detach()
 

@@ -9,18 +9,19 @@ def periodic_grf(shape: tuple[int, int], power: float) -> np.ndarray:
 
     def Pkgen(n: float) -> Callable:
 
-        def Pk(k):
+        def Pk(k: np.ndarray) -> np.ndarray:
             return np.power(k, -n)
 
         return Pk
 
-    def distrib(shape):
+    def distrib(shape: tuple[int, int]) -> np.ndarray:
         # Build a unit-distribution of complex numbers with random phase
         a = np.random.normal(loc=0, scale=1, size=shape)
         b = np.random.normal(loc=0, scale=1, size=shape)
         return a + 1j * b
 
-    field = FyeldGenerator.generate_field(distrib, Pkgen(power), shape)
+    field: np.ndarray = FyeldGenerator.generate_field(distrib, Pkgen(power),
+                                                      shape)
 
     return field
 
@@ -40,7 +41,8 @@ def get_random_trapping_potential(
     return float(power), potential_rescaled
 
 
-def get_square_mu_potential(base_mu, delta_mu, square_size, lattice_size):
+def get_square_mu_potential(base_mu: float, delta_mu: float, square_size: int,
+                            lattice_size: int) -> np.ndarray:
     mu = np.full(shape=(lattice_size, lattice_size), fill_value=base_mu)
     mu[
         int(float(lattice_size) / 2 - float(square_size) /
@@ -55,7 +57,7 @@ def get_square_mu_potential(base_mu, delta_mu, square_size, lattice_size):
 def get_quadratic_mu_potential(
     coeffitients: tuple[float, float],
     lattice_size: int,
-    center: tuple[float, float] = None,
+    center: tuple[float, float] | None = None,
     offset: float = 0,
 ) -> np.ndarray:
     """Generate a 2D quadratic mu array

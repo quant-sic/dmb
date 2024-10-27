@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
-    async def run_sample(sample_id):
+    async def run_sample(sample_id: int) -> None:
         U_on = 4 / args.ztU
         async with semaphore:
             await simulate(

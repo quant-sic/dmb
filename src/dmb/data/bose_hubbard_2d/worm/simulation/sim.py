@@ -80,166 +80,8 @@ class WormSimulationInterface(metaclass=abc.ABCMeta):
         """Plot the input parameters of the worm simulation."""
 
 
-class _SimulationExecutionMixin:
-
-    executable: Path | None
-    dispatcher: Dispatcher | None
-    file_logger: logging.Logger
-    input_parameters: WormInputParameters
-
-    async def execute_worm(
-        self,
-        input_file_path: Path | None = None,
-    ) -> ReturnCode:
-        """Execute the worm simulation.
-
-        Args:
-            input_file_path: Path to the input file (.h5,.ini).
-                If None, the input parameters file will be used.
-                Defaults to None.
-        """
-        if self.executable is None or self.dispatcher is None:
-            raise ValueError("To execute the worm simulation, the executable "
-                             "and dispatcher must be set.")
-
-        self.file_logger.info(f"""Running simulation with:
-            sweeps: {self.input_parameters.sweeps},
-            Nmeasure2: {self.input_parameters.Nmeasure2},
-            Nmeasure: {self.input_parameters.Nmeasure},
-            thermalization: {self.input_parameters.thermalization}
-            Executable: {self.executable}
-            Input file Path: {input_file_path}
-            Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}\n
-            """)
-
-        return_code = await self.dispatcher.dispatch(
-            task=[
-                "mpirun",
-                "--use-hwthread-cpus",
-                str(self.executable),
-                str(input_file_path
-                    or self.input_parameters.get_ini_path(self.save_dir)),
-            ],
-            job_name=os.environ.get("WORM_JOB_NAME", "worm"),
-            work_directory=self.save_dir,
-            pipeout_dir=self.save_dir / "pipe_out",
-            timeout=60 * 60 * 24 * 7,
-        )
-        self.file_logger.info(
-            f"Simulation finished with return code: {return_code}")
-        return return_code
-
-    async def execute_worm_continue(self) -> ReturnCode:
-        return await self.execute_worm(input_file_path=self.input_parameters.
-                                       get_checkpoint_path(self.save_dir))
-
-
-class _SimulationResultMixin:
-
-    @property
-    def output(self) -> WormOutput:
-        return WormOutput(
-            out_file_path=self.input_parameters.get_outputfile_path(
-                self.save_dir),
-            input_parameters=self.input_parameters,
-            logging_instance=self.file_logger,
-        )
-
-    @property
-    def observables(self) -> SimulationObservables:
-        return SimulationObservables(output=self.output)
-
-    @property
-    def max_tau_int(self) -> float | None:
-        tau_int = self.observables.get_error_analysis("primary",
-                                                      "density")["tau_int"]
-        if tau_int is not None and not np.isnan(tau_int).all():
-            return float(np.nanmax(tau_int))
-
-    @property
-    def uncorrected_max_density_error(self) -> float | None:
-        naive_error = self.observables.get_error_analysis(
-            "primary", "density")["naive_error"]
-        if naive_error is not None and not np.isnan(naive_error).all():
-            return float(np.nanmax(naive_error))
-
-    @property
-    def max_density_error(self) -> float | None:
-        error = self.observables.get_error_analysis("primary",
-                                                    "density")["error"]
-        if error is not None and not np.isnan(error).all():
-            return float(np.nanmax(error))
-
-    @property
-    def valid(self) -> bool:
-        return self.max_density_error is not None
-
-    def plot_observables(
-        self,
-        observable_names: dict[str, list[str]] = {"primary":
-                                                  ["density"]}) -> None:
-        """
-        Plot the results of the worm calculation.
-        """
-
-        inputs = self.input_parameters.mu
-
-        for obs_type, obs_names in observable_names.items():
-            for obs in obs_names:
-
-                fig, ax = plt.subplots(1, 3, figsize=(12, 4))
-                plt.subplots_adjust(wspace=0.5)
-
-                error_analysis = self.observables.get_error_analysis(
-                    "primary", obs)
-
-                if (expectation_value :=
-                        error_analysis["expectation_value"]) is not None:
-                    if expectation_value.ndim == 2:
-                        value_plot = ax[0].imshow(expectation_value)
-
-                    ax[0].set_title(obs)
-                    fig.colorbar(value_plot, ax=ax[0])
-
-                if (error := error_analysis["error"]) is not None:
-                    if error.ndim == 2:
-                        error_plot = ax[1].imshow(error)
-
-                    ax[1].set_title("Error")
-                    fig.colorbar(error_plot, ax=ax[1])
-
-                chem_pot_plot = ax[2].imshow(
-                    inputs.reshape(self.input_parameters.Lx,
-                                   self.input_parameters.Ly))
-                ax[2].set_title("Chemical Potential")
-                fig.colorbar(chem_pot_plot, ax=ax[2])
-
-                for a in ax:
-                    a.set_xticks([])
-                    a.set_yticks([])
-
-                # save figure. append current time formatted to avoid overwriting
-                # plots dir
-                plots_dir = self.get_plot_dir_path(self.save_dir) / obs
-                plots_dir.mkdir(parents=True, exist_ok=True)
-
-                now = datetime.datetime.now()
-                now = now.strftime("%Y-%m-%d_%H-%M-%S")
-                fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
-                plt.close()
-
-    def plot_inputs(self) -> None:
-        self.input_parameters.plot_input_parameters(
-            plots_dir=self.get_plot_dir_path(self.save_dir))
-
-    def plot_phase_diagram_inputs(self) -> None:
-        self.input_parameters.plot_phase_diagram_input_parameters(
-            plots_dir=self.get_plot_dir_path(self.save_dir))
-
-
 @define
-class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin,
-                     WormSimulationInterface):
+class WormSimulation(WormSimulationInterface):
     """Class to manage worm simulations.
 
     The class provides methods to execute worm simulations and
@@ -358,3 +200,149 @@ class WormSimulation(_SimulationExecutionMixin, _SimulationResultMixin,
                 except KeyError:
                     pass
         return extension_sweeps
+
+    async def execute_worm(
+        self,
+        input_file_path: Path | None = None,
+    ) -> ReturnCode:
+        """Execute the worm simulation.
+
+        Args:
+            input_file_path: Path to the input file (.h5,.ini).
+                If None, the input parameters file will be used.
+                Defaults to None.
+        """
+        if self.executable is None or self.dispatcher is None:
+            raise ValueError("To execute the worm simulation, the executable "
+                             "and dispatcher must be set.")
+
+        self.file_logger.info(f"""Running simulation with:
+            sweeps: {self.input_parameters.sweeps},
+            Nmeasure2: {self.input_parameters.Nmeasure2},
+            Nmeasure: {self.input_parameters.Nmeasure},
+            thermalization: {self.input_parameters.thermalization}
+            Executable: {self.executable}
+            Input file Path: {input_file_path}
+            Extension sweeps: {self.get_extension_sweeps_from_checkpoints()}\n
+            """)
+
+        return_code = await self.dispatcher.dispatch(
+            task=[
+                "mpirun",
+                "--use-hwthread-cpus",
+                str(self.executable),
+                str(input_file_path
+                    or self.input_parameters.get_ini_path(self.save_dir)),
+            ],
+            job_name=os.environ.get("WORM_JOB_NAME", "worm"),
+            work_directory=self.save_dir,
+            pipeout_dir=self.save_dir / "pipe_out",
+            timeout=60 * 60 * 24 * 7,
+        )
+        self.file_logger.info(
+            f"Simulation finished with return code: {return_code}")
+        return return_code
+
+    async def execute_worm_continue(self) -> ReturnCode:
+        return await self.execute_worm(input_file_path=self.input_parameters.
+                                       get_checkpoint_path(self.save_dir))
+
+    @property
+    def output(self) -> WormOutput:
+        return WormOutput(
+            out_file_path=self.input_parameters.get_outputfile_path(
+                self.save_dir),
+            input_parameters=self.input_parameters,
+            logging_instance=self.file_logger,
+        )
+
+    @property
+    def observables(self) -> SimulationObservables:
+        return SimulationObservables(output=self.output)
+
+    @property
+    def max_tau_int(self) -> float | None:
+        tau_int = self.observables.get_error_analysis("primary",
+                                                      "density")["tau_int"]
+        if tau_int is not None and not np.isnan(tau_int).all():
+            return float(np.nanmax(tau_int))
+
+    @property
+    def uncorrected_max_density_error(self) -> float | None:
+        naive_error = self.observables.get_error_analysis(
+            "primary", "density")["naive_error"]
+        if naive_error is not None and not np.isnan(naive_error).all():
+            return float(np.nanmax(naive_error))
+
+    @property
+    def max_density_error(self) -> float | None:
+        error = self.observables.get_error_analysis("primary",
+                                                    "density")["error"]
+        if error is not None and not np.isnan(error).all():
+            return float(np.nanmax(error))
+
+    @property
+    def valid(self) -> bool:
+        return self.max_density_error is not None
+
+    def plot_observables(
+        self,
+        observable_names: dict[str, list[str]] = {"primary":
+                                                  ["density"]}) -> None:
+        """
+        Plot the results of the worm calculation.
+        """
+
+        inputs = self.input_parameters.mu
+
+        for obs_type, obs_names in observable_names.items():
+            for obs in obs_names:
+
+                fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+                plt.subplots_adjust(wspace=0.5)
+
+                error_analysis = self.observables.get_error_analysis(
+                    "primary", obs)
+
+                if (expectation_value :=
+                        error_analysis["expectation_value"]) is not None:
+                    if expectation_value.ndim == 2:
+                        value_plot = ax[0].imshow(expectation_value)
+
+                    ax[0].set_title(obs)
+                    fig.colorbar(value_plot, ax=ax[0])
+
+                if (error := error_analysis["error"]) is not None:
+                    if error.ndim == 2:
+                        error_plot = ax[1].imshow(error)
+
+                    ax[1].set_title("Error")
+                    fig.colorbar(error_plot, ax=ax[1])
+
+                chem_pot_plot = ax[2].imshow(
+                    inputs.reshape(self.input_parameters.Lx,
+                                   self.input_parameters.Ly))
+                ax[2].set_title("Chemical Potential")
+                fig.colorbar(chem_pot_plot, ax=ax[2])
+
+                for a in ax:
+                    a.set_xticks([])
+                    a.set_yticks([])
+
+                # save figure. append current time formatted to avoid overwriting
+                # plots dir
+                plots_dir = self.get_plot_dir_path(self.save_dir) / obs
+                plots_dir.mkdir(parents=True, exist_ok=True)
+
+                now = datetime.datetime.now()
+                now = now.strftime("%Y-%m-%d_%H-%M-%S")
+                fig.savefig(plots_dir / f"{obs}_{now}.png", dpi=150)
+                plt.close()
+
+    def plot_inputs(self) -> None:
+        self.input_parameters.plot_input_parameters(
+            plots_dir=self.get_plot_dir_path(self.save_dir))
+
+    def plot_phase_diagram_inputs(self) -> None:
+        self.input_parameters.plot_phase_diagram_input_parameters(
+            plots_dir=self.get_plot_dir_path(self.save_dir))

@@ -2,13 +2,13 @@ import concurrent.futures
 import itertools
 from copy import deepcopy
 from logging import Logger
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 from attrs import define
-from auto_correlation import DerivedAnalysis, GammaPathologicalError, \
-    PrimaryAnalysis
 
+from auto_correlation import Analysis, DerivedAnalysis, \
+    GammaPathologicalError, PrimaryAnalysis
 from dmb.logging import create_logger
 
 from .output import WormOutput
@@ -22,22 +22,25 @@ def reshape_if_not_none(results: dict[str, np.ndarray] | None, attribute: str,
     if results is None:
         return None
 
-    attribute_value = np.array(getattr(results, attribute))
+    attribute_value = getattr(results, attribute, None)
 
     if attribute_value is None:
         return None
 
-    if np.prod(attribute_value.shape) == np.prod(shape):
-        return attribute_value.reshape(shape)
+    attribute_value_array: np.ndarray = np.array(attribute_value)
+
+    if np.prod(attribute_value_array.shape) == np.prod(shape):
+        reshaped_array: np.ndarray = attribute_value_array.reshape(shape)
+        return reshaped_array
     else:
-        return attribute_value
+        return attribute_value_array
 
 
 def ulli_wolff_mc_error_analysis(
     samples: np.ndarray,
     timeout: int = 300,
     logging_instance: Logger = log,
-    derived_quantity: Callable = None,
+    derived_quantity: Callable | None = None,
 ) -> dict[str, np.ndarray | None]:
     """Perform the Ulli Wolff Monte Carlo error analysis on the given samples.
 
@@ -63,7 +66,9 @@ def ulli_wolff_mc_error_analysis(
     samples_reshaped = samples.reshape(1, samples.shape[0],
                                        number_individual_observables)
 
-    def function_shape_adjuster(function: Callable) -> Callable:
+    def function_shape_adjuster(
+        function: Callable[[np.ndarray], np.ndarray]
+    ) -> Callable[[np.ndarray], np.ndarray]:
         """Adjust the shape of input data to the function."""
 
         def wrapper(data: np.ndarray) -> np.ndarray:
@@ -72,7 +77,7 @@ def ulli_wolff_mc_error_analysis(
         return wrapper
 
     if derived_quantity is None:
-        analysis = PrimaryAnalysis(
+        analysis: Analysis = PrimaryAnalysis(
             data=samples_reshaped,
             rep_sizes=[len(samples)],
             name=individual_observable_names,
@@ -95,7 +100,7 @@ def ulli_wolff_mc_error_analysis(
 
     try:
 
-        def run_analysis():
+        def run_analysis() -> Any:
             return analysis.errors()
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -141,12 +146,12 @@ class DensityDerivedObservable:
     """Class for computing observables and errors derived from the density."""
 
     name: str
-    sample_function: callable = None
-    derived_quantity: callable = None
+    sample_function: Callable | None = None
+    derived_quantity: Callable | None = None
     max_number_of_samples: int = 10000
 
-    _error_previous_samples: np.ndarray = None
-    _error_previous_results: dict[str, np.ndarray] = None
+    _error_previous_samples: np.ndarray | None = None
+    _error_previous_results: dict[str, np.ndarray] | None = None
 
     def _subsample(self, samples: np.ndarray) -> np.ndarray:
         """Subsample the given samples if there are too many."""
@@ -209,8 +214,8 @@ class DensityDerivedObservable:
 class SimulationObservables:
     """Class for computing observables from a simulation."""
 
-    primary_observables: dict[str, callable] = {}
-    derived_observables: dict[str, callable] = {}
+    primary_observables: dict[str, Callable] = {}
+    derived_observables: dict[str, Callable] = {}
     observable_names: dict[str, list[str]] = {
         "primary": [],
         "derived": [],
@@ -220,7 +225,7 @@ class SimulationObservables:
         self.output = output
 
     @classmethod
-    def register_primary(cls, name) -> callable:
+    def register_primary(cls, name) -> Callable:
         """Register an observable with the class.
 
         Args:
@@ -230,7 +235,7 @@ class SimulationObservables:
             A decorator that registers the function as an observable.
         """
 
-        def wrapper(sample_function):
+        def wrapper(sample_function: Callable) -> Callable:
             cls.primary_observables[name] = DensityDerivedObservable(
                 name=name,
                 sample_function=sample_function,
@@ -242,7 +247,7 @@ class SimulationObservables:
         return wrapper
 
     @classmethod
-    def register_derived(cls, name) -> callable:
+    def register_derived(cls, name: str) -> Callable:
         """Register a derived observable with the class.
 
         Args:
@@ -252,7 +257,7 @@ class SimulationObservables:
             A decorator that registers the function as an observable.
         """
 
-        def wrapper(derived_quantity):
+        def wrapper(derived_quantity: Callable) -> Callable:
             cls.derived_observables[name] = DensityDerivedObservable(
                 name=name,
                 derived_quantity=derived_quantity,
@@ -270,11 +275,17 @@ class SimulationObservables:
     ) -> dict[str, np.ndarray | None]:
         """Return the observable with the given name."""
         if observable_type == "primary":
-            return self.primary_observables[name].expectation_value(
-                self.output)
+            expectation_value: dict[
+                str, np.ndarray
+                | None] = self.primary_observables[name].expectation_value(
+                    self.output)
+            return expectation_value
         elif observable_type == "derived":
-            return self.derived_observables[name].expectation_value(
-                self.output)
+            expectation_value: dict[
+                str, np.ndarray
+                | None] = self.derived_observables[name].expectation_value(
+                    self.output)
+            return expectation_value
         else:
             raise ValueError(f"Invalid observable type: {observable_type}")
 
@@ -330,14 +341,16 @@ def get_density_squared(samples: np.ndarray) -> np.ndarray:
 
 @SimulationObservables.register_primary("density_max")
 def get_density_max(samples: np.ndarray) -> float:
-    return samples.max(axis=(-1, -2))
+    return float(samples.max(axis=(-1, -2)))
 
 
 @SimulationObservables.register_primary("density_min")
 def get_density_min(samples: np.ndarray) -> float:
-    return samples.min(axis=(-1, -2))
+    min: float = samples.min(axis=(-1, -2))
+    return min
 
 
 @SimulationObservables.register_primary("density_variance")
 def get_variance(samples: np.ndarray) -> float:
-    return samples.var(axis=(-1, -2))
+    var: float = samples.var(axis=(-1, -2))
+    return var
