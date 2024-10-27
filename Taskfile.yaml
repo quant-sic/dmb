@@ -6,15 +6,48 @@ vars:
     sh: git rev-parse --show-toplevel
 
   PLATFORM:
-    sh: uname -s
+    sh: uname -s | tr '[:upper:]' '[:lower:]'
 
 tasks:
+  install-uv:
+    desc: "Install uv"
+    run: once
+    silent: true
+    vars:
+      UV_INSTALLED:
+        sh: |
+          if [ -x "$(command -v uv)" ]; then
+            echo "true"
+          else
+            echo "false"
+          fi
+    cmds:
+      - |
+        if [ "{{.UV_INSTALLED}}" == "false" ]; then
+          # for linux and mac
+          if [ "{{.PLATFORM}}" == "linux" ] || [ "{{.PLATFORM}}" == "darwin" ]; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+          else
+            echo "Unsupported platform {{.PLATFORM}}"
+          fi
+        fi
+
+  setup:
+    desc: "Setup"
+    run: once
+    deps:
+      - task: install-uv
+    cmds:
+      - uv venv
+
   install:
     desc:
       Install dependencies. Poetry cannot handle the torch installation properly on
       multiple hardware platforms.
     vars:
       DEVICE: '{{ .DEVICE | default "cpu" }}' # cpu or cu121
+    deps:
+      - task: setup
     cmds:
       - |
         VIRTUAL_ENV=./.venv
@@ -33,6 +66,8 @@ tasks:
 
   format:
     desc: Format the code
+    deps:
+      - task: setup
     cmds:
       - uv run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
       - uv run isort {{ .PYTHON_CODE_DIRS }}
@@ -42,6 +77,8 @@ tasks:
     vars:
       YAPF_FILES:
         sh: git ls-files | grep '.py' | tr '\n' ' '
+    deps:
+      - task: setup
     cmds:
       - uv run isort --check-only {{ .PYTHON_CODE_DIRS }}
       - >
@@ -53,6 +90,8 @@ tasks:
 
   test:
     desc: Run tests
+    deps:
+      - task: setup
     vars:
       MARK: '{{ .MARK | default "" }}'
     cmds:
