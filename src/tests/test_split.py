@@ -63,7 +63,7 @@ class TestSplit:
 
     @staticmethod
     @pytest.fixture(scope="class", name="test_split_ids")
-    def get_test_split_ids() -> tuple[dict[str, tuple[str, ...]], ...]:
+    def get_test_split_ids() -> tuple[dict[str, list[str]], ...]:
         """Return test split ids."""
         return (
             {

@@ -11,7 +11,6 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from attrs import frozen
-import json
 
 
 @frozen(eq=False, slots=False)
@@ -98,7 +97,7 @@ class WormInputParameters:
     @classmethod
     def from_dir(cls, save_dir_path: Path) -> WormInputParameters:
         attributes: dict[str, type | None] = {
-            attribute.name: eval(attribute.type)
+            attribute.name: attribute.type
             for attribute in cls.__attrs_attrs__
         }
 
@@ -122,7 +121,7 @@ class WormInputParameters:
                             raise ValueError(
                                 f"Inconsistent attribute {key} in {cls.__name__}")
                         else:
-                            value = attributes[key](value)  # type: ignore
+                            value = eval(attributes[key])(value)  # type: ignore
 
                     # add to dictionary
                     params[key] = value
@@ -171,7 +170,7 @@ class WormInputParameters:
 
             for attribute in self.__attrs_attrs__:
                 if not (attribute.name in ("mu", "t_hop", "U_on", "V_nn")
-                        and eval(attribute.type) is np.ndarray):
+                        and eval(attribute.type) is np.ndarray):  # type: ignore
                     f.write(
                         f"{attribute.name} = {self.__getattribute__(attribute.name)}\n")
 

@@ -5,6 +5,7 @@ from typing import Iterator
 
 import h5py
 import pytest
+from pydantic_settings import BaseSettings
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation
@@ -21,7 +22,7 @@ class FakeDispatcher(Dispatcher):
                  expect_input_file_type: str = ".ini"):
         self.expect_ini_input_file = expect_input_file_type
         self.return_code = return_code
-        self.dispatcher_settings = {}
+        self.dispatcher_settings = BaseSettings()
 
     async def dispatch(self, job_name: str, work_directory: Path, pipeout_dir: Path,
                        task: list[str], timeout: int) -> ReturnCode:

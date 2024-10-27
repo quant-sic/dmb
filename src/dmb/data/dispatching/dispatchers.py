@@ -211,8 +211,7 @@ class LocalDispatcher(Dispatcher):
             await process.wait()
             return_code = (ReturnCode.SUCCESS
                            if process.returncode == 0 else ReturnCode.FAILURE)
-            print(f"Process {job_name} finished with return code {return_code}, "
-                  f"stdout: {stdout}, stderr: {stderr}")
+
         except asyncio.TimeoutError:
             process.kill()
             stdout, stderr = await process.communicate()
