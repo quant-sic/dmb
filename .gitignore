@@ -1,0 +1,25 @@
+*
+
+!**/
+
+!*.py
+!*.toml
+!*.md
+!*.yaml
+!*.cpp
+
+!Makefile
+!uv.lock
+
+!.gitignore
+!.python-version
+
+/data
+/logs
+
+!data/test/*
+
+.venv
+.trunk
+
+.ipynb_checkpoints/**/ */

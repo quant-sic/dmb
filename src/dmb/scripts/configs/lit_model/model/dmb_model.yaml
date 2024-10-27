@@ -1,0 +1,15 @@
+_target_: dmb.model.dmb_model.DMBModel
+  
+observables:   
+  - density
+  - density_density_corr_0
+  - density_density_corr_1
+  - density_density_corr_2
+  - density_density_corr_3
+  - density_squared
+  - density_max
+  - density_min
+  - density_variance
+
+module_list: []
+output_modification: []
