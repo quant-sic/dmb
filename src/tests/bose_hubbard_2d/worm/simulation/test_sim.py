@@ -9,7 +9,7 @@ import pytest
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation
 from dmb.data.dispatching import ReturnCode
-from dmb.data.dispatching.dispatcher import Dispatcher
+from dmb.data.dispatching.dispatchers import Dispatcher
 
 from .test_output import WormOutputTests
 
@@ -21,6 +21,7 @@ class FakeDispatcher(Dispatcher):
                  expect_input_file_type: str = ".ini"):
         self.expect_ini_input_file = expect_input_file_type
         self.return_code = return_code
+        self.dispatcher_settings = {}
 
     async def dispatch(self, job_name: str, work_directory: Path, pipeout_dir: Path,
                        task: list[str], timeout: int) -> ReturnCode:

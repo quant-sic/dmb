@@ -1,8 +1,8 @@
 """Module for the worm input parameters."""
 
-__all__ = ["WormInputParameters"]
-
 from __future__ import annotations
+
+__all__ = ["WormInputParameters"]
 
 from pathlib import Path
 from typing import Any

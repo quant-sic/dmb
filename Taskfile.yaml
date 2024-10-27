@@ -56,7 +56,7 @@ tasks:
     vars:
       MARK: '{{ .MARK | default "" }}'
     cmds:
-      - uv run pytest -vv -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
+      - uv run pytest --pdb -vv -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
 
   licenses:
     desc: List licenses of dependencies

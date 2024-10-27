@@ -44,7 +44,15 @@ class FakeWormSimulation(WormSimulationInterface):
         self._validities = validities
         self._return_codes = return_codes
 
-        self.record: dict[str, list] = {"steps": []}
+        self._record: dict[str, list] = {"steps": []}
+
+    @property
+    def record(self) -> dict[str, list]:
+        return self._record
+
+    @record.setter
+    def record(self, record: dict[str, list]) -> None:
+        self._record = record
 
     @property
     def input_parameters(self) -> WormInputParameters:

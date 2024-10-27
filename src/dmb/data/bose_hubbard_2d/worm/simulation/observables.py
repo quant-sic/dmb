@@ -342,17 +342,18 @@ def get_density_squared(samples: np.ndarray) -> np.ndarray:
 
 
 @SimulationObservables.register_primary("density_max")
-def get_density_max(samples: np.ndarray) -> float:
-    return float(samples.max(axis=(-1, -2)))
+def get_density_max(samples: np.ndarray) -> np.ndarray:
+    max: np.ndarray = samples.max(axis=(-1, -2))
+    return max
 
 
 @SimulationObservables.register_primary("density_min")
-def get_density_min(samples: np.ndarray) -> float:
-    min: float = samples.min(axis=(-1, -2))
+def get_density_min(samples: np.ndarray) -> np.ndarray:
+    min: np.ndarray = samples.min(axis=(-1, -2))
     return min
 
 
 @SimulationObservables.register_primary("density_variance")
-def get_variance(samples: np.ndarray) -> float:
-    var: float = samples.var(axis=(-1, -2))
+def get_variance(samples: np.ndarray) -> np.ndarray:
+    var: np.ndarray = samples.var(axis=(-1, -2))
     return var

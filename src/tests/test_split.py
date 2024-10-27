@@ -67,28 +67,30 @@ class TestSplit:
         """Return test split ids."""
         return (
             {
-                "train": ("a", "b", "i", "c"),
-                "test": ("d", "e")
+                "train": ["a", "b", "i", "c"],
+                "test": ["d", "e"]
             },
             {
-                "train": ("a", "b", "c", "m", "e"),
-                "test": ("f", "g", "h", "i", "j")
+                "train": ["a", "b", "c", "m", "e"],
+                "test": ["f", "g", "h", "i", "j"]
             },
             {
-                "train": ("a", "b", "d", "e", "f", "g"),
-                "val": ("h", "z"),
-                "test": ("i", "j"),
+                "train": ["a", "b", "d", "e", "f", "g"],
+                "val": ["h", "z"],
+                "test": ["i", "j"],
             },
             {
-                "train": ("i", "j"),
-                "val": ("h", ),
-                "test": ("a", "b", "c", "d", "e", "f", "g"),
+                "train": ["i", "j"],
+                "val": ["h"],
+                "test": ["a", "b", "c", "d", "e", "f", "g"],
             },
             {
-                "test": ("g", )
+                "test": ["g"]
             },
             {
-                "test": ("x", )
+                "test": [
+                    "x",
+                ]
             },
         )
 
