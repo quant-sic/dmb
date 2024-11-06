@@ -10,6 +10,8 @@ vars:
 
   REPO_ROOT:
     sh: git rev-parse --show-toplevel
+  
+  VENV_DIR_PATH: "{{ .REPO_ROOT }}/.venv"
 
 tasks:
   install-uv:
@@ -45,12 +47,14 @@ tasks:
       - pyproject.toml
       - .python-version
     generates:
-      - ./.venv/**/*
+      - "{{ .VENV_DIR_PATH }}/**/*"
     cmds:
-      - uv venv
+      - uv venv {{ .VENV_DIR_PATH }}
 
   build-requirements:
     desc: "Build requirements"
+    env:
+      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
     deps:
       - task: env-setup
     sources:
@@ -65,6 +69,8 @@ tasks:
 
   install-dependencies:
     desc: "Install dependencies"
+    env:
+      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
     deps:
       - task: env-setup
     vars:
@@ -75,12 +81,16 @@ tasks:
 
   format:
     desc: Format the code
+    env:
+      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
       - uv run isort {{ .PYTHON_CODE_DIRS }}
 
   lint:
     desc: Lint the code
+    env:
+      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
     vars:
       YAPF_FILES:
         sh: git ls-files | grep '.py$' | tr '\n' ' '
@@ -95,26 +105,16 @@ tasks:
 
   test:
     desc: Run tests
+    env:
+      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
     vars:
       MARK: '{{ .MARK | default "" }}'
     cmds:
       - uv run pytest -v -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
 
-  audit:
-    desc: Run security audit
-    vars:
-      PYTHON_FILES:
-        sh: find {{ .PYTHON_CODE_DIRS }} -type f -name "*.py" | tr '\n' ' '
-    cmds:
-      - uv run pip-audit
-      - uv run bandit -c pyproject.toml -r {{ .PYTHON_FILES }}
-
-  docker-build:
-    desc: Build the docker image
-    cmds:
-      - DOCKER_DEFAULT_PLATFORM=linux/amd64 DOCKER_BUILDKIT=1 docker build -t thepackagename:latest .
-
   licenses:
     desc: List licenses of dependencies
+    env:
+      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run pip-licenses --from=mixed --order=license --summary
