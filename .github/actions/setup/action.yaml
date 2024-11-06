@@ -1,18 +1,6 @@
 name: "Setup Python Environment"
 description: "Setup Python and install dependencies"
-# outputs:
-#   cache-hit:
-#     description: "Whether the cache was restored."
-#     value: ${{ steps.setup-cache.outputs.cache-hit }}
-#   python-path:
-#     description: "The path to the Python executable."
-#     value: ${{ steps.setup-python.outputs.python-path }}
-#   uv-path:
-#     description: "The path to the uv executable."
-#     value: ${{ steps.install-uv.outputs.uv-path }}
-#   virtual-env:
-#     description: "The path to the virtual environment created and activated by this action."
-#     value: ${{ steps.setup-uv.outputs.venv-dir }}
+
 runs:
   using: "composite"
 
@@ -25,7 +13,7 @@ runs:
       with:
         path: |
           ${{ github.workspace }}/.venv
-        key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+        key: ${{ runner.os }}-uv-${{ hashFiles('requirements/**/*.lock', 'pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-uv-
 
@@ -46,7 +34,7 @@ runs:
 
     - name: Install dependencies
       if: steps.setup-cache.outputs.cache-hit != 'true'
-      run: DEVICE=cpu task install
+      run: task install-dependencies LOCKFILE_VERSION=ci
       shell: bash
 
     - name: Activate virtual environment

@@ -15,7 +15,7 @@ tasks:
   install-uv:
     desc: "Install uv."
     run: once
-    # silent: true
+    silent: true
     vars:
       UV_INSTALLED:
         sh: |
