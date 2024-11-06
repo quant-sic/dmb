@@ -91,15 +91,8 @@ tasks:
     desc: Lint the code
     env:
       VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
-    vars:
-      YAPF_FILES:
-        sh: git ls-files | grep '.py$' | tr '\n' ' '
     cmds:
       - uv run isort --check-only {{ .PYTHON_CODE_DIRS }}
-      - >
-        if [ -n "{{ .YAPF_FILES }}" ]; then 
-          uv run yapf --diff {{ .YAPF_FILES }}; 
-        fi
       - uv run mypy {{ .PYTHON_CODE_DIRS }}
       - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
 
