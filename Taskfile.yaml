@@ -1,17 +1,7 @@
 version: "3"
 
 vars:
-  CUDA_VERSION_DEFAULT:
-    sh: |
-      if command -v nvidia-smi > /dev/null; then
-        if nvidia-smi --list-gpus > /dev/null; then
-          echo cu124
-        else
-          echo "cpu"
-        fi
-      else
-        echo "cpu"
-      fi
+  CUDA_VERSION_DEFAULT: cu124
   CUDA_VERSION: "{{ .CUDA_VERSION | default .CUDA_VERSION_DEFAULT }}"
   PLATFORM:
     sh: uname -s | tr '[:upper:]' '[:lower:]'
@@ -25,7 +15,7 @@ tasks:
   install-uv:
     desc: "Install uv."
     run: once
-    silent: true
+    # silent: true
     vars:
       UV_INSTALLED:
         sh: |
