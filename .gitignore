@@ -8,9 +8,6 @@
 !*.yaml
 !*.cpp
 
-!Makefile
-!uv.lock
-
 !.gitignore
 !.python-version
 
@@ -23,3 +20,5 @@
 .trunk
 
 .ipynb_checkpoints/**/ */
+
+uv.lock
