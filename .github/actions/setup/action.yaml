@@ -34,7 +34,7 @@ runs:
 
     - name: Install dependencies
       if: steps.setup-cache.outputs.cache-hit != 'true'
-      run: task install-dependencies LOCKFILE_VERSION=ci
+      run: task install-dependencies LOCKFILE_VERSION=ci CUDA_VERSION=cpu
       shell: bash
 
     - name: Activate virtual environment
