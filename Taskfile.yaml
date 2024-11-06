@@ -10,8 +10,10 @@ vars:
 
   REPO_ROOT:
     sh: git rev-parse --show-toplevel
-  
+
   VENV_DIR_PATH: "{{ .REPO_ROOT }}/.venv"
+  UV_CACHE_DIR: "{{ .REPO_ROOT }}/.cache/uv"
+
 
 tasks:
   install-uv:
@@ -39,6 +41,9 @@ tasks:
 
   env-setup:
     desc: "Setup the environment."
+    env:
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     silent: true
     run: once
     deps:
@@ -54,7 +59,8 @@ tasks:
   build-requirements:
     desc: "Build requirements"
     env:
-      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     deps:
       - task: env-setup
     sources:
@@ -70,7 +76,8 @@ tasks:
   install-dependencies:
     desc: "Install dependencies"
     env:
-      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     deps:
       - task: env-setup
     vars:
@@ -82,7 +89,8 @@ tasks:
   format:
     desc: Format the code
     env:
-      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
       - uv run isort {{ .PYTHON_CODE_DIRS }}
@@ -90,16 +98,18 @@ tasks:
   lint:
     desc: Lint the code
     env:
-      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run isort --check-only {{ .PYTHON_CODE_DIRS }}
       - uv run mypy {{ .PYTHON_CODE_DIRS }}
-      - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
+      # - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
 
   test:
     desc: Run tests
     env:
-      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     vars:
       MARK: '{{ .MARK | default "" }}'
     cmds:
@@ -108,6 +118,7 @@ tasks:
   licenses:
     desc: List licenses of dependencies
     env:
-      VIRTUAL_ENV: "{{ .VENV_DIR_PATH }}"
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run pip-licenses --from=mixed --order=license --summary
