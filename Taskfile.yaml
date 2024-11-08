@@ -1,8 +1,6 @@
 version: "3"
 
 vars:
-  CUDA_VERSION_DEFAULT: cu124
-  CUDA_VERSION: "{{ .CUDA_VERSION | default .CUDA_VERSION_DEFAULT }}"
   PLATFORM:
     sh: uname -s | tr '[:upper:]' '[:lower:]'
 
@@ -13,7 +11,6 @@ vars:
 
   VENV_DIR_PATH: "{{ .REPO_ROOT }}/.venv"
   UV_CACHE_DIR: "{{ .REPO_ROOT }}/.cache/uv"
-
 
 tasks:
   install-uv:
@@ -56,23 +53,6 @@ tasks:
     cmds:
       - uv venv {{ .VENV_DIR_PATH }}
 
-  build-requirements:
-    desc: "Build requirements"
-    env:
-      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
-      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
-    deps:
-      - task: env-setup
-    sources:
-      - pyproject.toml
-      - .python-version
-      - cereals.py
-    generates:
-      - requirements/{{ .PLATFORM }}-{{ .CUDA_VERSION }}/*.lock
-    cmds:
-      - uv sync --extra setup
-      - uv run python cereals.py lock --cereal-name {{ .PLATFORM }}-{{ .CUDA_VERSION }}
-
   install-dependencies:
     desc: "Install dependencies"
     env:
@@ -80,11 +60,8 @@ tasks:
       VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     deps:
       - task: env-setup
-    vars:
-      LOCKFILE_VERSION: '-{{ .LOCKFILE_VERSION | default "base" }}'
-      LOCKFILE: "{{ .REPO_ROOT }}/requirements/{{ .PLATFORM }}-{{ .CUDA_VERSION }}/requirements{{ .LOCKFILE_VERSION }}.lock"
     cmds:
-      - uv pip sync {{ .LOCKFILE }} --index-strategy unsafe-first-match
+      - uv sync
 
   format:
     desc: Format the code

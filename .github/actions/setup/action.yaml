@@ -17,7 +17,7 @@ runs:
         key: ${{ runner.os }}-uv-${{ hashFiles('requirements/**/*.lock', 'pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-uv-
-      
+
     - name: Setup uv and task
       id: setup-tools
       run: |
@@ -39,7 +39,7 @@ runs:
 
     - name: Install dependencies
       if: steps.setup-cache.outputs.cache-hit != 'true'
-      run: task install-dependencies LOCKFILE_VERSION=ci CUDA_VERSION=cpu
+      run: task install-dependencies
       shell: bash
 
     - name: Activate virtual environment

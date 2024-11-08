@@ -16,18 +16,10 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "scipy>=1.14.1",
     "syjson>=2.1.6",
+    "torch>=2.4.1",
     "tqdm>=4.66.5",
     "wandb>=0.18.3",
 ]
-
-[cereals.darwin-cpu]
-dependencies = ["torch==2.5.0"]
-[cereals.linux-cpu]
-dependencies = ["torch==2.5.0+cpu"]
-extra_index_urls = ["https://download.pytorch.org/whl/cpu"]
-[cereals.linux-cu124]
-dependencies = ["torch==2.5.0+cu124"]
-extra_index_urls = ["https://download.pytorch.org/whl/cu124"]
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]

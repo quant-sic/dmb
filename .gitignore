@@ -15,11 +15,8 @@
 /logs
 
 !data/test/*
-!requirements/**/*.lock
 
 .venv
 .trunk
 
 .ipynb_checkpoints/**/ */
-
-uv.lock
