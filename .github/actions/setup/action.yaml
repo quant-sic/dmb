@@ -39,7 +39,7 @@ runs:
 
     - name: Install dependencies
       if: steps.setup-cache.outputs.cache-hit != 'true'
-      run: task install-dependencies
+      run: task install-dependencies EXTRAS="--extra ci"
       shell: bash
 
     - name: Activate virtual environment

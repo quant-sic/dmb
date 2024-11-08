@@ -60,8 +60,10 @@ tasks:
       VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     deps:
       - task: env-setup
+    vars:
+      EXTRAS: '{{ .EXTRAS | default "--extra dev --extra ci" }}'
     cmds:
-      - uv sync
+      - uv sync {{ .EXTRAS }}
 
   format:
     desc: Format the code
