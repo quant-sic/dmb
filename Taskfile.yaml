@@ -1,16 +1,20 @@
 version: "3"
 
 vars:
-  PYTHON_CODE_DIRS: src/dmb src/tests #src/auto-correlation
-  REPO_ROOT:
-    sh: git rev-parse --show-toplevel
-
   PLATFORM:
     sh: uname -s | tr '[:upper:]' '[:lower:]'
 
+  PYTHON_CODE_DIRS: "src/dmb src/tests"
+
+  REPO_ROOT:
+    sh: git rev-parse --show-toplevel
+
+  VENV_DIR_PATH: "{{ .REPO_ROOT }}/.venv"
+  UV_CACHE_DIR: "{{ .REPO_ROOT }}/.cache/uv"
+
 tasks:
   install-uv:
-    desc: "Install uv"
+    desc: "Install uv."
     run: once
     silent: true
     vars:
@@ -28,76 +32,72 @@ tasks:
           if [ "{{.PLATFORM}}" == "linux" ] || [ "{{.PLATFORM}}" == "darwin" ]; then
             curl -LsSf https://astral.sh/uv/install.sh | sh
           else
-            echo "Unsupported platform {{.PLATFORM}}"
+            echo "Unsupported platform"
           fi
         fi
 
-  setup:
-    desc: "Setup"
+  env-setup:
+    desc: "Setup the environment."
+    env:
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
+    silent: true
     run: once
     deps:
       - task: install-uv
+    sources:
+      - pyproject.toml
+      - .python-version
+    generates:
+      - "{{ .VENV_DIR_PATH }}/**/*"
     cmds:
-      - uv venv
+      - uv venv {{ .VENV_DIR_PATH }}
 
-  install:
-    desc:
-      Install dependencies. Poetry cannot handle the torch installation properly on
-      multiple hardware platforms.
-    vars:
-      DEVICE: '{{ .DEVICE | default "cpu" }}' # cpu or cu121
+  install-dependencies:
+    desc: "Install dependencies"
+    env:
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     deps:
-      - task: setup
+      - task: env-setup
+    vars:
+      EXTRAS: '{{ .EXTRAS | default "--extra dev --extra ci" }}'
     cmds:
-      - |
-        VIRTUAL_ENV=./.venv
-        uv sync
-        if [ "{{ .PLATFORM }}" = "Darwin" ]; then
-          uv pip install torch==2.4.1 torchvision==0.19.1
-        fi
-        if [ "{{ .PLATFORM }}" = "Linux" ]; then
-          if [ "{{ .DEVICE }}" = "cpu" ];
-          then
-            uv add torch==2.4.1 torchvision==0.19.1
-          else
-            uv pip install torch==2.4.1+cu124 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
-          fi
-        fi
+      - uv sync {{ .EXTRAS }}
 
   format:
     desc: Format the code
-    deps:
-      - task: setup
+    env:
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
       - uv run isort {{ .PYTHON_CODE_DIRS }}
 
   lint:
     desc: Lint the code
-    vars:
-      YAPF_FILES:
-        sh: git ls-files | grep '.py' | tr '\n' ' '
-    deps:
-      - task: setup
+    env:
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run isort --check-only {{ .PYTHON_CODE_DIRS }}
-      - >
-        if [ -n "{{ .FILES }}" ]; then 
-          yapf --diff {{ .FILES }}; 
-        fi
       - uv run mypy {{ .PYTHON_CODE_DIRS }}
       # - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
 
   test:
     desc: Run tests
-    deps:
-      - task: setup
+    env:
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     vars:
       MARK: '{{ .MARK | default "" }}'
     cmds:
-      - uv run pytest -vv -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
+      - uv run pytest -v -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
 
   licenses:
     desc: List licenses of dependencies
+    env:
+      UV_CACHE_DIR: "{{ .UV_CACHE_DIR }}"
+      VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run pip-licenses --from=mixed --order=license --summary
