@@ -22,10 +22,12 @@ class IdDataset(Dataset, ABC):
     """Dataset with sample IDs."""
 
     @abstractmethod
-    def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]: ...
+    def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
+        ...
 
     @abstractmethod
-    def get_indices_from_ids(self, ids: Iterable[str]) -> tuple[int, ...]: ...
+    def get_indices_from_ids(self, ids: Iterable[str]) -> tuple[int, ...]:
+        ...
 
 
 @define
