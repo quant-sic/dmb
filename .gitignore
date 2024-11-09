@@ -23,3 +23,4 @@
 .ipynb_checkpoints/**/ */
 
 pipe_out
+*.egg-info
