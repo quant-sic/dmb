@@ -10,6 +10,7 @@ import torch
 from dmb.data.bose_hubbard_2d.nn_input import get_nn_input
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
 from dmb.logging import create_logger
+from tqdm import tqdm
 
 log = create_logger(__name__)
 
@@ -56,8 +57,11 @@ def filter_by_error(
         if len(simulation.record["steps"]) == 0:
             simulation.record["steps"] = [{"error": None, "tau_max": None}]
 
-        error_key = ("error" if "error" in simulation.record["steps"][-1] else
-                     "max_density_error")
+        error_key = (
+            "error"
+            if "error" in simulation.record["steps"][-1]
+            else "max_density_error"
+        )
 
         if recalculate_errors:
             log.info(f"Recalculating errors for {simulation.save_dir}")
@@ -65,8 +69,9 @@ def filter_by_error(
             simulation.record["steps"][-1][error_key] = simulation.max_density_error
             simulation.record["steps"][-1]["tau_max"] = simulation.max_tau_int
 
-        result: bool = (simulation.record["steps"][-1][error_key] <= max_density_error
-                        ) and (simulation.record["steps"][-1]["tau_max"] > 0)
+        result: bool = (
+            simulation.record["steps"][-1][error_key] <= max_density_error
+        ) and (simulation.record["steps"][-1]["tau_max"] > 0)
         return result
 
     except (IndexError, TypeError, KeyError) as e:
@@ -89,7 +94,8 @@ def clean_sim_dirs(
             sim_dir,
             redo=redo,
             check_readable=check_readable,
-        ) for sim_dir in sim_dirs
+        )
+        for sim_dir in sim_dirs
     ]
 
     if delete_unreadable:
@@ -98,10 +104,12 @@ def clean_sim_dirs(
                 log.info(f"Deleting {sim_dir}")
                 shutil.rmtree(sim_dir)
 
-    sim_dirs = list(itertools.compress(
-        sim_dirs,
-        valid_sim_dirs,
-    ))
+    sim_dirs = list(
+        itertools.compress(
+            sim_dirs,
+            valid_sim_dirs,
+        )
+    )
 
     if max_density_error is not None:
         sim_dirs = list(
@@ -112,16 +120,18 @@ def clean_sim_dirs(
                         sim_dir,
                         max_density_error=max_density_error,
                         recalculate_errors=recalculate_errors,
-                    ) for sim_dir in sim_dirs
+                    )
+                    for sim_dir in sim_dirs
                 ],
-            ))
+            )
+        )
 
     return sim_dirs
 
 
-def load_sample(simulation_dir: Path,
-                observables: list[str],
-                reload: bool = False) -> tuple[torch.Tensor, torch.Tensor, dict]:
+def load_sample(
+    simulation_dir: Path, observables: list[str], reload: bool = False
+) -> tuple[torch.Tensor, torch.Tensor, dict]:
 
     inputs_path = simulation_dir / "inputs.pt"
     outputs_path = simulation_dir / "outputs.pt"
@@ -135,8 +145,10 @@ def load_sample(simulation_dir: Path,
     if not inputs_path.exists() or not outputs_path.exists() or reload:
         sim = WormSimulation.from_dir(simulation_dir)
 
-        saved_observables = (sim.observables.observable_names["primary"] +
-                             sim.observables.observable_names["derived"])
+        saved_observables = (
+            sim.observables.observable_names["primary"]
+            + sim.observables.observable_names["derived"]
+        )
 
         expectation_values = [
             sim.observables.get_expectation_value(obs_type, obs_name)
@@ -144,10 +156,14 @@ def load_sample(simulation_dir: Path,
             for obs_name in sim.observables.observable_names[obs_type]
         ]
         expanded_expectation_values = [
-            (np.full(
-                shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
-                fill_value=obs,
-            ) if obs.ndim == 0 else obs)  # type: ignore
+            (
+                np.full(
+                    shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
+                    fill_value=obs,
+                )
+                if obs.ndim == 0
+                else obs
+            )  # type: ignore
             for obs in expectation_values
         ]
         # stack observables
@@ -172,8 +188,8 @@ def load_sample(simulation_dir: Path,
         sim.record["saved_observables"] = saved_observables
 
     else:
-        inputs = torch.load(inputs_path)
-        outputs = torch.load(outputs_path)
+        inputs = torch.load(inputs_path, weights_only=True, map_location="cpu")
+        outputs = torch.load(outputs_path, weights_only=True, map_location="cpu")
 
         # load saved_observables
         sim = WormSimulation.from_dir(simulation_dir)
@@ -272,15 +288,18 @@ def load_dataset_simulations(
     samples_dir = dataset_save_path / "samples"
     samples_dir.mkdir(exist_ok=True, parents=True)
 
-    for sim_dir in clean_simulation_directories:
+    for sim_dir in tqdm(clean_simulation_directories):
         inputs, outputs, metadata = load_sample(sim_dir, observables, reload=reload)
 
-        sample_save_path = samples_dir / (sim_dir.name if not sim_dir.name == "tune"
-                                          else sim_dir.parent.name + "_tune")
-        sample_save_path.mkdir(exist_ok=True, parents=True)
-
         if (inputs[0] == 0).all():
-            break
+            continue
+
+        sample_save_path = samples_dir / (
+            sim_dir.name
+            if not sim_dir.name == "tune"
+            else sim_dir.parent.name + "_tune"
+        )
+        sample_save_path.mkdir(exist_ok=True, parents=True)
 
         torch.save(inputs, sample_save_path / "inputs.pt")
         torch.save(outputs, sample_save_path / "outputs.pt")
