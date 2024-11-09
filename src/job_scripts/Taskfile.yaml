@@ -17,10 +17,9 @@ vars:
 
   PIPE_OUT_ROOT: "{{.REPO_ROOT}}/pipe_out"
 
-dotenv: ['{{ .REPO_ROOT }}/.env']
+dotenv: ["{{ .REPO_ROOT }}/.env"]
 
 tasks:
-
   setup:
     desc: Setup
     cmds:
@@ -30,12 +29,12 @@ tasks:
     desc: Load a dataset
     deps:
       - setup
-    vars: 
+    vars:
       JOB_NAME: load_dataset
-      MAX_DENSITY_ERROR: '{{ .MAX_DENSITY_ERROR | default 0.1 }}'
+      MAX_DENSITY_ERROR: "{{ .MAX_DENSITY_ERROR | default 0.1 }}"
 
       _COMMAND: 'uv run python {{ .REPO_ROOT }}/src/dmb/data/bose_hubbard_2d/worm/scripts/load_dataset.py --simulations-dir {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/simulations --dataset-save-path {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/dataset/max_density_error_{{ .MAX_DENSITY_ERROR }} --max-density-error {{ .MAX_DENSITY_ERROR }} {{ .INCLUDE_TUNE_DIRS | default "" }}'
-      
+
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
 
@@ -44,28 +43,28 @@ tasks:
     cmds:
       - task: load_dataset
         vars:
-          DATA_DIR: 'bose_hubbard_2d/box/1.0/0.1/41'
+          DATA_DIR: "bose_hubbard_2d/box/1.0/0.1/41"
           MAX_DENSITY_ERROR: 0.3
-          INCLUDE_TUNE_DIRS: '--include-tune-dirs'
+          INCLUDE_TUNE_DIRS: "--include-tune-dirs"
 
   load_dataset_wedding_cake:
     desc: Load the wedding cake dataset
     cmds:
       - task: load_dataset
         vars:
-          DATA_DIR: 'bose_hubbard_2d/wedding_cake/1.0/0.1/40/-2.0'
+          DATA_DIR: "bose_hubbard_2d/wedding_cake/1.0/0.1/40/-2.0"
 
   load_dataset_mu_cut:
     desc: Load the mu cut dataset
     cmds:
       - task: load_dataset
         vars:
-          DATA_DIR: 'bose_hubbard_2d/mu_cut/1.0/0.1/16'
+          DATA_DIR: "bose_hubbard_2d/mu_cut/1.0/0.1/16"
           MAX_DENSITY_ERROR: 0.015
 
       - task: load_dataset
         vars:
-          DATA_DIR: 'bose_hubbard_2d/mu_cut/1.0/0.25/16'
+          DATA_DIR: "bose_hubbard_2d/mu_cut/1.0/0.25/16"
           MAX_DENSITY_ERROR: 0.015
 
   load_dataset_random:
@@ -73,10 +72,9 @@ tasks:
     cmds:
       - task: load_dataset
         vars:
-          DATA_DIR: 'bose_hubbard_2d/random'
+          DATA_DIR: "bose_hubbard_2d/random"
           MAX_DENSITY_ERROR: 0.015
-          INCLUDE_TUNE_DIRS: '--include-tune-dirs'
-
+          INCLUDE_TUNE_DIRS: "--include-tune-dirs"
 
   run_qmc:
     desc: Run QMC
@@ -84,16 +82,16 @@ tasks:
       - setup
 
     vars:
-      NUMBER_OF_CONCURRENT_JOBS: '{{ .NUMBER_OF_CONCURRENT_JOBS | default 25 }}'
-      SLURM_ARRAY_SIZE: '{{ .SLURM_ARRAY_SIZE | default 1 }}'
-      MAX_DENSITY_ERROR: '{{ .MAX_DENSITY_ERROR | default 0.015 }}'
+      NUMBER_OF_CONCURRENT_JOBS: "{{ .NUMBER_OF_CONCURRENT_JOBS | default 25 }}"
+      SLURM_ARRAY_SIZE: "{{ .SLURM_ARRAY_SIZE | default 1 }}"
+      MAX_DENSITY_ERROR: "{{ .MAX_DENSITY_ERROR | default 0.015 }}"
 
       _COMMAND:
         sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/data/bose_hubbard_2d/worm/scripts/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS | default "" }} --number_of_concurrent_jobs {{ .NUMBER_OF_CONCURRENT_JOBS }} --max_density_error {{ .MAX_DENSITY_ERROR }}"
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .QMC_JOBS_STARTER_TEMPLATE }} -D qmc_task={{ .QMC_TASK }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D slurm_array_size={{ .SLURM_ARRAY_SIZE }} -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} -D worm_mpi_executable='{{ .WORM_MPI_EXECUTABLE }}' | sbatch
-  
+
   run_qmc_random:
     desc: Run QMC on random potentials
     cmds:
@@ -101,7 +99,7 @@ tasks:
         vars:
           QMC_TASK: random
           QMC_SCRIPT_FILE: create_random.py
-          QMC_TASK_ARGS: '--type random --number_of_samples 250' #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
+          QMC_TASK_ARGS: "--type random --number_of_samples 250" #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
           NUMBER_OF_CONCURRENT_JOBS: 50
           NUMBER_OF_SAMPLES: 250
           SLURM_ARRAY_SIZE: 10
@@ -113,7 +111,7 @@ tasks:
         vars:
           QMC_TASK: box
           QMC_SCRIPT_FILE: sandbox/box.py
-          QMC_TASK_ARGS: '--tau_max_threshold 25'
+          QMC_TASK_ARGS: "--tau_max_threshold 25"
           MAX_DENSITY_ERROR: 0.03
           NUMBER_OF_CONCURRENT_JOBS: 25
 
@@ -133,27 +131,25 @@ tasks:
         vars:
           QMC_TASK: mu_cut
           QMC_SCRIPT_FILE: sandbox/mu_cut.py
-          QMC_TASK_ARGS: '--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.25'
+          QMC_TASK_ARGS: "--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.25"
           NUMBER_OF_CONCURRENT_JOBS: 25
 
       - task: run_qmc
         vars:
           QMC_TASK: mu_cut
           QMC_SCRIPT_FILE: sandbox/mu_cut.py
-          QMC_TASK_ARGS: '--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.1'
+          QMC_TASK_ARGS: "--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.1"
           NUMBER_OF_CONCURRENT_JOBS: 25
 
   run_qmc_phase_diagram:
-
     desc: Run QMC on the phase diagram
     cmds:
       - task: run_qmc
         vars:
           QMC_TASK: phase_diagram
           QMC_SCRIPT_FILE: phase_diagram/create.py
-          QMC_TASK_ARGS: '--L 16 --min_distance_between_samples_U_inv 0.1 --min_distance_between_samples_mu 0.1 --muU_min 0.0 --muU_max 3.0'
+          QMC_TASK_ARGS: "--L 16 --min_distance_between_samples_U_inv 0.1 --min_distance_between_samples_mu 0.1 --muU_min 0.0 --muU_max 3.0"
           NUMBER_OF_CONCURRENT_JOBS: 20
-
 
   create_split:
     desc: Create a split
@@ -161,26 +157,25 @@ tasks:
       - setup
     vars:
       JOB_NAME: create_split
-      
-      _COMMAND: 'uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/create_split.py experiment={{ .EXPERIMENT }} file_path={{ .FILE_PATH }} split.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}'
+
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/create_split.py experiment={{ .EXPERIMENT }} file_path={{ .FILE_PATH }} split.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
 
   create_split_random:
-
     desc: Create a split for the random dataset
     vars:
       SPLIT_NAME_FROM_TIME:
         sh: date +'%Y-%m-%d_%H-%M-%S'
-      SPLIT_NAME: '{{ .SPLIT_NAME | default .SPLIT_NAME_FROM_TIME }}'
-      DATASET_DIR_PATH: '{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset/max_density_error_0.015'
+      SPLIT_NAME: "{{ .SPLIT_NAME | default .SPLIT_NAME_FROM_TIME }}"
+      DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset/max_density_error_0.015"
 
     cmds:
       - task: create_split
         vars:
-          FILE_PATH: '{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_NAME }}.json'
-          DATASET_DIR_PATH: '{{ .DATASET_DIR_PATH }}'
+          FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_NAME }}.json"
+          DATASET_DIR_PATH: "{{ .DATASET_DIR_PATH }}"
           EXPERIMENT: create_split/bose_hubbard_2d/random
 
   train:
@@ -191,12 +186,12 @@ tasks:
       JOB_NAME: train
       EXPERIMENT: '{{ .EXPERIMENT | default "train/bose_hubbard_2d/worm/se_resnet_mse_softplus" }}'
 
-      DATASET_DIR_PATH: '{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset/max_density_error_0.015'
-      DEFAULT_SPLIT_FILE_PATH: '{{ .DATASET_DIR_PATH }}/splits/2024-11-09_21-50-04.json'
-      
-      SPLIT_FILE_PATH: '{{ .SPLIT_FILE_PATH | default .DEFAULT_SPLIT_FILE_PATH }}'
+      DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset/max_density_error_0.015"
+      DEFAULT_SPLIT_FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/2024-11-09_21-50-04.json"
 
-      _COMMAND: 'uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}'
+      SPLIT_FILE_PATH: "{{ .SPLIT_FILE_PATH | default .DEFAULT_SPLIT_FILE_PATH }}"
+
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
