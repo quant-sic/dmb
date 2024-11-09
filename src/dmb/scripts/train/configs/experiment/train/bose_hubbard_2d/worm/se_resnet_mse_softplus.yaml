@@ -23,17 +23,7 @@ datamodule:
 
   batch_size: 1024
 
-  split:
-    _target_: dmb.data.split.Split.from_file
-    file_path: ${paths.data_dir}/datasets/bose_hubbard_2d/random/default/splits/2024-04-28_11-12-57.json
-
   dataset:
-    _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dDataset
-    dataset_dir_path: 
-      _target_: pathlib.Path
-      _args_: 
-        - ${paths.data_dir}/datasets/bose_hubbard_2d/random/default
-
     transforms: 
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
       train_augmentations:           

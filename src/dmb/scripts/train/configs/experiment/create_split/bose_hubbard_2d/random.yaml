@@ -11,18 +11,14 @@ split:
   dataset:
     _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dDataset
     
-    dataset_dir_path: 
-      _target_: pathlib.Path
-      _args_: 
-        - ${paths.data_dir}/datasets/bose_hubbard_2d/random/default
+    dataset_dir_path: ???
 
     transforms: 
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
 
   split_fractions: 
-    train: 0.98
-    val: 0.01
-    test: 0.01
+    train: 0.95
+    val: 0.025
+    test: 0.025
 
-file_path: ${paths.data_dir}/datasets/bose_hubbard_2d/random/default/splits/${now:%Y-%m-%d}_${now:%H-%M-%S}.json
 exp_name: bose_hubbard_2d/random

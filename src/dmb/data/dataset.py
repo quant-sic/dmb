@@ -47,11 +47,11 @@ class DMBDataset(IdDataset):
         - 'metadata.json': The metadata dictionary for the dataset.
     """
 
-    dataset_dir_path: Path
+    dataset_dir_path: Path | str
     transforms: InputOutputDMBAugmentation
 
     def __attrs_post_init__(self) -> None:
-        samples_dir_path = self.dataset_dir_path / "samples"
+        samples_dir_path = Path(self.dataset_dir_path) / "samples"
         samples_dir_path.mkdir(parents=True, exist_ok=True)
 
         self.sample_ids = [

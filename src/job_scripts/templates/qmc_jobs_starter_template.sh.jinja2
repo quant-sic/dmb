@@ -13,7 +13,7 @@
 # Queue (Partition):
 #SBATCH --partition={{ slurm_partition }}
 
-#SBATCH --array=1-{{ slurm_array_size }}
+#SBATCH --array=1-{{ slurm_array_size }}%1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
