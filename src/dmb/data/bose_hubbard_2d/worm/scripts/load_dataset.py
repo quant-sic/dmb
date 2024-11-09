@@ -11,7 +11,6 @@ from tqdm import tqdm
 from dmb.data.bose_hubbard_2d.nn_input import get_nn_input
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
 from dmb.logging import create_logger
-from tqdm import tqdm
 
 log = create_logger(__name__)
 

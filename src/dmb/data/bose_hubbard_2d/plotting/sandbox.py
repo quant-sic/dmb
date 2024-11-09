@@ -9,17 +9,15 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colorbar import Colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
-from dmb.data.bose_hubbard_2d.potential import (
-    get_quadratic_mu_potential,
-    get_square_mu_potential,
-)
+from dmb.data.bose_hubbard_2d.nn_input import \
+    get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential, \
+    get_square_mu_potential
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
 from dmb.data.dataset import DMBData
 from dmb.model.dmb_model import PredictionMapping
 from dmb.paths import REPO_DATA_ROOT
-from logging import getLogger
 
 log = getLogger(__name__)
 
