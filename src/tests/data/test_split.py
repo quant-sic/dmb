@@ -1,18 +1,18 @@
+import itertools
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
+import numpy as np
 import pytest
 from attrs import define, field
-from pytest_cases import case, parametrize_with_cases
+from pytest_cases import case, filters, parametrize_with_cases
 
 from dmb.data.bose_hubbard_2d.worm.split import WormSimulationsSplitStrategy
 from dmb.data.dataset import IdDataset
 from dmb.data.split import AllIdsEqualSplitStrategy, IdDatasetSplitStrategy, \
     Split
-from pytest_cases import filters
-import numpy as np 
-import re 
-import itertools
+
 
 def validate_same_length(instance: Any, attribute: Any, value: Any) -> None:
     """Validate that the ids and indices have the same length."""
@@ -74,7 +74,7 @@ class SplitStrategyCases:
 class SplitDataCases:
 
     @staticmethod
-    @case(tags=("id_dataset","general"))
+    @case(tags=("id_dataset", "general"))
     def case_id_dataset() -> FakeIdDataset:
         """Return a fake id dataset."""
         return FakeIdDataset(
@@ -85,13 +85,12 @@ class SplitDataCases:
     @staticmethod
     @case(tags=("split_data", "general"))
     @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
-    def case_split_data_1(id_dataset: FakeIdDataset) -> tuple[FakeIdDataset,
-        dict[str, list[str]], dict[str, list[str]], dict[
-        str, float], dict[str, int]]:
+    def case_split_data_1(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
         """Return a split data dictionary."""
-        return (
-            id_dataset,
-            {
+        return (id_dataset, {
             "train": ["a", "b", "i", "c"],
             "test": ["d", "e"]
         }, {
@@ -108,13 +107,12 @@ class SplitDataCases:
     @staticmethod
     @case(tags=("split_data", "general"))
     @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
-    def case_split_data_2(id_dataset: FakeIdDataset) -> tuple[FakeIdDataset,
-        dict[str, list[str]], dict[str, list[str]], dict[
-        str, float], dict[str, int]]:
+    def case_split_data_2(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
         """Return a split data dictionary."""
-        return (
-            id_dataset,
-            {
+        return (id_dataset, {
             "train": ["a", "b", "c", "d", "e", "f", "g"],
             "val": ["h", "z"],
             "test": ["i", "j"],
@@ -135,14 +133,13 @@ class SplitDataCases:
     @staticmethod
     @case(tags=("split_data", "general"))
     @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
-    def case_split_data_3(id_dataset: FakeIdDataset) -> tuple[FakeIdDataset,
-        dict[str, list[str]], dict[str, list[str]], dict[
-        str, float], dict[str, int]]:   
+    def case_split_data_3(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
         """Return a split data dictionary."""
 
-        return (
-            id_dataset,
-            {
+        return (id_dataset, {
             "train": ["i", "j"],
             "val": ["h"],
             "test": ["a", "b", "c", "d", "e", "f", "g"],
@@ -163,13 +160,12 @@ class SplitDataCases:
     @staticmethod
     @case(tags=("split_data", "general"))
     @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
-    def case_split_data_4(id_dataset: FakeIdDataset) -> tuple[FakeIdDataset,
-        dict[str, list[str]], dict[str, list[str]], dict[
-        str, float], dict[str, int]]:
+    def case_split_data_4(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
         """Return a split data dictionary."""
-        return (
-            id_dataset,
-            {
+        return (id_dataset, {
             "test": ["g"]
         }, {
             "test": [6],
@@ -182,13 +178,12 @@ class SplitDataCases:
     @staticmethod
     @case(tags=("split_data", "general"))
     @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
-    def case_split_data_5(id_dataset: FakeIdDataset) -> tuple[FakeIdDataset,
-        dict[str, list[str]], dict[str, list[str]], dict[
-        str, float], dict[str, int]]:
+    def case_split_data_5(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
         """Return a split data dictionary."""
-        return (
-            id_dataset,
-            {
+        return (id_dataset, {
             "test": ["x"]
         }, {
             "test": [],
@@ -198,13 +193,13 @@ class SplitDataCases:
             "test": 10
         })
 
-
     @staticmethod
     @case(tags=("id_dataset", "worm"))
     def case_id_dataset_worm() -> FakeIdDataset:
         """Return a fake id dataset."""
         return FakeIdDataset(
-            ids=("a","a_tune", "b_tune", "c_tune", "d", "e","e_tune", "f", "g", "g_tune"),
+            ids=("a", "a_tune", "b_tune", "c_tune", "d", "e", "e_tune", "f", "g",
+                 "g_tune"),
             indices=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
         )
 
@@ -215,8 +210,7 @@ class TestSplit:
     @staticmethod
     @parametrize_with_cases("id_dataset, split_ids, subset_indices",
                             cases=SplitDataCases,
-                            filter=filters.has_tag("split_data")
-                            )
+                            filter=filters.has_tag("split_data"))
     def test_apply(
         id_dataset: FakeIdDataset,
         split_ids: dict[str, list[str]],
@@ -237,10 +231,10 @@ class TestSplit:
         "split_strategy",
         cases=SplitStrategyCases,
     )
-    @parametrize_with_cases("id_dataset, split_ids, subset_indices, split_fractions, subset_lengths",
-                            cases=SplitDataCases,
-                            filter=filters.has_tag("split_data")
-                            )
+    @parametrize_with_cases(
+        "id_dataset, split_ids, subset_indices, split_fractions, subset_lengths",
+        cases=SplitDataCases,
+        filter=filters.has_tag("split_data"))
     def test_generate(
         id_dataset: FakeIdDataset,
         split_ids: dict[str, list[str]],
@@ -269,10 +263,10 @@ class TestSplit:
     )
     def test_to_from_file(
         id_dataset: FakeIdDataset,
-        split_ids: tuple[dict[str, tuple[str, ...]]],
-        subset_indices: tuple[dict[str, tuple[int, ...]], ...],
-        split_fractions: tuple[dict[str, float]],
-        subset_lengths: tuple[dict[str, int]],
+        split_ids: dict[str, list[str]],
+        subset_indices: dict[str, list[int]],
+        split_fractions: dict[str, float],
+        subset_lengths: dict[str, int],
         tmp_path: Path,
     ) -> None:
         """Test the to_file and from_file methods."""
@@ -285,7 +279,8 @@ class TestSplit:
 
     @staticmethod
     @parametrize_with_cases("split_strategy", cases=SplitStrategyCases)
-    @parametrize_with_cases("id_dataset", cases=SplitDataCases,
+    @parametrize_with_cases("id_dataset",
+                            cases=SplitDataCases,
                             filter=filters.has_tag("id_dataset"))
     def test_split_fractions_check(id_dataset: FakeIdDataset,
                                    split_strategy: IdDatasetSplitStrategy) -> None:
@@ -311,20 +306,25 @@ class TestSplit:
             )
 
     @staticmethod
-    @parametrize_with_cases("split_strategy", cases=SplitStrategyCases,
+    @parametrize_with_cases("split_strategy",
+                            cases=SplitStrategyCases,
                             filter=filters.has_tag("worm"))
-    @parametrize_with_cases("id_dataset", cases=SplitDataCases,
-                            filter=filters.has_tag("id_dataset") & filters.has_tag("worm"))
+    @parametrize_with_cases("id_dataset",
+                            cases=SplitDataCases,
+                            filter=filters.has_tag("id_dataset")
+                            & filters.has_tag("worm"))
     def test_split_worm_id_dataset(id_dataset: FakeIdDataset,
                                    split_strategy: IdDatasetSplitStrategy) -> None:
         """Test worm dataset split."""
 
         for _ in range(100):
             split_abs_sizes = {
-                f"split_fraction_{idx}": int(np.random.randint(1, 100)) for idx in range(np.random.randint(1, 5))
+                f"split_fraction_{idx}": int(np.random.randint(1, 100))
+                for idx in range(np.random.randint(1, 5))
             }
             split_fractions = {
-                key: value / sum(split_abs_sizes.values()) for key, value in split_abs_sizes.items()
+                key: value / sum(split_abs_sizes.values())
+                for key, value in split_abs_sizes.items()
             }
 
             split_ids = Split.generate(
@@ -334,8 +334,11 @@ class TestSplit:
             )
 
             assert sum(len(ids) for ids in split_ids.values()) == len(id_dataset)
-            simulation_ids = {key: set(re.sub("_tune","",sample_id) for sample_id in value) for key, value in split_ids.items()}
+            simulation_ids = {
+                key: set(re.sub("_tune", "", sample_id) for sample_id in value)
+                for key, value in split_ids.items()
+            }
 
             # check pairwise intersection are empty
-            for key1, key2 in itertools.combinations(simulation_ids.keys(), 2):
+            for key1, key2 in itertools.combinations(simulation_ids, 2):
                 assert len(simulation_ids[key1].intersection(simulation_ids[key2])) == 0

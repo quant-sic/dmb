@@ -48,13 +48,14 @@ class AllIdsEqualSplitStrategy(IdDatasetSplitStrategy):
         split_indices = [0] + list(np.cumsum(split_lengths))
 
         # enforce last split to reach the end
-        split_indices[-1] = len(dataset)
+        split_indices[-1] = len(dataset)  # type: ignore
 
         split_ids = {}
         for (split_name, split_fraction), start_shuffled_idx, end_shuffled_idx in zip(
                 split_fractions.items(), split_indices[:-1], split_indices[1:]):
-            split_ids[split_name] = dataset.get_ids_from_indices(
-                dataset_indices[start_shuffled_idx:end_shuffled_idx])
+            split_ids[split_name] = list(
+                dataset.get_ids_from_indices(
+                    dataset_indices[start_shuffled_idx:end_shuffled_idx]))
 
         return split_ids
 

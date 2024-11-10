@@ -5,6 +5,7 @@ from collections import defaultdict
 import numpy as np
 
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
+from dmb.data.dataset import IdDataset
 from dmb.data.split import IdDatasetSplitStrategy
 
 
@@ -13,7 +14,7 @@ class WormSimulationsSplitStrategy(IdDatasetSplitStrategy):
 
     def split(
         self,
-        dataset: BoseHubbard2dDataset,
+        dataset: IdDataset,
         split_fractions: dict[str, float],
         seed: int = 42,
     ) -> dict[str, list[str]]:
@@ -31,22 +32,21 @@ class WormSimulationsSplitStrategy(IdDatasetSplitStrategy):
 
         order = np.arange(len(unique_simulation_ids))
         random.seed(seed)
-        random.shuffle(order)
+        random.shuffle(order)  # type: ignore
 
         agnostic_split_lengths = [
-            int(split_fraction * len(dataset))
+            int(split_fraction * len(dataset))  # type: ignore
             for split_fraction in split_fractions.values()
         ]
         split_indices = [0]
-        for split_idx,split_length in enumerate(np.cumsum(agnostic_split_lengths)):
+        for split_idx, split_length in enumerate(np.cumsum(agnostic_split_lengths)):
             next_splits = np.argwhere(
                 np.cumsum(np.array(weights)[order]) > split_length)
-            if len(next_splits) == 0 or split_idx == len(agnostic_split_lengths) - 1: # enforce last split to reach the end
+            if len(next_splits) == 0 or split_idx == len(
+                    agnostic_split_lengths) - 1:  # enforce last split to reach the end
                 split_indices.append(len(weights))
             else:
                 split_indices.append(int(np.min(next_splits)))
-
- 
 
         split_ids = {}
         for split_name, start_index, end_index in zip(split_fractions,
