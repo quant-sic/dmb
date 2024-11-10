@@ -8,19 +8,18 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from dmb.data.bose_hubbard_2d.worm.simulation import (
-    WormInputParameters,
-    WormSimulationRunner,
-)
-from dmb.data.bose_hubbard_2d.worm.simulation.observables import SimulationObservables
-from dmb.data.bose_hubbard_2d.worm.simulation.runner import (
-    get_run_iteratively_num_sweeps_values,
-    get_tune_nmeasure2_values,
-)
-from dmb.data.bose_hubbard_2d.worm.simulation.sim import WormSimulationInterface
+from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
+    WormSimulationRunner
+from dmb.data.bose_hubbard_2d.worm.simulation.observables import \
+    SimulationObservables
+from dmb.data.bose_hubbard_2d.worm.simulation.runner import \
+    get_run_iteratively_num_sweeps_values, get_tune_nmeasure2_values
+from dmb.data.bose_hubbard_2d.worm.simulation.sim import \
+    WormSimulationInterface
 from dmb.data.dispatching import ReturnCode
 from dmb.logging import create_logger
-from tests.data.bose_hubbard_2d.worm.simulation.test_observables import FakeWormOutput
+from tests.data.bose_hubbard_2d.worm.simulation.test_observables import \
+    FakeWormOutput
 
 log = create_logger(__file__)
 
@@ -90,35 +89,30 @@ class FakeWormSimulation(WormSimulationInterface):
 
     @property
     def max_density_error(self) -> float:
-        return self._max_density_errors[
-            self.num_execute_worm_calls + self.num_execute_worm_continue_calls
-        ]
+        return self._max_density_errors[self.num_execute_worm_calls +
+                                        self.num_execute_worm_continue_calls]
 
     @property
     def max_tau_int(self) -> int:
-        return self._max_tau_ints[
-            self.num_execute_worm_calls + self.num_execute_worm_continue_calls
-        ]
+        return self._max_tau_ints[self.num_execute_worm_calls +
+                                  self.num_execute_worm_continue_calls]
 
     @property
     def valid(self) -> bool:
-        return self._validities[
-            self.num_execute_worm_calls + self.num_execute_worm_continue_calls
-        ]
+        return self._validities[self.num_execute_worm_calls +
+                                self.num_execute_worm_continue_calls]
 
     async def execute_worm(self, input_file_path: Path | None = None) -> ReturnCode:
         self.num_execute_worm_calls += 1
         self.execution_calls.append("execute_worm")
-        return self._return_codes[
-            self.num_execute_worm_calls + self.num_execute_worm_continue_calls - 1
-        ]
+        return self._return_codes[self.num_execute_worm_calls +
+                                  self.num_execute_worm_continue_calls - 1]
 
     async def execute_worm_continue(self) -> ReturnCode:
         self.num_execute_worm_continue_calls += 1
         self.execution_calls.append("execute_worm_continue")
-        return self._return_codes[
-            self.num_execute_worm_calls + self.num_execute_worm_continue_calls - 1
-        ]
+        return self._return_codes[self.num_execute_worm_calls +
+                                  self.num_execute_worm_continue_calls - 1]
 
     def save_parameters(self) -> None:
         pass
@@ -127,8 +121,8 @@ class FakeWormSimulation(WormSimulationInterface):
         pass
 
     def plot_observables(
-        self, observable_names: dict[str, list[str]] = {"primary": ["density"]}
-    ) -> None:
+            self,
+            observable_names: dict[str, list[str]] = {"primary": ["density"]}) -> None:
         self.plots_calls.append("plot_observables")
 
     @cached_property
@@ -157,48 +151,44 @@ class TestWormSimulationRunner:
 
     @staticmethod
     @pytest.fixture(name="max_density_errors", scope="function")
-    def fixture_max_density_errors(
-        request: pytest.FixtureRequest, num_steps: int
-    ) -> list[float]:
-        default_max_density_errors: list[float] = np.linspace(
-            0.1, 0.5, num_steps + 1
-        ).tolist()
+    def fixture_max_density_errors(request: pytest.FixtureRequest,
+                                   num_steps: int) -> list[float]:
+        default_max_density_errors: list[float] = np.linspace(0.1, 0.5,
+                                                              num_steps + 1).tolist()
         return getattr(request, "param", default_max_density_errors)
 
     @staticmethod
     @pytest.fixture(name="max_tau_ints", scope="function")
-    def fixture_max_tau_ints(
-        request: pytest.FixtureRequest, num_steps: int
-    ) -> list[int]:
-        default_max_tau_ints: list[int] = (
-            np.linspace(10, 50, num_steps + 1).astype(int).tolist()
-        )
+    def fixture_max_tau_ints(request: pytest.FixtureRequest,
+                             num_steps: int) -> list[int]:
+        default_max_tau_ints: list[int] = (np.linspace(10, 50, num_steps +
+                                                       1).astype(int).tolist())
         return getattr(request, "param", default_max_tau_ints)
 
     @staticmethod
     @pytest.fixture(name="validities", scope="function")
-    def fixture_validities(
-        request: pytest.FixtureRequest, num_steps: int
-    ) -> list[bool]:
+    def fixture_validities(request: pytest.FixtureRequest,
+                           num_steps: int) -> list[bool]:
         return getattr(request, "param", [True] * (num_steps + 1))
 
     @staticmethod
     @pytest.fixture(name="return_codes", scope="function")
-    def fixture_return_codes(
-        request: pytest.FixtureRequest, num_steps: int
-    ) -> list[ReturnCode]:
+    def fixture_return_codes(request: pytest.FixtureRequest,
+                             num_steps: int) -> list[ReturnCode]:
         return getattr(request, "param", [ReturnCode.SUCCESS] * (num_steps + 1))
 
     @staticmethod
     @pytest.fixture(name="record_steps", scope="function")
-    def fixture_record_steps(
-        request: pytest.FixtureRequest, num_steps: int
-    ) -> list[dict]:
+    def fixture_record_steps(request: pytest.FixtureRequest,
+                             num_steps: int) -> list[dict]:
         return getattr(
             request,
             "param",
-            [{"max_density_error": 0.1, "tau_max": 10, "Nmeasure2": 42}]
-            * (num_steps + 1),
+            [{
+                "max_density_error": 0.1,
+                "tau_max": 10,
+                "Nmeasure2": 42
+            }] * (num_steps + 1),
         )
 
     @staticmethod
@@ -221,8 +211,7 @@ class TestWormSimulationRunner:
     @staticmethod
     @pytest.fixture(name="runner", scope="function")
     def fixture_runner(
-        fake_worm_simulation: FakeWormSimulation,
-    ) -> WormSimulationRunner:
+        fake_worm_simulation: FakeWormSimulation, ) -> WormSimulationRunner:
         return WormSimulationRunner(fake_worm_simulation)
 
     @staticmethod
@@ -262,15 +251,13 @@ class TestWormSimulationRunner:
 
     @staticmethod
     def test_run_iterative_raises_when_nmeasure2_not_set(
-        fake_worm_simulation: FakeWormSimulation, num_steps: int
-    ) -> None:
+            fake_worm_simulation: FakeWormSimulation, num_steps: int) -> None:
         runner = WormSimulationRunner(fake_worm_simulation)
         with pytest.raises(ValueError, match="Nmeasure2"):
             runner.run_iterative_until_converged_sync()
 
-        runner.run_iterative_until_converged_sync(
-            Nmeasure2=42, num_sweep_increments=num_steps - 1
-        )
+        runner.run_iterative_until_converged_sync(Nmeasure2=42,
+                                                  num_sweep_increments=num_steps - 1)
 
     @staticmethod
     def test_run_iterative_record_is_written_correctly(
@@ -280,24 +267,18 @@ class TestWormSimulationRunner:
         max_tau_ints: list[int],
     ) -> None:
         runner = WormSimulationRunner(fake_worm_simulation)
-        runner.run_iterative_until_converged_sync(
-            Nmeasure2=42, num_sweep_increments=num_steps
-        )
+        runner.run_iterative_until_converged_sync(Nmeasure2=42,
+                                                  num_sweep_increments=num_steps)
         assert all(
             key in fake_worm_simulation.record["steps"][step_idx]
             for key in ["sweeps", "error", "elapsed_time", "tau_max", "num_nmeasure2"]
-            for step_idx in range(num_steps)
-        )
+            for step_idx in range(num_steps))
 
         for step_idx in range(num_steps):
-            assert (
-                fake_worm_simulation.record["steps"][step_idx]["error"]
-                == max_density_errors[step_idx + 1]
-            )
-            assert (
-                fake_worm_simulation.record["steps"][step_idx]["tau_max"]
-                == max_tau_ints[step_idx + 1]
-            )
+            assert (fake_worm_simulation.record["steps"][step_idx]["error"] ==
+                    max_density_errors[step_idx + 1])
+            assert (fake_worm_simulation.record["steps"][step_idx]["tau_max"] ==
+                    max_tau_ints[step_idx + 1])
 
     @staticmethod
     @pytest.mark.parametrize("num_steps", [3])
@@ -310,13 +291,12 @@ class TestWormSimulationRunner:
             [False, False, False],
         ],
     )
-    def test_run_iterative_correct_run_calls(
-        fake_worm_simulation: FakeWormSimulation, num_steps: int, validities: list[bool]
-    ) -> None:
+    def test_run_iterative_correct_run_calls(fake_worm_simulation: FakeWormSimulation,
+                                             num_steps: int,
+                                             validities: list[bool]) -> None:
         runner = WormSimulationRunner(fake_worm_simulation)
-        runner.run_iterative_until_converged_sync(
-            Nmeasure2=42, num_sweep_increments=num_steps
-        )
+        runner.run_iterative_until_converged_sync(Nmeasure2=42,
+                                                  num_sweep_increments=num_steps)
 
         execution_calls = [
             "execute_worm_continue" if (idx > 0 and valid) else "execute_worm"
@@ -337,9 +317,9 @@ class TestWormSimulationRunner:
         ],
         indirect=True,
     )
-    def test_run_teratively_input_parameters(
-        fake_worm_simulation: FakeWormSimulation, validities: list[bool], num_steps: int
-    ) -> None:
+    def test_run_teratively_input_parameters(fake_worm_simulation: FakeWormSimulation,
+                                             validities: list[bool],
+                                             num_steps: int) -> None:
 
         Nmeasure2 = 123
         max_num_measurements_per_nmeasure2 = 100
@@ -356,13 +336,10 @@ class TestWormSimulationRunner:
         assert fake_worm_simulation.input_parameters.Nmeasure2 == Nmeasure2
 
         last_execute_worm_call_index = max(
-            np.argwhere(
-                [
-                    False if (idx > 0 and valid) else True
-                    for idx, valid in enumerate(validities)
-                ]
-            )
-        ).item()
+            np.argwhere([
+                False if (idx > 0 and valid) else True
+                for idx, valid in enumerate(validities)
+            ])).item()
 
         num_sweeps = get_run_iteratively_num_sweeps_values(
             Nmeasure2=Nmeasure2,
@@ -370,10 +347,8 @@ class TestWormSimulationRunner:
             max_num_measurements_per_nmeasure2=max_num_measurements_per_nmeasure2,
             num_sweep_increments=num_steps,
         )
-        assert (
-            fake_worm_simulation.input_parameters.sweeps
-            == num_sweeps[last_execute_worm_call_index]
-        )
+        assert (fake_worm_simulation.input_parameters.sweeps ==
+                num_sweeps[last_execute_worm_call_index])
 
     @staticmethod
     @pytest.mark.parametrize("num_steps", [10], indirect=True)
@@ -398,40 +373,33 @@ class TestWormSimulationRunner:
             max_abs_error_threshold=max_abs_error_threshold,
         )
 
-        error_reached = np.argwhere(
-            [
-                error < max_abs_error_threshold if error is not None else False
-                for error in max_density_errors
-            ]
-        )
+        error_reached = np.argwhere([
+            error < max_abs_error_threshold if error is not None else False
+            for error in max_density_errors
+        ])
 
-        first_max_density_error_reached_idx = (
-            min(error_reached).item() if len(error_reached) > 0 else num_steps
-        )
+        first_max_density_error_reached_idx = (min(error_reached).item()
+                                               if len(error_reached) > 0 else num_steps)
 
-        assert (
-            len(fake_worm_simulation.execution_calls)
-            == first_max_density_error_reached_idx
-        )
-        assert (
-            len(fake_worm_simulation.record["steps"])
-            == first_max_density_error_reached_idx
-        )
+        assert (len(
+            fake_worm_simulation.execution_calls) == first_max_density_error_reached_idx
+                )
+        assert (len(
+            fake_worm_simulation.record["steps"]) == first_max_density_error_reached_idx
+                )
 
     @staticmethod
     @pytest.mark.asyncio
-    async def test_tune_nmeasure2(
-        fake_worm_simulation: FakeWormSimulation, record_steps: list[dict]
-    ) -> None:
+    async def test_tune_nmeasure2(fake_worm_simulation: FakeWormSimulation,
+                                  record_steps: list[dict]) -> None:
 
         fake_worm_simulation.tune_simulation.record = {"steps": record_steps}
         runner = WormSimulationRunner(fake_worm_simulation)
         await runner.tune_nmeasure2()
 
     @staticmethod
-    def test_tune_nmeasure2_sync(
-        fake_worm_simulation: FakeWormSimulation, record_steps: list[dict]
-    ) -> None:
+    def test_tune_nmeasure2_sync(fake_worm_simulation: FakeWormSimulation,
+                                 record_steps: list[dict]) -> None:
 
         fake_worm_simulation.tune_simulation.record = {"steps": record_steps}
         runner = WormSimulationRunner(fake_worm_simulation)
@@ -439,8 +407,7 @@ class TestWormSimulationRunner:
 
     @staticmethod
     def test_tune_nmeasure2_worm_simulation_unmodified(
-        fake_worm_simulation: FakeWormSimulation,
-    ) -> None:
+        fake_worm_simulation: FakeWormSimulation, ) -> None:
         runner = WormSimulationRunner(fake_worm_simulation)
 
         initial_input_parameters = deepcopy(fake_worm_simulation.input_parameters)
@@ -452,38 +419,31 @@ class TestWormSimulationRunner:
     @staticmethod
     @pytest.mark.asyncio
     async def test_tune_nmeasure2_record_is_written_correctly(
-        fake_worm_simulation: FakeWormSimulation, record_steps: list[dict]
-    ) -> None:
+            fake_worm_simulation: FakeWormSimulation, record_steps: list[dict]) -> None:
         runner = WormSimulationRunner(fake_worm_simulation)
-        await runner.tune_nmeasure2(
-            min_nmeasure2=10, max_nmeasure2=100, step_size_multiplication_factor=2
-        )
+        await runner.tune_nmeasure2(min_nmeasure2=10,
+                                    max_nmeasure2=100,
+                                    step_size_multiplication_factor=2)
 
-        assert all(
-            key in step
-            for key in [
-                "sweeps",
-                "thermalization",
-                "Nmeasure2",
-                "tau_max",
-                "max_density_error",
-            ]
-            for step in fake_worm_simulation.tune_simulation.record["steps"]
-        )
+        assert all(key in step for key in [
+            "sweeps",
+            "thermalization",
+            "Nmeasure2",
+            "tau_max",
+            "max_density_error",
+        ] for step in fake_worm_simulation.tune_simulation.record["steps"])
 
     @staticmethod
     @pytest.mark.asyncio
     async def test_tune_nmeasure2_correct_run_calls(
-        fake_worm_simulation: FakeWormSimulation, num_steps: int
-    ) -> None:
+            fake_worm_simulation: FakeWormSimulation, num_steps: int) -> None:
         runner = WormSimulationRunner(fake_worm_simulation)
-        await runner.tune_nmeasure2(
-            min_nmeasure2=10, max_nmeasure2=1000, step_size_multiplication_factor=2
-        )
+        await runner.tune_nmeasure2(min_nmeasure2=10,
+                                    max_nmeasure2=1000,
+                                    step_size_multiplication_factor=2)
 
-        assert set(fake_worm_simulation.tune_simulation.execution_calls) == {
-            "execute_worm"
-        }
+        assert set(
+            fake_worm_simulation.tune_simulation.execution_calls) == {"execute_worm"}
 
     @staticmethod
     @pytest.mark.asyncio
@@ -523,44 +483,31 @@ class TestWormSimulationRunner:
         )
 
         max_tau_int_reached_indices = np.argwhere(
-            [tau_max < 10 for tau_max in max_tau_ints]
-        )
+            [tau_max < 10 for tau_max in max_tau_ints])
         if len(max_tau_int_reached_indices) > 0:
             first_max_tau_int_reached_idx = min(max_tau_int_reached_indices).item()
             assert (
                 fake_worm_simulation.tune_simulation.record["steps"][-1]["Nmeasure2"]
-                <= max_nmeasure2
-            )
-            assert (
-                fake_worm_simulation.tune_simulation.record["steps"][-1]["tau_max"]
-                <= tau_threshold
-            )
+                <= max_nmeasure2)
+            assert (fake_worm_simulation.tune_simulation.record["steps"][-1]["tau_max"]
+                    <= tau_threshold)
 
         else:
             first_max_tau_int_reached_idx = len(max_tau_ints)
-            assert (
-                fake_worm_simulation.tune_simulation.record["steps"][-1]["Nmeasure2"]
-                == num_nmeasure2_values[-1]
-            )
-            assert (
-                fake_worm_simulation.tune_simulation.record["steps"][-1]["tau_max"]
-                > tau_threshold
-            )
+            assert (fake_worm_simulation.tune_simulation.record["steps"][-1]
+                    ["Nmeasure2"] == num_nmeasure2_values[-1])
+            assert (fake_worm_simulation.tune_simulation.record["steps"][-1]["tau_max"]
+                    > tau_threshold)
 
-        assert (
-            len(fake_worm_simulation.tune_simulation.execution_calls)
-            <= first_max_tau_int_reached_idx
-        )
-        assert set(fake_worm_simulation.tune_simulation.execution_calls) == {
-            "execute_worm"
-        }
+        assert (len(fake_worm_simulation.tune_simulation.execution_calls)
+                <= first_max_tau_int_reached_idx)
+        assert set(
+            fake_worm_simulation.tune_simulation.execution_calls) == {"execute_worm"}
 
         # results in NMesure2, which adheres to the constraints
-        assert (
-            min_nmeasure2
-            <= fake_worm_simulation.tune_simulation.record["steps"][-1]["Nmeasure2"]
-            <= max_nmeasure2
-        )
+        assert (min_nmeasure2 <=
+                fake_worm_simulation.tune_simulation.record["steps"][-1]["Nmeasure2"] <=
+                max_nmeasure2)
 
         assert "plot_observables" in fake_worm_simulation.tune_simulation.plots_calls
 

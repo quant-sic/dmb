@@ -4,7 +4,8 @@ import pytest
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters
 from dmb.paths import REPO_DATA_ROOT
-from tests.data.bose_hubbard_2d.worm.simulation.utils import WormInputParametersDecoder
+from tests.data.bose_hubbard_2d.worm.simulation.utils import \
+    WormInputParametersDecoder
 
 
 @pytest.fixture(scope="class", name="input_parameters")
