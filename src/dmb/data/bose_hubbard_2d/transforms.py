@@ -3,21 +3,10 @@ from typing import Callable, Literal, Protocol
 import numpy as np
 import torch
 
-
-class DMBAugmentation(Protocol):
-
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        ...
+from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
 
 
-class InputOutputDMBAugmentation(Protocol):
-
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        ...
-
-
-class GaussianNoise:
+class GaussianNoise(DMBTransform):
 
     def __init__(self, mean: float, std: float) -> None:
         self.mean = mean
@@ -30,7 +19,7 @@ class GaussianNoise:
         return self.__class__.__name__ + "(mean={}, std={})".format(self.mean, self.std)
 
 
-class SquareSymmetryGroupAugmentations:
+class SquareSymmetryGroupTransforms:
     """Square symmetry group augmentations.
 
     This class implements the square symmetry group augmentations for 2D
@@ -100,22 +89,22 @@ class SquareSymmetryGroupAugmentations:
         return self.__class__.__name__ + "()"
 
 
-class TupleWrapperInTransform:
+class TupleWrapperInTransform(InputOutputDMBTransform):
 
-    def __init__(self, transform: DMBAugmentation):
+    def __init__(self, transform: DMBTransform):
         self.transform = transform
 
     def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.transform(x), y
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
 
 
-class TupleWrapperOutTransform:
+class TupleWrapperOutTransform(InputOutputDMBTransform):
 
-    def __init__(self, transform: DMBAugmentation):
+    def __init__(self, transform: DMBTransform):
         self.transform = transform
 
     def __call__(self, x: torch.Tensor,
@@ -130,8 +119,8 @@ class BoseHubbard2dTransforms:
 
     def __init__(
         self,
-        base_augmentations: list[InputOutputDMBAugmentation] | None = None,
-        train_augmentations: list[InputOutputDMBAugmentation] | None = None,
+        base_augmentations: list[InputOutputDMBTransform] | None = None,
+        train_augmentations: list[InputOutputDMBTransform] | None = None,
     ):
         self.base_augmentations = ([] if base_augmentations is None else
                                    base_augmentations)

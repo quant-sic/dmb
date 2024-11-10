@@ -27,7 +27,7 @@ datamodule:
     transforms: 
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
       train_augmentations:           
-        - _target_: dmb.data.bose_hubbard_2d.transforms.SquareSymmetryGroupAugmentations
+        - _target_: dmb.data.bose_hubbard_2d.transforms.SquareSymmetryGroupTransforms
         - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperOutTransform
           transform: 
             _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoise
