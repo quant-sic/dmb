@@ -2,6 +2,7 @@ from typing import Callable, Literal, Protocol
 
 import numpy as np
 import torch
+from attrs import define, field
 
 from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
 
@@ -19,7 +20,8 @@ class GaussianNoise(DMBTransform):
         return self.__class__.__name__ + "(mean={}, std={})".format(self.mean, self.std)
 
 
-class SquareSymmetryGroupTransforms:
+@define
+class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
     """Square symmetry group augmentations.
 
     This class implements the square symmetry group augmentations for 2D
@@ -34,56 +36,53 @@ class SquareSymmetryGroupTransforms:
     - reflection x=-y
     """
 
-    def __call__(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor | None = None
-    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    random_number_generator: Callable[[], float] = field(
+        default=np.random.RandomState(42).rand)
+
+    def __call__(self, x: torch.Tensor,
+                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
 
         # with p=1/8 each choose one symmetry transform at random and apply it
-        rnd = np.random.rand()
+        rnd = self.random_number_generator()
 
         if rnd < 1 / 8:  # unity
             pass
         elif rnd < 2 / 8:  # rotate 90 left
             mapping = lambda _x: torch.rot90(_x, 1, [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 3 / 8:  # rotate 180 left
             mapping = lambda _x: torch.rot90(_x, 2, [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 4 / 8:  # rotate 270 left
             mapping = lambda _x: torch.rot90(_x, 3, [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 5 / 8:  # flip x
             mapping = lambda _x: torch.flip(_x, [-2])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 6 / 8:  # flip y
             mapping = lambda _x: torch.flip(_x, [-1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 7 / 8:  # reflection x=y
             mapping = lambda _x: torch.transpose(_x, -2, -1)
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         else:  # reflection x=-y
             mapping = lambda _x: torch.flip(torch.transpose(_x, -2, -1), [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
-        if y is None:
-            return x
-        else:
-            return x, y
+        return x, y
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()"

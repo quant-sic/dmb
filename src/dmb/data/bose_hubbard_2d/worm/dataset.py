@@ -17,7 +17,7 @@ log = create_logger(__name__)
 class BoseHubbard2dDataset(DMBDataset):
     """Dataset for the Bose-Hubbard model."""
 
-    dataset_dir_path: Path
+    dataset_dir_path: Path | str
     transforms: BoseHubbard2dTransforms
 
     def get_metadata(self, idx: int) -> dict:

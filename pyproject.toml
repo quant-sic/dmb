@@ -66,6 +66,7 @@ testpaths = "src/tests"
 python_files = "test_*.py"
 markers = ["unit", "integration","requires_worm"]
 cache_dir = ".cache/pytest"
+asyncio_default_fixture_loop_scope = "function"
 addopts = [
   "-ra",
   "--cov-report=term-missing",
