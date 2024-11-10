@@ -30,7 +30,7 @@ datamodule:
         - _target_: dmb.data.bose_hubbard_2d.transforms.SquareSymmetryGroupTransforms
         - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperOutTransform
           transform: 
-            _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoise
+            _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoiseTransform
             mean: 0.0
             std: 0.01
         - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperInTransform

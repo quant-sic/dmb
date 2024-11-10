@@ -7,7 +7,7 @@ from attrs import define, field
 from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
 
 
-class GaussianNoise(DMBTransform):
+class GaussianNoiseTransform(DMBTransform):
 
     def __init__(self, mean: float, std: float) -> None:
         self.mean = mean
@@ -37,10 +37,12 @@ class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
     """
 
     random_number_generator: Callable[[], float] = field(
-        default=np.random.RandomState(42).rand)
+        default=np.random.RandomState(42).rand
+    )
 
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, x: torch.Tensor, y: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
 
         # with p=1/8 each choose one symmetry transform at random and apply it
         rnd = self.random_number_generator()
@@ -93,8 +95,9 @@ class TupleWrapperInTransform(InputOutputDMBTransform):
     def __init__(self, transform: DMBTransform):
         self.transform = transform
 
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, x: torch.Tensor, y: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         return self.transform(x), y
 
     def __repr__(self) -> str:
@@ -106,8 +109,9 @@ class TupleWrapperOutTransform(InputOutputDMBTransform):
     def __init__(self, transform: DMBTransform):
         self.transform = transform
 
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, x: torch.Tensor, y: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         return x, self.transform(y)
 
     def __repr__(self) -> str:
@@ -121,10 +125,12 @@ class BoseHubbard2dTransforms(InputOutputDMBTransform):
         base_augmentations: list[InputOutputDMBTransform] | None = None,
         train_augmentations: list[InputOutputDMBTransform] | None = None,
     ):
-        self.base_augmentations = ([] if base_augmentations is None else
-                                   base_augmentations)
-        self.train_augmentations = ([] if train_augmentations is None else
-                                    train_augmentations)
+        self.base_augmentations = (
+            [] if base_augmentations is None else base_augmentations
+        )
+        self.train_augmentations = (
+            [] if train_augmentations is None else train_augmentations
+        )
         self._mode: Literal["base", "train"] = "base"
 
     @property
@@ -137,8 +143,9 @@ class BoseHubbard2dTransforms(InputOutputDMBTransform):
             raise ValueError(f"mode must be either 'base' or 'train', but got {mode}")
         self._mode = mode
 
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, x: torch.Tensor, y: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         for transform in self.base_augmentations:
             x, y = transform(x, y)
 
@@ -149,13 +156,26 @@ class BoseHubbard2dTransforms(InputOutputDMBTransform):
         return x, y
 
     def __repr__(self) -> str:
-        return (self.__class__.__name__ + "((\n" +
-                ("\t base_augmentations={},\n".format(",".join(
-                    map(str, self.base_augmentations))) if self.base_augmentations else
-                 "") + ("\t train_augmentations={},\n".format(",".join(
-                     map(str, self.train_augmentations)))
-                        if self.train_augmentations else "") + f"\t mode={self.mode}"
-                "\n"
-                "\t)"
-                "\n"
-                ")")
+        return (
+            self.__class__.__name__
+            + "((\n"
+            + (
+                "\t base_augmentations={},\n".format(
+                    ",".join(map(str, self.base_augmentations))
+                )
+                if self.base_augmentations
+                else ""
+            )
+            + (
+                "\t train_augmentations={},\n".format(
+                    ",".join(map(str, self.train_augmentations))
+                )
+                if self.train_augmentations
+                else ""
+            )
+            + f"\t mode={self.mode}"
+            "\n"
+            "\t)"
+            "\n"
+            ")"
+        )

@@ -49,7 +49,7 @@ datamodule:
             _target_: torchvision.transforms.RandomErasing
         - _target_: dmb.data.utils.TupleWrapperOutTransform
           transform: 
-            _target_: dmb.data.utils.GaussianNoise
+            _target_: dmb.data.utils.GaussianNoiseTransform
             mean: 0.0
             std: 0.0075
 
