@@ -21,8 +21,6 @@ from dmb.paths import REPO_DATA_ROOT
 
 log = getLogger(__name__)
 
-log = getLogger(__name__)
-
 
 def colorbar(mappable: ScalarMappable) -> Colorbar:
     ax = mappable.axes  # type: ignore

@@ -8,14 +8,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
-    WormSimulationRunner
-from dmb.data.bose_hubbard_2d.worm.simulation.observables import \
-    SimulationObservables
-from dmb.data.bose_hubbard_2d.worm.simulation.runner import \
-    get_run_iteratively_num_sweeps_values, get_tune_nmeasure2_values
-from dmb.data.bose_hubbard_2d.worm.simulation.sim import \
-    WormSimulationInterface
+from dmb.data.bose_hubbard_2d.worm.simulation import (
+    WormInputParameters,
+    WormSimulationRunner,
+)
+from dmb.data.bose_hubbard_2d.worm.simulation.observables import SimulationObservables
+from dmb.data.bose_hubbard_2d.worm.simulation.runner import (
+    get_run_iteratively_num_sweeps_values,
+    get_tune_nmeasure2_values,
+)
+from dmb.data.bose_hubbard_2d.worm.simulation.sim import WormSimulationInterface
 from dmb.data.dispatching import ReturnCode
 from dmb.logging import create_logger
 from tests.data.bose_hubbard_2d.worm.simulation.test_observables import \
