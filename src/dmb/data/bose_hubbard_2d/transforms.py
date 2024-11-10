@@ -114,7 +114,7 @@ class TupleWrapperOutTransform(InputOutputDMBTransform):
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
 
 
-class BoseHubbard2dTransforms:
+class BoseHubbard2dTransforms(InputOutputDMBTransform):
 
     def __init__(
         self,
