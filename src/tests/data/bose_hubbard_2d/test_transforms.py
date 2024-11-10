@@ -5,9 +5,12 @@ import pytest
 import torch
 from pytest_cases import case, fixture, parametrize, parametrize_with_cases
 
-from dmb.data.bose_hubbard_2d.transforms import GaussianNoise, \
-    SquareSymmetryGroupTransforms, TupleWrapperInTransform, \
-    TupleWrapperOutTransform
+from dmb.data.bose_hubbard_2d.transforms import (
+    GaussianNoise,
+    SquareSymmetryGroupTransforms,
+    TupleWrapperInTransform,
+    TupleWrapperOutTransform,
+)
 from dmb.data.dataset import DMBData
 from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
 
@@ -70,8 +73,10 @@ class TestTupleWrapperTransform(InputOutputDMBTransformTests):
         "wrapper_transform",
         cases=[case_tuple_wrapper_in_transform, case_tuple_wrapper_out_transform],
     )
-    def test_tuple_wrapper_transform(wrapper_transform: TupleWrapperInTransform
-                                     | TupleWrapperOutTransform, data: DMBData) -> None:
+    def test_tuple_wrapper_transform(
+        wrapper_transform: TupleWrapperInTransform | TupleWrapperOutTransform,
+        data: DMBData,
+    ) -> None:
         x, y = wrapper_transform(data["inputs"], data["outputs"])
 
         if isinstance(wrapper_transform, TupleWrapperInTransform):
@@ -89,10 +94,14 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
         return SquareSymmetryGroupTransforms()
 
     @staticmethod
-    def case_non_identity_square_symmetry_group_transforms(
-    ) -> SquareSymmetryGroupTransforms:
-        return SquareSymmetryGroupTransforms(random_number_generator=functools.partial(
-            np.random.RandomState(42).uniform, low=1 / 8, high=1))
+    def case_non_identity_square_symmetry_group_transforms() -> (
+        SquareSymmetryGroupTransforms
+    ):
+        return SquareSymmetryGroupTransforms(
+            random_number_generator=functools.partial(
+                np.random.RandomState(42).uniform, low=1 / 8, high=1
+            )
+        )
 
     @staticmethod
     @fixture(scope="class", name="transform")
@@ -100,20 +109,29 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
         "transform_variant",
         cases=[
             case_square_symmetry_group_transforms,
-            case_non_identity_square_symmetry_group_transforms
+            case_non_identity_square_symmetry_group_transforms,
         ],
     )
     def fixture_transform(
-            transform_variant: SquareSymmetryGroupTransforms
+        transform_variant: SquareSymmetryGroupTransforms,
     ) -> InputOutputDMBTransform:
         return transform_variant
 
     @staticmethod
     @parametrize_with_cases("data", cases=DMBDataCases, glob="*equal_input_output*")
-    def test_equal_input_output(transform: InputOutputDMBTransform,
-                                data: DMBData) -> None:
-        x, y = transform(data["inputs"], data["outputs"])
-        assert torch.allclose(x, y)
+    def test_equal_input_output(
+        transform: InputOutputDMBTransform, data: DMBData
+    ) -> None:
+
+        x, y = [], []
+
+        for _ in range(1000):
+            x_, y_ = transform(data["inputs"], data["outputs"])
+            x.append(x_)
+            y.append(y_)
+            assert torch.allclose(x_, y_)
+
+        assert any(not torch.allclose(x_, data["inputs"]) for x_ in x)
 
     @staticmethod
     @parametrize_with_cases("data", cases=DMBDataCases, glob="*equal_input_output*")
@@ -122,7 +140,8 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
         cases=[case_non_identity_square_symmetry_group_transforms],
     )
     def test_non_identity_equal_input_output(
-            non_identity_transform: InputOutputDMBTransform, data: DMBData) -> None:
+        non_identity_transform: InputOutputDMBTransform, data: DMBData
+    ) -> None:
         x, y = non_identity_transform(data["inputs"], data["outputs"])
 
         assert torch.allclose(x, y)
@@ -133,27 +152,33 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
 class TestGaussianNoise(InputOutputDMBTransformTests):
 
     @staticmethod
-    @parametrize(argnames="mean, std",
-                 argvalues=[
-                     (0.0, 1.0),
-                     (1.0, 1.0),
-                     (0.0, 0.1),
-                     (1.0, 0.1),
-                 ])
-    def case_tuple_wrapper_in_transform(mean: float,
-                                        std: float) -> TupleWrapperInTransform:
+    @parametrize(
+        argnames="mean, std",
+        argvalues=[
+            (0.0, 1.0),
+            (1.0, 1.0),
+            (0.0, 0.1),
+            (1.0, 0.1),
+        ],
+    )
+    def case_tuple_wrapper_in_transform(
+        mean: float, std: float
+    ) -> TupleWrapperInTransform:
         return TupleWrapperInTransform(GaussianNoise(mean=mean, std=std))
 
     @staticmethod
-    @parametrize(argnames="mean, std",
-                 argvalues=[
-                     (0.0, 1.0),
-                     (1.0, 1.0),
-                     (0.0, 0.1),
-                     (1.0, 0.1),
-                 ])
-    def case_tuple_wrapper_out_transform(mean: float,
-                                         std: float) -> TupleWrapperOutTransform:
+    @parametrize(
+        argnames="mean, std",
+        argvalues=[
+            (0.0, 1.0),
+            (1.0, 1.0),
+            (0.0, 0.1),
+            (1.0, 0.1),
+        ],
+    )
+    def case_tuple_wrapper_out_transform(
+        mean: float, std: float
+    ) -> TupleWrapperOutTransform:
         return TupleWrapperOutTransform(GaussianNoise(mean=mean, std=std))
 
     @staticmethod
@@ -173,8 +198,10 @@ class TestGaussianNoise(InputOutputDMBTransformTests):
         "wrapper_transform",
         cases=[case_tuple_wrapper_in_transform, case_tuple_wrapper_out_transform],
     )
-    def test_tuple_wrapper_transform(wrapper_transform: TupleWrapperInTransform
-                                     | TupleWrapperOutTransform, data: DMBData) -> None:
+    def test_tuple_wrapper_transform(
+        wrapper_transform: TupleWrapperInTransform | TupleWrapperOutTransform,
+        data: DMBData,
+    ) -> None:
         x, y = wrapper_transform(data["inputs"], data["outputs"])
 
         if isinstance(wrapper_transform, TupleWrapperInTransform):
