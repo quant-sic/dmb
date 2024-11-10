@@ -1,0 +1,32 @@
+#! /bin/bash -l
+
+# Standard output and error:
+#SBATCH -o {{ pipe_out_root }}/{{ job_name }}/tjob_%A_%a_out.txt
+#SBATCH -e {{ pipe_out_root }}/{{ job_name }}/tjob_%A_%a_err.txt
+
+
+#SBATCH --exclude=zpg002,zpg003
+# Initial working directory:
+#SBATCH -D {{ working_dir }}
+#
+# Job Name:
+#SBATCH -J {{ job_name }}
+
+#SBATCH --partition={{ slurm_partition }}  # specify partition
+
+#SBATCH --gres=gpu:{{ num_gpus }}           # specify number of GPUs
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=4  
+
+#
+# Memory requirement (default is 64GB):
+#SBATCH --mem=32GB
+#
+# Wall clock limit:
+#SBATCH --time=150:00:00
+
+export HYDRA_FULL_ERROR=1
+export VIRTUAL_ENV={{ venv_path }}
+
+srun {{ command }}

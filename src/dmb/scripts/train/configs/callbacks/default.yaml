@@ -13,7 +13,7 @@ lr_monitor:
   log_momentum: False
 
 plotting:
-  _target_: dmb.scripts.callbacks.PlottingCallback
+  _target_: dmb.scripts.train.callbacks.PlottingCallback
   plot_interval: 250
 
 progress_bar:

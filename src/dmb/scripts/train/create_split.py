@@ -8,7 +8,7 @@ from dmb.paths import REPO_ROOT
 
 @hydra.main(
     version_base="1.2",
-    config_path=str(REPO_ROOT / "dmb/scripts/configs"),
+    config_path=str(REPO_ROOT / "src/dmb/scripts/train/configs"),
     config_name="create_split.yaml",
 )
 def main(cfg: DictConfig) -> None:

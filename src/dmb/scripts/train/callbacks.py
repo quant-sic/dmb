@@ -11,7 +11,7 @@ from lightning.pytorch.callbacks import Callback
 from dmb.data.bose_hubbard_2d.plotting.phase_diagram import plot_phase_diagram
 from dmb.data.bose_hubbard_2d.plotting.sandbox import create_box_cuts_plot, \
     create_box_plot, create_wedding_cake_plot, plot_phase_diagram_mu_cut
-from dmb.model.dmb_model import dmb_model_predict
+from dmb.model.dmb_model import PredictionMapping
 
 
 class PlottingCallback(Callback):
@@ -50,8 +50,7 @@ class PlottingCallback(Callback):
         save_dir = Path(trainer.log_dir) / "plots"
         file_name_stem = f"epoch={trainer.current_epoch}"
 
-        mapping = cast(Callable[[torch.Tensor], dict],
-                       partial(dmb_model_predict, model=pl_module.model))
+        mapping = PredictionMapping(model=pl_module.model, batch_size=128)
 
         for zVU, ztU in itertools.product(self.zVUs, self.ztUs):
             for figures in (
@@ -65,8 +64,7 @@ class PlottingCallback(Callback):
 
                 def recursive_iter(
                     path: tuple[str | int, ...], obj: dict | list | plt.Figure
-                ) -> Generator[tuple[tuple[str | int, ...], dict | list
-                                     | plt.Figure], None]:
+                ) -> Generator[tuple[tuple[str | int, ...], plt.Figure], None, None]:
                     if isinstance(obj, dict):
                         for key, value in obj.items():
                             yield from recursive_iter(path + (key, ), value)

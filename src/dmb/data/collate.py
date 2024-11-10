@@ -8,6 +8,7 @@ from dmb.data.dataset import DMBData
 
 class MultipleSizesBatch(TypedDict):
     """A batch of inputs and outputs with multiple sizes."""
+
     inputs: list[torch.Tensor]
     outputs: list[torch.Tensor]
 
@@ -17,7 +18,7 @@ def collate_sizes(batch: list[DMBData]) -> MultipleSizesBatch:
 
     Args:
         batch: Iterable of tuples of input and output tensors.
-    
+
     Returns:
         tuple[torch.Tensor, torch.Tensor]: A tuple of lists of input and output tensors.
             Each list item contains a batch of inputs or outputs of the same size.
@@ -29,10 +30,8 @@ def collate_sizes(batch: list[DMBData]) -> MultipleSizesBatch:
     for size in set(sizes):
         size_batch_in, size_batch_out = map(
             lambda array: torch.from_numpy(np.stack(array)).float(),
-            zip(*[
-                batch[sample_idx]
-                for sample_idx in np.argwhere(sizes == size).flatten()
-            ]),
+            zip(*[(batch[sample_idx]["inputs"], batch[sample_idx]["outputs"])
+                  for sample_idx in np.argwhere(sizes == size).flatten()]),
         )
 
         size_batches_in.append(size_batch_in)

@@ -13,6 +13,7 @@ from dmb.data.transforms import InputOutputDMBAugmentation
 
 class DMBData(TypedDict):
     """A DMB data sample."""
+
     inputs: torch.Tensor
     outputs: torch.Tensor
 
@@ -46,11 +47,11 @@ class DMBDataset(IdDataset):
         - 'metadata.json': The metadata dictionary for the dataset.
     """
 
-    dataset_dir_path: Path
+    dataset_dir_path: Path | str
     transforms: InputOutputDMBAugmentation
 
     def __attrs_post_init__(self) -> None:
-        samples_dir_path = self.dataset_dir_path / "samples"
+        samples_dir_path = Path(self.dataset_dir_path) / "samples"
         samples_dir_path.mkdir(parents=True, exist_ok=True)
 
         self.sample_ids = [
@@ -65,8 +66,16 @@ class DMBDataset(IdDataset):
 
     def __getitem__(self, idx: int) -> DMBData:
 
-        inputs = torch.load(self.sample_id_paths[idx] / "inputs.pt")
-        outputs = torch.load(self.sample_id_paths[idx] / "outputs.pt")
+        inputs = torch.load(
+            self.sample_id_paths[idx] / "inputs.pt",
+            weights_only=True,
+            map_location=torch.device("cpu"),
+        )
+        outputs = torch.load(
+            self.sample_id_paths[idx] / "outputs.pt",
+            weights_only=True,
+            map_location=torch.device("cpu"),
+        )
 
         inputs_transformed, outputs_transformed = self.transforms(inputs, outputs)
 

@@ -37,14 +37,19 @@ class MSELoss(torch.nn.Module):
         if isinstance(y_pred, torch.Tensor) and isinstance(y_true, torch.Tensor):
             y_pred = [y_pred]
             y_true = [y_true]
+        elif isinstance(y_pred, list) and isinstance(y_true, list):
+            pass
         else:
-            raise ValueError("y_pred and y_true must be of the same type")
+            raise ValueError(
+                "y_pred and y_true must be of the same type. "
+                f"Type y_pred: {type(y_pred)}, type y_true: {type(y_true)}")
 
         loss: torch.Tensor = cast(
             torch.Tensor,
             sum(
                 self.forward_impl(y_pred_, y_true_)
-                for y_pred_, y_true_ in zip(y_pred, y_true)))
+                for y_pred_, y_true_ in zip(y_pred, y_true)),
+        )
 
         return loss
 
@@ -87,13 +92,18 @@ class MSLELoss(torch.nn.Module):
         if isinstance(y_pred, torch.Tensor) and isinstance(y_true, torch.Tensor):
             y_pred = [y_pred]
             y_true = [y_true]
+        elif isinstance(y_pred, list) and isinstance(y_true, list):
+            pass
         else:
-            raise ValueError("y_pred and y_true must be of the same type")
+            raise ValueError(
+                "y_pred and y_true must be of the same type. "
+                f"Type y_pred: {type(y_pred)}, type y_true: {type(y_true)}")
 
         loss: torch.Tensor = cast(
             torch.Tensor,
             sum(
                 self.forward_impl(y_pred_, y_true_)
-                for y_pred_, y_true_ in zip(y_pred, y_true)))
+                for y_pred_, y_true_ in zip(y_pred, y_true)),
+        )
 
         return loss

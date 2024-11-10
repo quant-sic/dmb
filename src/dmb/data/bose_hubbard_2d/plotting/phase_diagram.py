@@ -9,6 +9,7 @@ import torch
 
 from dmb.data.bose_hubbard_2d.nn_input import \
     get_nn_input_dimless_const_parameters
+from dmb.model.dmb_model import PredictionMapping
 
 
 def phase_diagram_uniform_inputs_iter(
@@ -198,7 +199,7 @@ def add_phase_boundaries(ax: plt.Axes) -> None:
 
 
 def plot_phase_diagram(
-    mapping: Callable[[torch.Tensor], dict[str, torch.Tensor]],
+    mapping: PredictionMapping,
     n_samples: int = 250,
     zVU: float = 1.0,
 ) -> dict[str, dict[str, plt.Figure]]:

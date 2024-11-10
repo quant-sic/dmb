@@ -7,6 +7,6 @@ defaults:
   - experiment: null
 
 
-file_path: ${paths.data_dir}/splits/${now:%Y-%m-%d}_${now:%H-%M-%S}.json
+file_path: ???
 task_name: create_split
 exp_name: null

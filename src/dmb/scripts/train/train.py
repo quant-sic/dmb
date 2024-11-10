@@ -10,7 +10,7 @@ from dmb.paths import REPO_ROOT
 
 @hydra.main(
     version_base="1.3",
-    config_path=str(REPO_ROOT / "dmb/scripts/configs"),
+    config_path=str(REPO_ROOT / "src/dmb/scripts/train/configs"),
     config_name="train.yaml",
 )
 def train(cfg: DictConfig) -> None:

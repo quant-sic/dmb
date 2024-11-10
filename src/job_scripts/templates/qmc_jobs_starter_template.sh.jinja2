@@ -1,0 +1,38 @@
+#! /bin/bash -l
+
+# Standard output and error:
+#SBATCH -o {{ pipe_out_root }}/qmc/{{ qmc_task }}/tjob_%A_%a_out.txt
+#SBATCH -e {{ pipe_out_root }}/qmc/{{ qmc_task }}/tjob_%A_%a_err.txt
+
+# Initial working directory:
+#SBATCH -D {{ working_dir }}
+
+# Job Name:
+#SBATCH -J {{ qmc_task }}-hjob
+
+# Queue (Partition):
+#SBATCH --partition={{ slurm_partition }}
+
+#SBATCH --array=1-{{ slurm_array_size }}%1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=2
+
+# Explicitly specify memory requirement (default is maximum available on node):
+#SBATCH --mem=4GB
+#
+# Wall clock limit:
+#SBATCH --time=150:00:00
+
+module load gcc/11
+module load openmpi
+module load boost
+
+export WORM_MPI_EXECUTABLE={{ worm_mpi_executable }}
+export WORM_JOB_NAME={{ qmc_task }}
+export PARTITION=standard
+export NUMBER_OF_TASKS_PER_NODE=1
+
+export VIRTUAL_ENV={{ venv_path }}
+
+srun {{ command }}

@@ -47,8 +47,8 @@ def draw_random_config(
     return L, U_on, V_nn, mu, t_hop_array, U_on_array, V_nn_array, power, mu_offset
 
 
-def draw_uniform_config() -> tuple[int, float, float, np.ndarray, np.ndarray,
-                                   np.ndarray, np.ndarray, Any, float]:
+def draw_uniform_config() -> (tuple[int, float, float, np.ndarray, np.ndarray,
+                                    np.ndarray, np.ndarray, Any, float]):
     L = np.random.randint(low=4, high=10) * 2
     U_on = (np.random.uniform(low=0.05, high=1)**(-1)) * 4
     V_nn = np.random.uniform(low=0.75 / 4, high=1.75 / 4) * U_on
@@ -76,6 +76,7 @@ async def simulate(
     V_nn_z_max: float = 1.75,
     mu_offset_min: float = -0.5,
     mu_offset_max: float = 3.0,
+    max_density_error: float = 0.015,
 ) -> None:
     if type == "random":
         (
@@ -138,7 +139,9 @@ async def simulate(
     if "SLURM_JOB_ID" in os.environ:
         name_prefix += os.environ["SLURM_JOB_ID"] + "_"
 
-    save_dir = REPO_DATA_ROOT / f"bose_hubbard_2d/{now}_sample_{name_prefix}{sample_id}"
+    save_dir = (
+        REPO_DATA_ROOT /
+        f"bose_hubbard_2d/{type}/simulations/{now}_sample_{name_prefix}{sample_id}")
 
     shutil.rmtree(save_dir, ignore_errors=True)
 
@@ -151,7 +154,8 @@ async def simulate(
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
     await sim_run.tune_nmeasure2()
-    await sim_run.run_iterative_until_converged()
+    await sim_run.run_iterative_until_converged(
+        max_abs_error_threshold=max_density_error)
 
 
 if __name__ == "__main__":
@@ -199,6 +203,12 @@ if __name__ == "__main__":
                         type=float,
                         default=3.0,
                         help="maximum mu_offset value")
+    parser.add_argument(
+        "--max_density_error",
+        type=float,
+        default=0.015,
+        help="max density error",
+    )
 
     args = parser.parse_args()
 
@@ -217,6 +227,7 @@ if __name__ == "__main__":
                 V_nn_z_max=args.V_nn_z_max,
                 mu_offset_min=args.mu_offset_min,
                 mu_offset_max=args.mu_offset_max,
+                max_density_error=args.max_density_error,
             )
 
     loop = asyncio.new_event_loop()

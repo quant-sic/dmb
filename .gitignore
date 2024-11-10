@@ -7,6 +7,7 @@
 !*.md
 !*.yaml
 !*.cpp
+!*.jinja2
 
 !.gitignore
 !.python-version
@@ -20,3 +21,7 @@
 .trunk
 
 .ipynb_checkpoints/**/ */
+
+pipe_out
+*.egg-info
+todo.md

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.nn_input import get_nn_input
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
@@ -172,8 +173,8 @@ def load_sample(simulation_dir: Path,
         sim.record["saved_observables"] = saved_observables
 
     else:
-        inputs = torch.load(inputs_path)
-        outputs = torch.load(outputs_path)
+        inputs = torch.load(inputs_path, weights_only=True, map_location="cpu")
+        outputs = torch.load(outputs_path, weights_only=True, map_location="cpu")
 
         # load saved_observables
         sim = WormSimulation.from_dir(simulation_dir)
@@ -272,15 +273,15 @@ def load_dataset_simulations(
     samples_dir = dataset_save_path / "samples"
     samples_dir.mkdir(exist_ok=True, parents=True)
 
-    for sim_dir in clean_simulation_directories:
+    for sim_dir in tqdm(clean_simulation_directories):
         inputs, outputs, metadata = load_sample(sim_dir, observables, reload=reload)
+
+        if (inputs[0] == 0).all():
+            continue
 
         sample_save_path = samples_dir / (sim_dir.name if not sim_dir.name == "tune"
                                           else sim_dir.parent.name + "_tune")
         sample_save_path.mkdir(exist_ok=True, parents=True)
-
-        if (inputs[0] == 0).all():
-            break
 
         torch.save(inputs, sample_save_path / "inputs.pt")
         torch.save(outputs, sample_save_path / "outputs.pt")

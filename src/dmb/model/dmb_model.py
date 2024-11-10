@@ -40,11 +40,12 @@ class DMBModel(nn.Module):
         return x
 
     def forward(
-        self, x: torch.Tensor | tuple[torch.Tensor, ...]
-    ) -> torch.Tensor | tuple[torch.Tensor, ...]:
+            self,
+            x: torch.Tensor | list[torch.Tensor]) -> torch.Tensor | list[torch.Tensor]:
         if isinstance(x, (tuple, list)):
-            out: tuple[torch.Tensor, ...] | torch.Tensor = tuple(
-                self.forward_single_size(_x) for _x in x)
+            out: list[torch.Tensor] | torch.Tensor = [
+                self.forward_single_size(_x) for _x in x
+            ]
         else:
             out = self.forward_single_size(x)
 
@@ -56,27 +57,40 @@ class DMBModel(nn.Module):
         return next(self.parameters()).device
 
 
-def dmb_model_predict(
-    model: DMBModel,
-    inputs: list[torch.Tensor],
-    batch_size: int = 512,
-) -> dict[str, np.ndarray]:
-    """Predict with DMB model."""
-    dl: DataLoader = DataLoader(cast(Dataset, inputs),
-                                batch_size=batch_size,
-                                shuffle=False,
-                                num_workers=0)
+class PredictionMapping:
+    """Prediction mapping class."""
 
-    model.eval()
-    with torch.no_grad():
-        outputs = []
-        for batch in dl:
-            batch = batch.to(model.device).float()
-            outputs.append(model(batch))
+    def __init__(self, model: DMBModel, batch_size: int = 512) -> None:
+        """Initialize prediction mapping.
 
-        outputs_tensor = torch.cat(outputs, dim=0).to("cpu").detach()
+        Args:
+            model: DMB model.
+        """
+        self.model = model
+        self.batch_size = batch_size
 
-    return {
-        obs: outputs_tensor[:, idx].numpy()
-        for idx, obs in enumerate(model.observables)
-    }
+    def __call__(
+            self, inputs: list[torch.Tensor] | Dataset | torch.Tensor
+    ) -> dict[str, np.ndarray]:
+        """Predict with DMB model."""
+
+        dataloader = DataLoader(
+            cast(Dataset, inputs),
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=0,
+        )
+
+        self.model.eval()
+        with torch.no_grad():
+            outputs = []
+            for batch in dataloader:
+                batch = batch.to(self.model.device).float()
+                outputs.append(self.model(batch))
+
+            outputs_tensor = torch.cat(outputs, dim=0).to("cpu").detach()
+
+        return {
+            obs: outputs_tensor[:, idx].numpy()
+            for idx, obs in enumerate(self.model.observables)
+        }

@@ -1,5 +1,3 @@
-from typing import list
-
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.ops.misc import SqueezeExcitation
