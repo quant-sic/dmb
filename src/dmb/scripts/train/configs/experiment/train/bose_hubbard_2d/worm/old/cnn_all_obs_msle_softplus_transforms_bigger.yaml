@@ -43,7 +43,7 @@ datamodule:
   train_transforms: 
       _target_: torchvision.transforms.transforms.Compose
       transforms: 
-        - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
+        - _target_: dmb.data.utils.SquareSymmetryGroupTransforms
                  
 
 model:

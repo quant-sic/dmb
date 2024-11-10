@@ -43,13 +43,13 @@ datamodule:
   train_transforms: 
       _target_: torchvision.transforms.transforms.Compose
       transforms: 
-        - _target_: dmb.data.utils.SquareSymmetryGroupAugmentations
+        - _target_: dmb.data.utils.SquareSymmetryGroupTransforms
         - _target_: dmb.data.utils.TupleWrapperInTransform
           transform: 
             _target_: torchvision.transforms.RandomErasing
         - _target_: dmb.data.utils.TupleWrapperOutTransform
           transform: 
-            _target_: dmb.data.utils.GaussianNoise
+            _target_: dmb.data.utils.GaussianNoiseTransform
             mean: 0.0
             std: 0.01
 

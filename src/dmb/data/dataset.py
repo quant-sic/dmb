@@ -8,7 +8,7 @@ import torch
 from attrs import define
 from torch.utils.data import Dataset
 
-from dmb.data.transforms import InputOutputDMBAugmentation
+from dmb.data.transforms import InputOutputDMBTransform
 
 
 class DMBData(TypedDict):
@@ -48,7 +48,7 @@ class DMBDataset(IdDataset):
     """
 
     dataset_dir_path: Path | str
-    transforms: InputOutputDMBAugmentation
+    transforms: InputOutputDMBTransform
 
     def __attrs_post_init__(self) -> None:
         samples_dir_path = Path(self.dataset_dir_path) / "samples"

@@ -2,22 +2,12 @@ from typing import Callable, Literal, Protocol
 
 import numpy as np
 import torch
+from attrs import define, field
+
+from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
 
 
-class DMBAugmentation(Protocol):
-
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        ...
-
-
-class InputOutputDMBAugmentation(Protocol):
-
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        ...
-
-
-class GaussianNoise:
+class GaussianNoiseTransform(DMBTransform):
 
     def __init__(self, mean: float, std: float) -> None:
         self.mean = mean
@@ -30,7 +20,8 @@ class GaussianNoise:
         return self.__class__.__name__ + "(mean={}, std={})".format(self.mean, self.std)
 
 
-class SquareSymmetryGroupAugmentations:
+@define
+class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
     """Square symmetry group augmentations.
 
     This class implements the square symmetry group augmentations for 2D
@@ -45,77 +36,74 @@ class SquareSymmetryGroupAugmentations:
     - reflection x=-y
     """
 
-    def __call__(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor | None = None
-    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    random_number_generator: Callable[[], float] = field(
+        default=np.random.RandomState(42).rand)
+
+    def __call__(self, x: torch.Tensor,
+                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
 
         # with p=1/8 each choose one symmetry transform at random and apply it
-        rnd = np.random.rand()
+        rnd = self.random_number_generator()
 
         if rnd < 1 / 8:  # unity
             pass
         elif rnd < 2 / 8:  # rotate 90 left
             mapping = lambda _x: torch.rot90(_x, 1, [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 3 / 8:  # rotate 180 left
             mapping = lambda _x: torch.rot90(_x, 2, [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 4 / 8:  # rotate 270 left
             mapping = lambda _x: torch.rot90(_x, 3, [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 5 / 8:  # flip x
             mapping = lambda _x: torch.flip(_x, [-2])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 6 / 8:  # flip y
             mapping = lambda _x: torch.flip(_x, [-1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         elif rnd < 7 / 8:  # reflection x=y
             mapping = lambda _x: torch.transpose(_x, -2, -1)
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
         else:  # reflection x=-y
             mapping = lambda _x: torch.flip(torch.transpose(_x, -2, -1), [-2, -1])
             x = mapping(x)
-            y = mapping(y) if y is not None else None
+            y = mapping(y)
 
-        if y is None:
-            return x
-        else:
-            return x, y
+        return x, y
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()"
 
 
-class TupleWrapperInTransform:
+class TupleWrapperInTransform(InputOutputDMBTransform):
 
-    def __init__(self, transform: DMBAugmentation):
+    def __init__(self, transform: DMBTransform):
         self.transform = transform
 
     def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.transform(x), y
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
 
 
-class TupleWrapperOutTransform:
+class TupleWrapperOutTransform(InputOutputDMBTransform):
 
-    def __init__(self, transform: DMBAugmentation):
+    def __init__(self, transform: DMBTransform):
         self.transform = transform
 
     def __call__(self, x: torch.Tensor,
@@ -126,12 +114,12 @@ class TupleWrapperOutTransform:
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
 
 
-class BoseHubbard2dTransforms:
+class BoseHubbard2dTransforms(InputOutputDMBTransform):
 
     def __init__(
         self,
-        base_augmentations: list[InputOutputDMBAugmentation] | None = None,
-        train_augmentations: list[InputOutputDMBAugmentation] | None = None,
+        base_augmentations: list[InputOutputDMBTransform] | None = None,
+        train_augmentations: list[InputOutputDMBTransform] | None = None,
     ):
         self.base_augmentations = ([] if base_augmentations is None else
                                    base_augmentations)
