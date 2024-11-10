@@ -4,15 +4,12 @@ from typing import Literal
 import numpy as np
 import pytest
 import torch
-from pytest_cases import case, fixture, get_case_id, parametrize, parametrize_with_cases
+from pytest_cases import case, fixture, get_case_id, parametrize, \
+    parametrize_with_cases
 
-from dmb.data.bose_hubbard_2d.transforms import (
-    BoseHubbard2dTransforms,
-    GaussianNoiseTransform,
-    SquareSymmetryGroupTransforms,
-    TupleWrapperInTransform,
-    TupleWrapperOutTransform,
-)
+from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms, \
+    GaussianNoiseTransform, SquareSymmetryGroupTransforms, \
+    TupleWrapperInTransform, TupleWrapperOutTransform
 from dmb.data.dataset import DMBData
 from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
 
@@ -96,14 +93,10 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
         return SquareSymmetryGroupTransforms()
 
     @staticmethod
-    def case_non_identity_square_symmetry_group_transforms() -> (
-        SquareSymmetryGroupTransforms
-    ):
-        return SquareSymmetryGroupTransforms(
-            random_number_generator=functools.partial(
-                np.random.RandomState(42).uniform, low=1 / 8, high=1
-            )
-        )
+    def case_non_identity_square_symmetry_group_transforms(
+    ) -> (SquareSymmetryGroupTransforms):
+        return SquareSymmetryGroupTransforms(random_number_generator=functools.partial(
+            np.random.RandomState(42).uniform, low=1 / 8, high=1))
 
     @staticmethod
     @fixture(scope="class", name="transform")
@@ -115,15 +108,13 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
         ],
     )
     def fixture_transform(
-        transform_variant: SquareSymmetryGroupTransforms,
-    ) -> InputOutputDMBTransform:
+        transform_variant: SquareSymmetryGroupTransforms, ) -> InputOutputDMBTransform:
         return transform_variant
 
     @staticmethod
     @parametrize_with_cases("data", cases=DMBDataCases, glob="*equal_input_output*")
-    def test_equal_input_output(
-        transform: InputOutputDMBTransform, data: DMBData
-    ) -> None:
+    def test_equal_input_output(transform: InputOutputDMBTransform,
+                                data: DMBData) -> None:
 
         x, y = [], []
 
@@ -142,8 +133,7 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
         cases=[case_non_identity_square_symmetry_group_transforms],
     )
     def test_non_identity_equal_input_output(
-        non_identity_transform: InputOutputDMBTransform, data: DMBData
-    ) -> None:
+            non_identity_transform: InputOutputDMBTransform, data: DMBData) -> None:
         x, y = non_identity_transform(data["inputs"], data["outputs"])
 
         assert torch.allclose(x, y)
@@ -163,9 +153,8 @@ class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
             (1.0, 0.1),
         ],
     )
-    def case_tuple_wrapper_in_transform(
-        mean: float, std: float
-    ) -> TupleWrapperInTransform:
+    def case_tuple_wrapper_in_transform(mean: float,
+                                        std: float) -> TupleWrapperInTransform:
         return TupleWrapperInTransform(GaussianNoiseTransform(mean=mean, std=std))
 
     @staticmethod
@@ -178,9 +167,8 @@ class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
             (1.0, 0.1),
         ],
     )
-    def case_tuple_wrapper_out_transform(
-        mean: float, std: float
-    ) -> TupleWrapperOutTransform:
+    def case_tuple_wrapper_out_transform(mean: float,
+                                         std: float) -> TupleWrapperOutTransform:
         return TupleWrapperOutTransform(GaussianNoiseTransform(mean=mean, std=std))
 
     @staticmethod
@@ -223,14 +211,12 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
     @staticmethod
     def case_input_altering_base_augmentation() -> BoseHubbard2dTransforms:
         return BoseHubbard2dTransforms(
-            base_augmentations=[TupleWrapperInTransform(FakeDMBTransform())],
-        )
+            base_augmentations=[TupleWrapperInTransform(FakeDMBTransform())], )
 
     @staticmethod
     def case_input_altering_train_augmentation() -> BoseHubbard2dTransforms:
         return BoseHubbard2dTransforms(
-            train_augmentations=[TupleWrapperInTransform(FakeDMBTransform())],
-        )
+            train_augmentations=[TupleWrapperInTransform(FakeDMBTransform())], )
 
     @staticmethod
     def case_input_altering_base_and_train_augmentation() -> BoseHubbard2dTransforms:
@@ -250,8 +236,7 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
         ],
     )
     def fixture_transform(
-        transform_variant: BoseHubbard2dTransforms,
-    ) -> InputOutputDMBTransform:
+        transform_variant: BoseHubbard2dTransforms, ) -> InputOutputDMBTransform:
         return transform_variant
 
     @staticmethod
@@ -275,42 +260,27 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
         current_cases: dict,
     ) -> None:
 
-        if (
-            current_cases["transform_variant"].id == "input_altering_base_augmentation"
-            and mode == "base"
-        ):
+        if (current_cases["transform_variant"].id == "input_altering_base_augmentation"
+                and mode == "base"):
             expected_change = 1
-        elif (
-            current_cases["transform_variant"].id == "input_altering_train_augmentation"
-            and mode == "base"
-        ):
+        elif (current_cases["transform_variant"].id
+              == "input_altering_train_augmentation" and mode == "base"):
             expected_change = 0
-        elif (
-            current_cases["transform_variant"].id
-            == "input_altering_base_and_train_augmentation"
-            and mode == "base"
-        ):
+        elif (current_cases["transform_variant"].id
+              == "input_altering_base_and_train_augmentation" and mode == "base"):
             expected_change = 1
-        elif (
-            current_cases["transform_variant"].id == "input_altering_base_augmentation"
-            and mode == "train"
-        ):
+        elif (current_cases["transform_variant"].id
+              == "input_altering_base_augmentation" and mode == "train"):
             expected_change = 1
-        elif (
-            current_cases["transform_variant"].id == "input_altering_train_augmentation"
-            and mode == "train"
-        ):
+        elif (current_cases["transform_variant"].id
+              == "input_altering_train_augmentation" and mode == "train"):
             expected_change = 1
-        elif (
-            current_cases["transform_variant"].id
-            == "input_altering_base_and_train_augmentation"
-            and mode == "train"
-        ):
+        elif (current_cases["transform_variant"].id
+              == "input_altering_base_and_train_augmentation" and mode == "train"):
             expected_change = 2
         else:
-            raise ValueError(
-                "Unexpected case: " + current_cases["transform_variant"].id
-            )
+            raise ValueError("Unexpected case: " +
+                             current_cases["transform_variant"].id)
 
         transform_variant.mode = mode
         x, _ = transform_variant(data["inputs"], data["outputs"])
