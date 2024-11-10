@@ -10,3 +10,7 @@ split_fractions:
   train: 0.96
   val: 0.02
   test: 0.02
+
+split_strategy:
+  _target_: dmb.data.bose_hubbard_2d.worm.split.WormSimulationsSplitStrategy
+  

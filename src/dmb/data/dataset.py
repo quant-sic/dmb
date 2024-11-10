@@ -21,6 +21,11 @@ class DMBData(TypedDict):
 class IdDataset(Dataset, ABC):
     """Dataset with sample IDs."""
 
+    @property
+    @abstractmethod
+    def ids(self) -> tuple[str, ...]:
+        ...
+
     @abstractmethod
     def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
         ...
@@ -80,6 +85,10 @@ class DMBDataset(IdDataset):
         inputs_transformed, outputs_transformed = self.transforms(inputs, outputs)
 
         return DMBData(inputs=inputs_transformed, outputs=outputs_transformed)
+
+    @property
+    def ids(self) -> tuple[str, ...]:
+        return tuple(self.sample_ids)
 
     def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
         return tuple(self.sample_ids[idx] for idx in indices)
