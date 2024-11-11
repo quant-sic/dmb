@@ -4,7 +4,6 @@ import numpy as np
 from scipy.special import gammainc
 from tqdm import tqdm
 
-import logging
 
 logger = logging.getLogger(__name__)
 

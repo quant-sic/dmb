@@ -1,3 +1,5 @@
+"""Data transforms."""
+
 from typing import Protocol
 
 import torch

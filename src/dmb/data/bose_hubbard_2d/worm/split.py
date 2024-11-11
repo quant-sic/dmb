@@ -1,10 +1,11 @@
+"""Dataset splitting strategy for Bose-Hubbard 2D worm simulations."""
+
 import random
 import re
 from collections import defaultdict
 
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
 from dmb.data.dataset import IdDataset
 from dmb.data.split import IdDatasetSplitStrategy
 

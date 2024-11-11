@@ -1,3 +1,6 @@
+"""Script to run worm simulation for 2D Bose-Hubbard model with random
+trapping potential."""
+
 import argparse
 import asyncio
 import datetime
@@ -12,7 +15,7 @@ from dotenv import load_dotenv
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
-from dmb.data.dispatching import AutoDispatcher
+from dmb.data.dispatching import auto_create_dispatcher
 from dmb.logging import create_logger
 from dmb.paths import REPO_DATA_ROOT
 
@@ -30,6 +33,8 @@ def draw_random_config(
     mu_offset_max: float = 3.0,
 ) -> tuple[int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any,
            float]:
+    """Draw random configuration for the simulation."""
+
     L = np.random.randint(low=L_half_min, high=L_half_max) * 2
     U_on = (np.random.uniform(low=U_on_min, high=U_on_max)**(-1)) * 4
     V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
@@ -49,6 +54,8 @@ def draw_random_config(
 
 def draw_uniform_config() -> (tuple[int, float, float, np.ndarray, np.ndarray,
                                     np.ndarray, np.ndarray, Any, float]):
+    """Draw uniform configuration for the simulation."""
+
     L = np.random.randint(low=4, high=10) * 2
     U_on = (np.random.uniform(low=0.05, high=1)**(-1)) * 4
     V_nn = np.random.uniform(low=0.75 / 4, high=1.75 / 4) * U_on
@@ -64,10 +71,9 @@ def draw_uniform_config() -> (tuple[int, float, float, np.ndarray, np.ndarray,
     return L, U_on, V_nn, mu, t_hop_array, U_on_array, V_nn_array, None, mu_offset
 
 
-# def simulate(sample_id,type="random"):
 async def simulate(
     sample_id: int,
-    type: str = "random",
+    potential_type: str = "random",
     L_half_min: int = 4,
     L_half_max: int = 10,
     U_on_min: float = 0.05,
@@ -78,11 +84,12 @@ async def simulate(
     mu_offset_max: float = 3.0,
     max_density_error: float = 0.015,
 ) -> None:
-    if type == "random":
+    """Run worm simulation for 2D Bose-Hubbard model."""
+    if potential_type == "random":
         (
             L,
-            U_on,
-            V_nn,
+            _,
+            _,
             mu,
             t_hop_array,
             U_on_array,
@@ -100,11 +107,11 @@ async def simulate(
             mu_offset_max=mu_offset_max,
         )
 
-    elif type == "uniform":
+    elif potential_type == "uniform":
         (
             L,
-            U_on,
-            V_nn,
+            _,
+            _,
             mu,
             t_hop_array,
             U_on_array,
@@ -113,7 +120,7 @@ async def simulate(
             mu_offset,
         ) = draw_uniform_config()
     else:
-        raise ValueError(f"Unknown type {type}")
+        raise ValueError(f"Unknown type {potential_type}")
 
     thermalization = 10000
     sweeps = 100000
@@ -149,7 +156,7 @@ async def simulate(
         p,
         save_dir=save_dir,
         executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
-        dispatcher=AutoDispatcher(),
+        dispatcher=auto_create_dispatcher(),
     )
     sim_run = WormSimulationRunner(worm_simulation=sim)
 
@@ -215,10 +222,11 @@ if __name__ == "__main__":
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
     async def run_sample(sample_id: int) -> None:
+        """Run a single sample."""
         async with semaphore:
             await simulate(
                 sample_id,
-                type=args.type,
+                potential_type=args.type,
                 L_half_min=args.L_half_min,
                 L_half_max=args.L_half_max,
                 U_on_min=args.U_on_min,

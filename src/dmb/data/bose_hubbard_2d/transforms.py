@@ -1,23 +1,34 @@
-from typing import Callable, Literal, Protocol
+"""Transforms for the Bose-Hubbard 2D dataset."""
 
-import numpy as np
+from typing import Callable, Literal
+
 import torch
 from attrs import define, field
+from numpy.random import RandomState  # pylint: disable=no-name-in-module
 
 from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
 
 
 class GaussianNoiseTransform(DMBTransform):
+    """Transform that adds Gaussian noise to the input."""
 
     def __init__(self, mean: float, std: float) -> None:
+        """Initialize the transform.
+
+        Args:
+            mean: Mean of the Gaussian noise.
+            std: Standard deviation of the Gaussian noise.
+        """
         self.mean = mean
         self.std = std
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        """Add Gaussian noise to the input."""
         return x + torch.randn_like(x) * self.std + self.mean
 
     def __repr__(self) -> str:
-        return self.__class__.__name__ + "(mean={}, std={})".format(self.mean, self.std)
+        """Return a string representation of the transform."""
+        return self.__class__.__name__ + f"(mean={self.mean}, std={self.std})"
 
 
 @define
@@ -36,8 +47,7 @@ class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
     - reflection x=-y
     """
 
-    random_number_generator: Callable[[], float] = field(
-        default=np.random.RandomState(42).rand)
+    random_number_generator: Callable[[], float] = field(default=RandomState(42).rand)
 
     def __call__(self, x: torch.Tensor,
                  y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -48,39 +58,53 @@ class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
         if rnd < 1 / 8:  # unity
             pass
         elif rnd < 2 / 8:  # rotate 90 left
-            mapping = lambda _x: torch.rot90(_x, 1, [-2, -1])
-            x = mapping(x)
-            y = mapping(y)
+
+            def mapping(_x: torch.Tensor) -> torch.Tensor:
+                return torch.rot90(_x, 1, [-2, -1])
+
+            x, y = map(mapping, (x, y))
 
         elif rnd < 3 / 8:  # rotate 180 left
-            mapping = lambda _x: torch.rot90(_x, 2, [-2, -1])
-            x = mapping(x)
-            y = mapping(y)
+
+            def mapping(_x: torch.Tensor) -> torch.Tensor:
+                return torch.rot90(_x, 2, [-2, -1])
+
+            x, y = map(mapping, (x, y))
 
         elif rnd < 4 / 8:  # rotate 270 left
-            mapping = lambda _x: torch.rot90(_x, 3, [-2, -1])
-            x = mapping(x)
-            y = mapping(y)
+
+            def mapping(_x: torch.Tensor) -> torch.Tensor:
+                return torch.rot90(_x, 3, [-2, -1])
+
+            x, y = map(mapping, (x, y))
 
         elif rnd < 5 / 8:  # flip x
-            mapping = lambda _x: torch.flip(_x, [-2])
-            x = mapping(x)
-            y = mapping(y)
+
+            def mapping(_x: torch.Tensor) -> torch.Tensor:
+                return torch.flip(_x, [-2])
+
+            x, y = map(mapping, (x, y))
 
         elif rnd < 6 / 8:  # flip y
-            mapping = lambda _x: torch.flip(_x, [-1])
-            x = mapping(x)
-            y = mapping(y)
+
+            def mapping(_x: torch.Tensor) -> torch.Tensor:
+                return torch.flip(_x, [-1])
+
+            x, y = map(mapping, (x, y))
 
         elif rnd < 7 / 8:  # reflection x=y
-            mapping = lambda _x: torch.transpose(_x, -2, -1)
-            x = mapping(x)
-            y = mapping(y)
+
+            def mapping(_x: torch.Tensor) -> torch.Tensor:
+                return torch.transpose(_x, -2, -1)
+
+            x, y = map(mapping, (x, y))
 
         else:  # reflection x=-y
-            mapping = lambda _x: torch.flip(torch.transpose(_x, -2, -1), [-2, -1])
-            x = mapping(x)
-            y = mapping(y)
+
+            def mapping(_x: torch.Tensor) -> torch.Tensor:
+                return torch.flip(torch.transpose(_x, -2, -1), [-2, -1])
+
+            x, y = map(mapping, (x, y))
 
         return x, y
 
@@ -89,6 +113,7 @@ class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
 
 
 class TupleWrapperInTransform(InputOutputDMBTransform):
+    """A wrapper for a DMBTransform that only applies the transform to the input."""
 
     def __init__(self, transform: DMBTransform):
         self.transform = transform
@@ -102,6 +127,7 @@ class TupleWrapperInTransform(InputOutputDMBTransform):
 
 
 class TupleWrapperOutTransform(InputOutputDMBTransform):
+    """A wrapper for a DMBTransform that only applies the transform to the output."""
 
     def __init__(self, transform: DMBTransform):
         self.transform = transform
@@ -115,6 +141,7 @@ class TupleWrapperOutTransform(InputOutputDMBTransform):
 
 
 class BoseHubbard2dTransforms(InputOutputDMBTransform):
+    """Transforms for the Bose-Hubbard 2D dataset."""
 
     def __init__(
         self,
@@ -129,6 +156,8 @@ class BoseHubbard2dTransforms(InputOutputDMBTransform):
 
     @property
     def mode(self) -> Literal["base", "train"]:
+        """Return the mode of the transform."""
+
         return self._mode
 
     @mode.setter
@@ -149,6 +178,7 @@ class BoseHubbard2dTransforms(InputOutputDMBTransform):
         return x, y
 
     def __repr__(self) -> str:
+        """Return a string representation of the transform."""
         return (self.__class__.__name__ + "((\n" +
                 ("\t base_augmentations={},\n".format(",".join(
                     map(str, self.base_augmentations))) if self.base_augmentations else

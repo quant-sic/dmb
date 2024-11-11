@@ -1,6 +1,5 @@
 from collections import defaultdict
 from logging import getLogger
-from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,7 +14,6 @@ from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential, \
     get_square_mu_potential
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
-from dmb.data.dataset import DMBData
 from dmb.model.dmb_model import PredictionMapping
 from dmb.paths import REPO_DATA_ROOT
 
@@ -355,7 +353,6 @@ def plot_phase_diagram_mu_cut(
     fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
     try:
-        ds_i: DMBData
         muU_qmc, n_qmc = zip(*[  # type: ignore
             (ds.get_phase_diagram_position(i)[1], ds_i["outputs"][0])
             for i, ds_i in enumerate(ds)  # type: ignore

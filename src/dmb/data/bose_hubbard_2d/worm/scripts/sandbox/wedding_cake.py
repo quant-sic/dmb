@@ -86,7 +86,6 @@ if __name__ == "__main__":
         tolerance_ztU=0,
         tolerance_zVU=0,
         tolerance_muU=0,
-        existing_samples_max_density_error=0.2,
     )
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)

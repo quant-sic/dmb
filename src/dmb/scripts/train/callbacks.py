@@ -1,11 +1,9 @@
 import itertools
-from functools import partial
 from pathlib import Path
-from typing import Callable, Generator, cast
+from typing import Generator
 
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
-import torch
 from lightning.pytorch.callbacks import Callback
 
 from dmb.data.bose_hubbard_2d.plotting.phase_diagram import plot_phase_diagram

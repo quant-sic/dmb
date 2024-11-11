@@ -1,3 +1,5 @@
+"""Test the split module."""
+
 import itertools
 import re
 from pathlib import Path
@@ -14,7 +16,7 @@ from dmb.data.split import AllIdsEqualSplitStrategy, IdDatasetSplitStrategy, \
     Split
 
 
-def validate_same_length(instance: Any, attribute: Any, value: Any) -> None:
+def validate_same_length(instance: Any, attribute: Any, value: Any) -> None:  # pylint: disable=unused-argument
     """Validate that the ids and indices have the same length."""
     if len(instance.ids) != len(instance.indices):
         raise ValueError("ids and indices must have the same length")
@@ -72,6 +74,7 @@ class SplitStrategyCases:
 
 
 class SplitDataCases:
+    """Test cases for the split data."""
 
     @staticmethod
     @case(tags=("id_dataset", "general"))
@@ -237,8 +240,8 @@ class TestSplit:
         filter=filters.has_tag("split_data"))
     def test_generate(
         id_dataset: FakeIdDataset,
-        split_ids: dict[str, list[str]],
-        subset_indices: dict[str, list[int]],
+        split_ids: dict[str, list[str]],  # pylint: disable=unused-argument
+        subset_indices: dict[str, list[int]],  # pylint: disable=unused-argument
         split_fractions: dict[str, float],
         subset_lengths: dict[str, int],
         split_strategy: IdDatasetSplitStrategy,
@@ -257,16 +260,13 @@ class TestSplit:
 
     @staticmethod
     @parametrize_with_cases(
-        "id_dataset, split_ids, subset_indices, split_fractions, subset_lengths",
+        "id_dataset, split_ids",
         cases=SplitDataCases,
         filter=filters.has_tag("split_data"),
     )
     def test_to_from_file(
-        id_dataset: FakeIdDataset,
+        id_dataset: FakeIdDataset,  # pylint: disable=unused-argument
         split_ids: dict[str, list[str]],
-        subset_indices: dict[str, list[int]],
-        split_fractions: dict[str, float],
-        subset_lengths: dict[str, int],
         tmp_path: Path,
     ) -> None:
         """Test the to_file and from_file methods."""

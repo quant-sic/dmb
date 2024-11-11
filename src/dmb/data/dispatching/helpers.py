@@ -1,3 +1,5 @@
+"""Helper functions for job submission."""
+
 import asyncio
 import subprocess
 import time
@@ -9,6 +11,7 @@ from dmb.logging import create_logger
 
 
 class ReturnCode(Enum):
+    """Return codes for job submission."""
     SUCCESS = 0
     FAILURE = 1
 
@@ -21,6 +24,13 @@ async def call_sbatch_and_wait(
     timeout: int = 48 * 60 * 60,
     logging_instance: Logger = logger,
 ) -> ReturnCode:
+    """Submit a Slurm job and wait for it to finish.
+    
+    Args:
+        script_path: Path to the script to submit.
+        timeout: Timeout in seconds.
+        logging_instance: Logger instance.
+    """
     try:
         p = subprocess.run(
             "sbatch " + str(script_path),
@@ -46,6 +56,7 @@ async def call_sbatch_and_wait(
                 ["squeue", "-j", job_id, "-h", "-o", "%T"],
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                check=True,
             )
 
             job_state = process.stdout.decode("utf-8").strip()

@@ -1,3 +1,6 @@
+"""Load simulation data from a directory containing simulation directories and
+save it to a dataset directory."""
+
 import argparse
 import itertools
 import json
@@ -18,22 +21,22 @@ log = create_logger(__name__)
 def get_simulation_valid(
     simulation_dir: Path,
     redo: bool = False,
-    check_readable: bool = True,
 ) -> bool:
+    """Check if a simulation directory is valid."""
 
-    if check_readable:
-        try:
-            sim = WormSimulation.from_dir(simulation_dir)
-        except (OSError, KeyError, ValueError):
-            log.error(f"Could not load simulation from {simulation_dir}")
-            return False
+    try:
+        sim = WormSimulation.from_dir(simulation_dir)
+    except (OSError, KeyError, ValueError):
+        log.error(f"Could not load simulation from {simulation_dir}")
+        return False
 
     if "clean" in sim.record and not sim.record["clean"] and not redo:
         return False
-    elif "clean" in sim.record and sim.record["clean"] and not redo:
+
+    if "clean" in sim.record and sim.record["clean"] and not redo:
         return True
-    else:
-        valid = sim.valid
+
+    valid = sim.valid
 
     # general purpose validation
     sim.record["clean"] = valid
@@ -46,6 +49,8 @@ def filter_by_error(
     max_density_error: float,
     recalculate_errors: bool = False,
 ) -> bool:
+    """Filter a simulation directory by error."""
+
     try:
         simulation = WormSimulation.from_dir(sim_dir)
     except (OSError, KeyError, ValueError):
@@ -78,18 +83,28 @@ def filter_by_error(
 def clean_sim_dirs(
     sim_dirs: list[Path],
     redo: bool = False,
-    verbose: bool = False,
     max_density_error: float | None = None,
     recalculate_errors: bool = False,
     delete_unreadable: bool = False,
-    check_readable: bool = True,
 ) -> list[Path]:
+    """Clean simulation directories by checking if they are valid and filtering
+    by error.
+
+    Args:
+        sim_dirs: List of simulation directories.
+        redo: Redo the cleaning process.
+        max_density_error: Maximum density error to include in the dataset.
+        recalculate_errors: Recalculate the errors for the simulations.
+        delete_unreadable: Delete unreadable simulation directories.
+    
+    Returns:
+        List of valid simulation directories.
+    """
 
     valid_sim_dirs = [
         get_simulation_valid(
             sim_dir,
             redo=redo,
-            check_readable=check_readable,
         ) for sim_dir in sim_dirs
     ]
 
@@ -123,6 +138,7 @@ def clean_sim_dirs(
 def load_sample(simulation_dir: Path,
                 observables: list[str],
                 reload: bool = False) -> tuple[torch.Tensor, torch.Tensor, dict]:
+    """Load a sample from a simulation directory."""
 
     inputs_path = simulation_dir / "inputs.pt"
     outputs_path = simulation_dir / "outputs.pt"
@@ -130,7 +146,7 @@ def load_sample(simulation_dir: Path,
     try:
         sim = WormSimulation.from_dir(simulation_dir)
         saved_observables = sim.record["saved_observables"]
-    except Exception:
+    except:  # pylint: disable=bare-except # noqa: E722
         reload = True
 
     if not inputs_path.exists() or not outputs_path.exists() or reload:
@@ -201,12 +217,10 @@ def load_dataset_simulations(
     include_tune_dirs: bool = False,
     clean: bool = True,
     reload: bool = True,
-    verbose: bool = True,
     max_density_error: float = 0.015,
     recalculate_errors: bool = False,
     delete_unreadable: bool = False,
-    check_readable: bool = True,
-    observables: list[str] = [
+    observables: tuple[str, ...] = (
         "density",
         "density_density_corr_0",
         "density_density_corr_1",
@@ -216,7 +230,7 @@ def load_dataset_simulations(
         "density_max",
         "density_min",
         "density_variance",
-    ],
+    ),
 ) -> None:
     """Load simulation data from a directory containing simulation directories
     and save it to a dataset directory.
@@ -228,11 +242,9 @@ def load_dataset_simulations(
         include_tune_dirs: Include the tune directories in the dataset.
         clean: Clean the simulation directories before loading the dataset.
         reload: Reload the simulation data even if it has already been saved.
-        verbose: Print verbose output.
         max_density_error: Maximum density error to include in the dataset.
         recalculate_errors: Recalculate the errors for the simulations.
         delete_unreadable: Delete unreadable simulation directories.
-        check_readable: Check if the simulation is readable.
         observables: list of observables to include in the dataset.
     """
     dataset_save_path.mkdir(exist_ok=True, parents=True)
@@ -258,11 +270,9 @@ def load_dataset_simulations(
         clean_simulation_directories = clean_sim_dirs(
             all_simulation_directories,
             redo=reload,
-            verbose=verbose,
             max_density_error=max_density_error,
             recalculate_errors=recalculate_errors,
             delete_unreadable=delete_unreadable,
-            check_readable=check_readable,
         )
 
     else:
@@ -274,7 +284,9 @@ def load_dataset_simulations(
     samples_dir.mkdir(exist_ok=True, parents=True)
 
     for sim_dir in tqdm(clean_simulation_directories):
-        inputs, outputs, metadata = load_sample(sim_dir, observables, reload=reload)
+        inputs, outputs, metadata = load_sample(sim_dir,
+                                                list(observables),
+                                                reload=reload)
 
         if (inputs[0] == 0).all():
             continue

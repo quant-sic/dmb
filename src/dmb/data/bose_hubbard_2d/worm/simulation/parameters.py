@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__ = ["WormInputParameters"]
 
+from ast import literal_eval
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ import numpy as np
 from attrs import frozen
 
 
+# pylint: disable=too-many-instance-attributes
 @frozen(eq=False, slots=False)
 class WormInputParameters:
     """Class for the input parameters of the worm simulation."""
@@ -80,29 +82,34 @@ class WormInputParameters:
 
     @staticmethod
     def get_ini_path(save_dir_path: Path) -> Path:
+        """Get the path to the ini file."""
         return save_dir_path / "parameters.ini"
 
     @staticmethod
     def get_h5_path(save_dir_path: Path) -> Path:
+        """Get the path to the h5 file."""
         return save_dir_path / "parameters.h5"
 
     @staticmethod
     def get_outputfile_path(save_dir_path: Path) -> Path:
+        """Get the path to the output file."""
         return save_dir_path / "output.h5"
 
     @staticmethod
     def get_checkpoint_path(save_dir_path: Path) -> Path:
+        """Get the path to the checkpoint file."""
         return save_dir_path / "checkpoint.h5"
 
     @classmethod
     def from_dir(cls, save_dir_path: Path) -> WormInputParameters:
+        """Create input parameters from a save directory."""
         attributes: dict[str, type | None] = {
             attribute.name: attribute.type
             for attribute in cls.__attrs_attrs__
         }
 
         # Read ini file
-        with open(save_dir_path / "parameters.ini", "r") as f:
+        with open(save_dir_path / "parameters.ini", "r", encoding='utf-8') as f:
             lines = f.readlines()
 
         # Fill dictionary for ini parameters
@@ -120,8 +127,8 @@ class WormInputParameters:
                         if attributes[key] is None:
                             raise ValueError(
                                 f"Inconsistent attribute {key} in {cls.__name__}")
-                        else:
-                            value = eval(attributes[key])(value)  # type: ignore
+
+                        value = literal_eval(attributes[key])(value)  # type: ignore
 
                     # add to dictionary
                     params[key] = value
@@ -140,6 +147,7 @@ class WormInputParameters:
         return cls(**params)
 
     def save_h5_file(self, save_dir: Path) -> None:
+        """Save the input parameters to an h5 file."""
         h5_file_path = self.get_h5_path(save_dir)
 
         # create parent directory if it does not exist
@@ -156,6 +164,7 @@ class WormInputParameters:
                 file[f"/{name}"] = attribute.flatten()
 
     def save_ini_file(self, save_dir: Path) -> None:
+        """Save the input parameters to an ini file."""
         ini_file_path = self.get_ini_path(save_dir)
         h5_file_path = self.get_h5_path(save_dir)
 
@@ -163,18 +172,19 @@ class WormInputParameters:
         ini_file_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Create ini file
-        with open(ini_file_path, "w") as f:
+        with open(ini_file_path, "w", encoding="utf-8") as f:
             f.write(f"site_arrays = {h5_file_path}\n")
             f.write(f"outputfile = {self.get_outputfile_path(save_dir)}\n")
             f.write(f"checkpoint = {self.get_checkpoint_path(save_dir)}\n")
 
             for attribute in self.__attrs_attrs__:
                 if not (attribute.name in ("mu", "t_hop", "U_on", "V_nn")
-                        and eval(attribute.type) is np.ndarray):  # type: ignore
-                    f.write(
-                        f"{attribute.name} = {self.__getattribute__(attribute.name)}\n")
+                        and literal_eval(attribute.type) is np.ndarray):  # type: ignore
+                    f.write(f"{attribute.name} = {getattr(self,attribute.name)}\n")
 
     def save(self, save_dir: Path) -> None:
+        """Save the input parameters to the save directory."""
+
         # Create ini file
         self.save_ini_file(save_dir=save_dir)
         self.save_h5_file(save_dir=save_dir)

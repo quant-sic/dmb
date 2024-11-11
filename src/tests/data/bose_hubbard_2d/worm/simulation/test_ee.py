@@ -7,7 +7,7 @@ import pytest
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
-from dmb.data.dispatching import AutoDispatcher
+from dmb.data.dispatching import auto_create_dispatcher
 from dmb.logging import create_logger
 
 logger = create_logger(__name__)
@@ -25,7 +25,7 @@ async def test_ee_run_iterative(
     simulation = WormSimulation(
         input_parameters,
         save_dir=tmp_path,
-        dispatcher=AutoDispatcher(),
+        dispatcher=auto_create_dispatcher(),
         executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
@@ -58,7 +58,7 @@ async def test_ee_tune_nmeasure2(
     simulation = WormSimulation(
         input_parameters,
         save_dir=tmp_path,
-        dispatcher=AutoDispatcher(),
+        dispatcher=auto_create_dispatcher(),
         executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
@@ -90,7 +90,7 @@ async def test_ee_run_combination(
     simulation = WormSimulation(
         input_parameters,
         save_dir=tmp_path,
-        dispatcher=AutoDispatcher(),
+        dispatcher=auto_create_dispatcher(),
         executable=Path(os.environ["WORM_MPI_EXECUTABLE"]),
     )
 
