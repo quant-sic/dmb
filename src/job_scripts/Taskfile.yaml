@@ -101,8 +101,8 @@ tasks:
           QMC_SCRIPT_FILE: create_random.py
           QMC_TASK_ARGS: "--type random --number_of_samples 250" #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
           NUMBER_OF_CONCURRENT_JOBS: 50
-          NUMBER_OF_SAMPLES: 250
-          SLURM_ARRAY_SIZE: 10
+          NUMBER_OF_SAMPLES: 2500
+          SLURM_ARRAY_SIZE: 1
 
   run_qmc_box:
     desc: Run QMC on the box potential
