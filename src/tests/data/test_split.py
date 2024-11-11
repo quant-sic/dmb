@@ -1,11 +1,17 @@
+import itertools
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
+import numpy as np
 import pytest
 from attrs import define, field
+from pytest_cases import case, filters, parametrize_with_cases
 
+from dmb.data.bose_hubbard_2d.worm.split import WormSimulationsSplitStrategy
 from dmb.data.dataset import IdDataset
-from dmb.data.split import Split
+from dmb.data.split import AllIdsEqualSplitStrategy, IdDatasetSplitStrategy, \
+    Split
 
 
 def validate_same_length(instance: Any, attribute: Any, value: Any) -> None:
@@ -49,12 +55,27 @@ class FakeIdDataset(IdDataset):
         return self.indices[idx], self.ids[idx]
 
 
-class TestSplit:
-    """Test the Split class."""
+class SplitStrategyCases:
+    """Test cases for the IdDatasetSplitStrategy."""
 
     @staticmethod
-    @pytest.fixture(scope="class", name="id_dataset")
-    def get_id_dataset() -> FakeIdDataset:
+    @case(tags=("split_strategy", "general"))
+    def case_all_ids_equal_split_strategy() -> IdDatasetSplitStrategy:
+        """Return an instance of the AllIdsEqualSplitStrategy."""
+        return AllIdsEqualSplitStrategy()
+
+    @staticmethod
+    @case(tags=("split_strategy", "worm"))
+    def case_worm_simulations_split_strategy() -> IdDatasetSplitStrategy:
+        """Return an instance of the WormSimulationsSplitStrategy."""
+        return WormSimulationsSplitStrategy()
+
+
+class SplitDataCases:
+
+    @staticmethod
+    @case(tags=("id_dataset", "general"))
+    def case_id_dataset() -> FakeIdDataset:
         """Return a fake id dataset."""
         return FakeIdDataset(
             ids=("a", "b", "c", "d", "e", "f", "g", "h", "i", "j"),
@@ -62,184 +83,262 @@ class TestSplit:
         )
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_split_ids")
-    def get_test_split_ids() -> tuple[dict[str, list[str]], ...]:
-        """Return test split ids."""
-        return (
-            {
-                "train": ["a", "b", "i", "c"],
-                "test": ["d", "e"]
-            },
-            {
-                "train": ["a", "b", "c", "m", "e"],
-                "test": ["f", "g", "h", "i", "j"]
-            },
-            {
-                "train": ["a", "b", "d", "e", "f", "g"],
-                "val": ["h", "z"],
-                "test": ["i", "j"],
-            },
-            {
-                "train": ["i", "j"],
-                "val": ["h"],
-                "test": ["a", "b", "c", "d", "e", "f", "g"],
-            },
-            {
-                "test": ["g"]
-            },
-            {
-                "test": [
-                    "x",
-                ]
-            },
-        )
+    @case(tags=("split_data", "general"))
+    @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
+    def case_split_data_1(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
+        """Return a split data dictionary."""
+        return (id_dataset, {
+            "train": ["a", "b", "i", "c"],
+            "test": ["d", "e"]
+        }, {
+            "train": [0, 1, 2, 8],
+            "test": [3, 4],
+        }, {
+            "train": 0.4,
+            "test": 0.6
+        }, {
+            "train": 4,
+            "test": 6
+        })
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_subset_indices")
-    def get_test_subset_indices() -> tuple[dict[str, tuple[int, ...]], ...]:
-        """Return test subset indices."""
-        return (
-            {
-                "train": (0, 1, 2, 8),
-                "test": (3, 4),
-            },
-            {
-                "train": (0, 1, 2, 4),
-                "test": (5, 6, 7, 8, 9),
-            },
-            {
-                "train": (0, 1, 3, 4, 5, 6),
-                "val": (7, ),
-                "test": (8, 9),
-            },
-            {
-                "train": (8, 9),
-                "val": (7, ),
-                "test": (0, 1, 2, 3, 4, 5, 6),
-            },
-            {
-                "test": (6, ),
-            },
-            {
-                "test": (),
-            },
-        )
+    @case(tags=("split_data", "general"))
+    @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
+    def case_split_data_2(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
+        """Return a split data dictionary."""
+        return (id_dataset, {
+            "train": ["a", "b", "c", "d", "e", "f", "g"],
+            "val": ["h", "z"],
+            "test": ["i", "j"],
+        }, {
+            "train": [0, 1, 2, 3, 4, 5, 6],
+            "val": [7],
+            "test": [8, 9],
+        }, {
+            "train": 0.6,
+            "val": 0.1,
+            "test": 0.3
+        }, {
+            "train": 6,
+            "val": 1,
+            "test": 3
+        })
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_split_fractions")
-    def get_test_split_fractions() -> tuple[dict[str, float], ...]:
-        """Return test split fractions."""
-        return (
-            {
-                "train": 0.4,
-                "test": 0.6
-            },
-            {
-                "train": 0.5,
-                "test": 0.5
-            },
-            {
-                "train": 0.6,
-                "val": 0.1,
-                "test": 0.3
-            },
-            {
-                "train": 0.2,
-                "val": 0.1,
-                "test": 0.7
-            },
-            {
-                "test": 1.0
-            },
-            {
-                "test": 0.0,
-                "train": 0.8
-            },
-        )
+    @case(tags=("split_data", "general"))
+    @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
+    def case_split_data_3(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
+        """Return a split data dictionary."""
+
+        return (id_dataset, {
+            "train": ["i", "j"],
+            "val": ["h"],
+            "test": ["a", "b", "c", "d", "e", "f", "g"],
+        }, {
+            "train": [8, 9],
+            "val": [7],
+            "test": [0, 1, 2, 3, 4, 5, 6],
+        }, {
+            "train": 0.2,
+            "val": 0.1,
+            "test": 0.7
+        }, {
+            "train": 2,
+            "val": 1,
+            "test": 7
+        })
 
     @staticmethod
-    @pytest.fixture(scope="class", name="test_subset_lengths")
-    def get_test_subset_lengths() -> tuple[dict[str, int], ...]:
-        """Return test subset lengths."""
-        return (
-            {
-                "train": 4,
-                "test": 6
-            },
-            {
-                "train": 5,
-                "test": 5
-            },
-            {
-                "train": 6,
-                "val": 1,
-                "test": 3
-            },
-            {
-                "train": 2,
-                "val": 1,
-                "test": 7
-            },
-            {
-                "test": 10
-            },
-            {
-                "test": 0,
-                "train": 8
-            },
-        )
+    @case(tags=("split_data", "general"))
+    @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
+    def case_split_data_4(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
+        """Return a split data dictionary."""
+        return (id_dataset, {
+            "test": ["g"]
+        }, {
+            "test": [6],
+        }, {
+            "test": 1.0
+        }, {
+            "test": 10
+        })
 
     @staticmethod
+    @case(tags=("split_data", "general"))
+    @parametrize_with_cases("id_dataset", cases=case_id_dataset, has_tag="general")
+    def case_split_data_5(
+        id_dataset: FakeIdDataset
+    ) -> tuple[FakeIdDataset, dict[str, list[str]], dict[str, list[int]], dict[
+            str, float], dict[str, int]]:
+        """Return a split data dictionary."""
+        return (id_dataset, {
+            "test": ["x"]
+        }, {
+            "test": [],
+        }, {
+            "test": 0.0,
+        }, {
+            "test": 10
+        })
+
+    @staticmethod
+    @case(tags=("id_dataset", "worm"))
+    def case_id_dataset_worm() -> FakeIdDataset:
+        """Return a fake id dataset."""
+        return FakeIdDataset(
+            ids=("a", "a_tune", "b_tune", "c_tune", "d", "e", "e_tune", "f", "g",
+                 "g_tune"),
+            indices=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+        )
+
+
+class TestSplit:
+    """Test the Split class."""
+
+    @staticmethod
+    @parametrize_with_cases("id_dataset, split_ids, subset_indices",
+                            cases=SplitDataCases,
+                            filter=filters.has_tag("split_data"))
     def test_apply(
         id_dataset: FakeIdDataset,
-        test_split_ids: tuple[dict[str, tuple[str, ...]]],
-        test_subset_indices: tuple[dict[str, tuple[int, ...]], ...],
+        split_ids: dict[str, list[str]],
+        subset_indices: dict[str, list[int]],
     ) -> None:
         """Test the apply method."""
-        for split_ids, subset_indices in zip(test_split_ids, test_subset_indices):
-            split = Split(split_ids=split_ids)
-            subsets = split.apply(id_dataset)
+        # for split_ids, subset_indices in zip(test_split_ids, test_subset_indices):
+        split = Split(split_ids=split_ids)
+        subsets = split.apply(id_dataset)
 
-            for split_name, subset in subsets.items():
-                assert len(subset) == len(subset_indices[split_name])
-                assert all(subset[idx] == id_dataset[subset_idx]
-                           for idx, subset_idx in enumerate(subset_indices[split_name]))
+        for split_name, subset in subsets.items():
+            assert len(subset) == len(subset_indices[split_name])
+            assert all(subset[idx] == id_dataset[subset_idx]
+                       for idx, subset_idx in enumerate(subset_indices[split_name]))
 
     @staticmethod
+    @parametrize_with_cases(
+        "split_strategy",
+        cases=SplitStrategyCases,
+    )
+    @parametrize_with_cases(
+        "id_dataset, split_ids, subset_indices, split_fractions, subset_lengths",
+        cases=SplitDataCases,
+        filter=filters.has_tag("split_data"))
     def test_generate(
         id_dataset: FakeIdDataset,
-        test_split_fractions: tuple[dict[str, float]],
-        test_subset_lengths: tuple[dict[str, int]],
+        split_ids: dict[str, list[str]],
+        subset_indices: dict[str, list[int]],
+        split_fractions: dict[str, float],
+        subset_lengths: dict[str, int],
+        split_strategy: IdDatasetSplitStrategy,
     ) -> None:
         """Test the generate method."""
-        for split_fractions, subset_lengths in zip(test_split_fractions,
-                                                   test_subset_lengths):
-            split_ids = Split.generate(split_fractions, id_dataset)
+        split_ids = Split.generate(
+            split_fractions=split_fractions,
+            dataset=id_dataset,
+            split_strategy=split_strategy,
+        )
 
-            assert set(split_ids.keys()) == set(split_fractions.keys())
-            assert all(
-                len(split_ids[split_name]) == subset_lengths[split_name]
-                for split_name in split_fractions)
+        assert set(split_ids.keys()) == set(split_fractions.keys())
+        assert all(
+            len(split_ids[split_name]) == subset_lengths[split_name]
+            for split_name in split_fractions)
 
     @staticmethod
+    @parametrize_with_cases(
+        "id_dataset, split_ids, subset_indices, split_fractions, subset_lengths",
+        cases=SplitDataCases,
+        filter=filters.has_tag("split_data"),
+    )
     def test_to_from_file(
-        test_split_ids: tuple[dict[str, tuple[str, ...]]],
+        id_dataset: FakeIdDataset,
+        split_ids: dict[str, list[str]],
+        subset_indices: dict[str, list[int]],
+        split_fractions: dict[str, float],
+        subset_lengths: dict[str, int],
         tmp_path: Path,
     ) -> None:
         """Test the to_file and from_file methods."""
-        for split_ids in test_split_ids:
-            split = Split(split_ids=split_ids)
-            split.to_file(tmp_path / "split.json")
+        split = Split(split_ids=split_ids)
+        split.to_file(tmp_path / "split.json")
 
-            loaded_split = Split.from_file(tmp_path / "split.json")
+        loaded_split = Split.from_file(tmp_path / "split.json")
 
-            assert split.split_ids == loaded_split.split_ids
+        assert split.split_ids == loaded_split.split_ids
 
     @staticmethod
-    def test_split_fractions_check(id_dataset: FakeIdDataset) -> None:
+    @parametrize_with_cases("split_strategy", cases=SplitStrategyCases)
+    @parametrize_with_cases("id_dataset",
+                            cases=SplitDataCases,
+                            filter=filters.has_tag("id_dataset"))
+    def test_split_fractions_check(id_dataset: FakeIdDataset,
+                                   split_strategy: IdDatasetSplitStrategy) -> None:
         """Test the split fractions check."""
         with pytest.raises(ValueError):
-            Split.generate({"train": 0.5, "test": 0.6}, id_dataset)
+            Split.generate(
+                split_fractions={
+                    "train": 0.5,
+                    "test": 0.6
+                },
+                dataset=id_dataset,
+                split_strategy=split_strategy,
+            )
 
         with pytest.raises(ValueError):
-            Split.generate({"train": -0.5, "test": 0.5}, id_dataset)
+            Split.generate(
+                split_fractions={
+                    "train": -0.5,
+                    "test": 0.5
+                },
+                dataset=id_dataset,
+                split_strategy=split_strategy,
+            )
+
+    @staticmethod
+    @parametrize_with_cases("split_strategy",
+                            cases=SplitStrategyCases,
+                            filter=filters.has_tag("worm"))
+    @parametrize_with_cases("id_dataset",
+                            cases=SplitDataCases,
+                            filter=filters.has_tag("id_dataset")
+                            & filters.has_tag("worm"))
+    def test_split_worm_id_dataset(id_dataset: FakeIdDataset,
+                                   split_strategy: IdDatasetSplitStrategy) -> None:
+        """Test worm dataset split."""
+
+        for _ in range(100):
+            split_abs_sizes = {
+                f"split_fraction_{idx}": int(np.random.randint(1, 100))
+                for idx in range(np.random.randint(1, 5))
+            }
+            split_fractions = {
+                key: value / sum(split_abs_sizes.values())
+                for key, value in split_abs_sizes.items()
+            }
+
+            split_ids = Split.generate(
+                split_fractions=split_fractions,
+                dataset=id_dataset,
+                split_strategy=split_strategy,
+            )
+
+            assert sum(len(ids) for ids in split_ids.values()) == len(id_dataset)
+            simulation_ids = {
+                key: set(re.sub("_tune", "", sample_id) for sample_id in value)
+                for key, value in split_ids.items()
+            }
+
+            # check pairwise intersection are empty
+            for key1, key2 in itertools.combinations(simulation_ids, 2):
+                assert len(simulation_ids[key1].intersection(simulation_ids[key2])) == 0
