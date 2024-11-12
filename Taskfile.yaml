@@ -81,8 +81,9 @@ tasks:
       VENV_DIR_PATH: "{{ .VENV_DIR_PATH }}"
     cmds:
       - uv run isort --check-only {{ .PYTHON_CODE_DIRS }}
+      - uv run ruff check --fix
       - uv run mypy {{ .PYTHON_CODE_DIRS }}
-      # - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
+      - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
 
   test:
     desc: Run tests

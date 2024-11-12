@@ -1,5 +1,6 @@
+"""Module to handle output of the worm simulation."""
+
 import abc
-from collections import defaultdict
 from logging import Logger
 from pathlib import Path
 
@@ -15,6 +16,7 @@ log = create_logger(__name__)
 
 
 class Output(metaclass=abc.ABCMeta):
+    """Interface for the output of the worm simulation."""
 
     @property
     @abc.abstractmethod
@@ -29,6 +31,7 @@ class Output(metaclass=abc.ABCMeta):
 
 @define
 class WormOutput(Output):
+    """Class to handle output of the worm simulation."""
 
     out_file_path: Path
     input_parameters: WormInputParameters

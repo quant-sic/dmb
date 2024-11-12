@@ -2,10 +2,10 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable, Iterable, TypedDict
+from typing import Iterable, TypedDict
 
 import torch
-from attrs import define
+from attrs import define, field
 from torch.utils.data import Dataset
 
 from dmb.data.transforms import InputOutputDMBTransform
@@ -24,15 +24,15 @@ class IdDataset(Dataset, ABC):
     @property
     @abstractmethod
     def ids(self) -> tuple[str, ...]:
-        ...
+        """Return the IDs of the samples in the dataset."""
 
     @abstractmethod
     def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
-        ...
+        """Return the IDs of the samples at the given indices."""
 
     @abstractmethod
     def get_indices_from_ids(self, ids: Iterable[str]) -> tuple[int, ...]:
-        ...
+        """Return the indices of the samples with the given IDs."""
 
 
 @define
@@ -54,6 +54,9 @@ class DMBDataset(IdDataset):
 
     dataset_dir_path: Path | str
     transforms: InputOutputDMBTransform
+
+    sample_ids: list[str] = field(init=False)
+    sample_id_paths: list[Path] = field(init=False)
 
     def __attrs_post_init__(self) -> None:
         samples_dir_path = Path(self.dataset_dir_path) / "samples"

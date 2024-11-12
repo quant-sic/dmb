@@ -34,8 +34,8 @@ def reshape_if_not_none(results: dict[str, np.ndarray] | None, attribute: str,
     if np.prod(attribute_value_array.shape) == np.prod(shape):
         reshaped_array: np.ndarray = attribute_value_array.reshape(shape)
         return reshaped_array
-    else:
-        return attribute_value_array
+
+    return attribute_value_array
 
 
 def ulli_wolff_mc_error_analysis(
@@ -279,12 +279,13 @@ class SimulationObservables:
             expectation_value: np.ndarray | None = self.primary_observables[
                 name].expectation_value(self.output)
             return expectation_value
-        elif observable_type == "derived":
+
+        if observable_type == "derived":
             expectation_value = self.derived_observables[name].expectation_value(
                 self.output)
             return expectation_value
-        else:
-            raise ValueError(f"Invalid observable type: {observable_type}")
+
+        raise ValueError(f"Invalid observable type: {observable_type}")
 
     def get_error_analysis(
         self,
@@ -292,17 +293,19 @@ class SimulationObservables:
         name: str,
     ) -> dict[str, np.ndarray | None]:
         """Return the error of the observable with the given name."""
+
         if observable_type == "primary":
             return self.primary_observables[name].error_analysis(self.output)
-        elif observable_type == "derived":
+
+        if observable_type == "derived":
             return self.derived_observables[name].error_analysis(self.output)
-        else:
-            raise ValueError(f"Invalid observable type: {observable_type}")
+
+        raise ValueError(f"Invalid observable type: {observable_type}")
 
     def __contains__(self, key: str) -> bool:
         """Return whether the observable with the given key is present."""
-        return key in itertools.chain(self.primary_observables.keys(),
-                                      self.derived_observables.keys())
+        return key in itertools.chain(self.primary_observables,
+                                      self.derived_observables)
 
 
 # sample_function = None
@@ -311,18 +314,24 @@ SimulationObservables.register_primary("density")(sample_function=None)
 
 @SimulationObservables.register_primary("density_density_corr_0")
 def get_density_density_corr_0(samples: np.ndarray) -> np.ndarray:
+    """Return density-density correlation with shift (1, 0)."""
+
     density_corr_0: np.ndarray = np.roll(samples, axis=-2, shift=1) * samples
     return density_corr_0
 
 
 @SimulationObservables.register_primary("density_density_corr_1")
 def get_density_density_corr_1(samples: np.ndarray) -> np.ndarray:
+    """Return density-density correlation with shift (0, 1)."""
+
     density_corr_1: np.ndarray = np.roll(samples, axis=-1, shift=1) * samples
     return density_corr_1
 
 
 @SimulationObservables.register_primary("density_density_corr_2")
 def get_density_density_corr_2(samples: np.ndarray) -> np.ndarray:
+    """Return density-density correlation with shift (1, 1)."""
+
     density_corr_2: np.ndarray = np.roll(
         np.roll(samples, axis=-2, shift=1), axis=2, shift=1) * samples
     return density_corr_2
@@ -330,6 +339,8 @@ def get_density_density_corr_2(samples: np.ndarray) -> np.ndarray:
 
 @SimulationObservables.register_primary("density_density_corr_3")
 def get_density_density_corr_3(samples: np.ndarray) -> np.ndarray:
+    """Return density-density correlation with shift (1, -1)."""
+
     density_corr_3: np.ndarray = np.roll(
         np.roll(samples, axis=-2, shift=-1), axis=-1, shift=1) * samples
     return density_corr_3
@@ -337,23 +348,31 @@ def get_density_density_corr_3(samples: np.ndarray) -> np.ndarray:
 
 @SimulationObservables.register_primary("density_squared")
 def get_density_squared(samples: np.ndarray) -> np.ndarray:
+    """Return the square of the observable along the last two dimensions."""
+
     samples_squared: np.ndarray = samples**2
     return samples_squared
 
 
 @SimulationObservables.register_primary("density_max")
 def get_density_max(samples: np.ndarray) -> np.ndarray:
-    max: np.ndarray = samples.max(axis=(-1, -2))
-    return max
+    """Return the maximum of the observable along the last two dimensions."""
+
+    _max: np.ndarray = samples.max(axis=(-1, -2))
+    return _max
 
 
 @SimulationObservables.register_primary("density_min")
 def get_density_min(samples: np.ndarray) -> np.ndarray:
-    min: np.ndarray = samples.min(axis=(-1, -2))
-    return min
+    """Return the minimum of the observable along the last two dimensions."""
+
+    _min: np.ndarray = samples.min(axis=(-1, -2))
+    return _min
 
 
 @SimulationObservables.register_primary("density_variance")
 def get_variance(samples: np.ndarray) -> np.ndarray:
+    """Return the variance of the observable along the last two dimensions."""
+
     var: np.ndarray = samples.var(axis=(-1, -2))
     return var

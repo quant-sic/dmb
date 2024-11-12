@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-import torch
 from attrs import define
 
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
@@ -21,11 +20,15 @@ class BoseHubbard2dDataset(DMBDataset):
     transforms: BoseHubbard2dTransforms
 
     def get_metadata(self, idx: int) -> dict:
-        with open(self.sample_id_paths[idx] / "metadata.json", "r") as f:
+        """Get the metadata for a sample."""
+
+        with open(self.sample_id_paths[idx] / "metadata.json", "r",
+                  encoding='utf-8') as f:
             metadata: dict = json.load(f)
         return metadata
 
     def get_phase_diagram_position(self, idx: int) -> tuple[float, float, float]:
+        """Get the phase diagram position for a sample."""
 
         metadata = self.get_metadata(idx)
 
@@ -45,6 +48,8 @@ class BoseHubbard2dDataset(DMBDataset):
         muU_tol: float = 0.01,
         zVU_tol: float = 0.01,
     ) -> bool:
+        """Check if a phase diagram sample exists in the dataset."""
+
         for idx in range(len(self)):
             zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
 
@@ -67,6 +72,8 @@ class BoseHubbard2dDataset(DMBDataset):
         muU_tol: float = 0.01,
         zVU_tol: float = 0.01,
     ) -> DMBData | None:
+        """Get a phase diagram sample from the dataset."""
+
         for idx, _ in enumerate(iter(self)):
             zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
             metadata = self.get_metadata(idx)

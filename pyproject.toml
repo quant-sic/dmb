@@ -85,23 +85,33 @@ warn_return_any = true
 warn_unreachable = true
 
 [tool.pylint.BASIC]
-good-names = "logger,pytestmark"
-argument-rgx = "[a-z_][a-z0-9_]{0,40}$"
-variable-rgx = "[a-z_][a-z0-9_]{0,40}$"
-attr-rgx = "[a-z_][a-z0-9_]{0,40}$"
+good-names = [
+  "logger",
+  "pytestmark"
+]
+argument-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+variable-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+attr-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
 
 [tool.pylint.FORMAT]
 max-line-length = 88
 
 [tool.pylint.DESIGN]
-max-args = 10
-max-attributes = 10
-max-locals = 20
+max-args = 15
+max-attributes = 15
+max-locals = 30
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [
   "too-few-public-methods",
-  "too-many-lines"
+  "too-many-lines",
+  "W1203",
+  "R0801",
+  "W0221", # torchmetrics and lightning are intended to violate this rule
+  "too-many-positional-arguments",
+  "too-many-arguments",
+  "abstract-class-instantiated", # pylint does not play well with attrs define
+  "consider-using-f-string",
 ]
 
 [tool.yapf]

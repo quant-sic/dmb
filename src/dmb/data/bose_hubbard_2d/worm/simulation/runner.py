@@ -1,3 +1,5 @@
+"""Module for running worm simulation."""
+
 import asyncio
 import time
 from typing import Any, Callable
@@ -276,10 +278,8 @@ class WormSimulationRunner:
             tau_max_values = get_tau_max_values_from_simulation_record(
                 tune_simulation.record["steps"])
 
-            if tau_max_values[-1] is not None and tau_max_values[-1] <= tau_threshold:
-                return True
-            else:
-                return False
+            return bool(tau_max_values[-1] is not None
+                        and tau_max_values[-1] <= tau_threshold)
 
         nmeasure2_values = get_tune_nmeasure2_values(
             min_nmeasure2=min_nmeasure2,
@@ -337,15 +337,15 @@ class WormSimulationRunner:
 
             if tune_simulation.max_tau_int is not None:
                 # get biggest smaller 2**x value - 2,
-                # at most min(5,len(nmeasure2_values)/3, remaining steps-1)
+                # at most min(3,len(nmeasure2_values)/3, remaining steps-1)
                 skip_next_counter = min(
-                    min(3,
-                        len(nmeasure2_values) // 4,
-                        len(nmeasure2_values) - idx - 2),
+                    3,
+                    len(nmeasure2_values) // 4,
+                    len(nmeasure2_values) - idx - 2,
                     int(
                         np.emath.logn(step_size_multiplication_factor,
-                                      tune_simulation.max_tau_int)) - 2,
-                )
+                                      tune_simulation.max_tau_int)) - 2)
+
                 tune_simulation.file_logger.info(
                     f"Skipping next {skip_next_counter} steps.\n\n")
 

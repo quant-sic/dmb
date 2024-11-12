@@ -1,3 +1,5 @@
-from .dispatchers import AutoDispatcher, Dispatcher, ReturnCode
+"""Job dispatching module for the DMB."""
 
-__all__ = ["AutoDispatcher", "Dispatcher", "ReturnCode"]
+from .dispatchers import Dispatcher, ReturnCode, auto_create_dispatcher
+
+__all__ = ["auto_create_dispatcher", "Dispatcher", "ReturnCode"]

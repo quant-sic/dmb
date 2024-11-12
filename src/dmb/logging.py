@@ -1,3 +1,5 @@
+"""Logging functionality."""
+
 import logging
 from pathlib import Path
 
@@ -28,7 +30,7 @@ def create_logger(app_name: str,
     >>> import logging
     >>> logger=create_logger(__name__,logging.DEBUG)
     """
-    logFormatter = logging.Formatter(
+    log_formatter = logging.Formatter(
         "%(asctime)s [%(filename)s] [%(funcName)s] [%(levelname)s] "
         "[%(lineno)d] %(message)s")
 
@@ -37,21 +39,21 @@ def create_logger(app_name: str,
     logger.setLevel(level)
 
     # create console handler and set level
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
-    ch.setFormatter(logFormatter)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(log_formatter)
 
     # add file handler
     if file is not None:
-        fh = logging.FileHandler(file)
-        fh.setLevel(level)
-        fh.setFormatter(logFormatter)
-        logger.addHandler(fh)
+        file_handler = logging.FileHandler(file)
+        file_handler.setLevel(level)
+        file_handler.setFormatter(log_formatter)
+        logger.addHandler(file_handler)
 
     # if number of stream handlers is 0, add console handler
     if (len(
             list(filter(lambda x: isinstance(x, logging.StreamHandler),
                         logger.handlers))) == 0):
-        logger.addHandler(ch)
+        logger.addHandler(console_handler)
 
     return logger

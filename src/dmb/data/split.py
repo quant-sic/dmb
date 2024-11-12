@@ -6,7 +6,6 @@ import json
 import random
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Sized, cast
 
 import numpy as np
 from attrs import define
@@ -27,7 +26,8 @@ class IdDatasetSplitStrategy(metaclass=ABCMeta):
 
 
 class AllIdsEqualSplitStrategy(IdDatasetSplitStrategy):
-    """A strategy for splitting a dataset into multiple subsets where all IDs are equal."""
+    """A strategy for splitting a dataset into multiple subsets,
+        where all IDs are equal."""
 
     def split(self,
               dataset: IdDataset,
@@ -118,7 +118,7 @@ class Split:
     @classmethod
     def from_file(cls, file_path: Path) -> Split:
         """Load a split from a file."""
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             split_ids = json.load(f)
 
         return cls(split_ids=split_ids)
@@ -126,5 +126,5 @@ class Split:
     def to_file(self, file_path: Path) -> None:
         """Save a split to a file."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.split_ids, f)

@@ -28,6 +28,7 @@ log = create_logger(__name__)
 
 
 class WormSimulationInterface(metaclass=abc.ABCMeta):
+    """Interface for the worm simulation."""
 
     @property
     @abc.abstractmethod
@@ -109,9 +110,8 @@ class WormSimulationInterface(metaclass=abc.ABCMeta):
         """Return True if the simulation is valid."""
 
     @abc.abstractmethod
-    def plot_observables(
-            self,
-            observable_names: dict[str, list[str]] = {"primary": ["density"]}) -> None:
+    def plot_observables(self,
+                         observable_names: dict[str, list[str]] | None = None) -> None:
         """Plot the observables of the worm simulation."""
 
     @abc.abstractmethod
@@ -187,6 +187,18 @@ class WormSimulation(WormSimulationInterface):
         dispatcher: Dispatcher | None = None,
         executable: Path | None = None,
     ) -> WormSimulation:
+        """Create a worm simulation from a directory.
+
+        Args:
+            dir_path: Path to the directory containing the simulation data.
+            dispatcher: Dispatcher instance to run the worm simulation.
+                Defaults to None.
+            executable: Path to the worm executable.
+                Defaults to None.
+
+        Returns:
+            WormSimulation: Worm simulation instance.
+        """
         input_parameters = WormInputParameters.from_dir(save_dir_path=dir_path)
         return cls(
             input_parameters=input_parameters,
@@ -197,16 +209,22 @@ class WormSimulation(WormSimulationInterface):
 
     @staticmethod
     def get_tune_dir_path(save_dir: Path) -> Path:
+        """Return the path to the tune directory."""
+
         return save_dir / "tune"
 
     @staticmethod
     def get_plot_dir_path(save_dir: Path) -> Path:
+        """Return the path to the plot directory."""
+
         plot_dir = save_dir / "plots"
         plot_dir.mkdir(parents=True, exist_ok=True)
         return plot_dir
 
     @property
     def tune_simulation(self) -> WormSimulation:
+        """Return the tune simulation."""
+
         tune_dir = self.get_tune_dir_path(save_dir=self.save_dir)
         tune_dir.mkdir(parents=True, exist_ok=True)
 
@@ -226,9 +244,13 @@ class WormSimulation(WormSimulationInterface):
         return tune_simulation
 
     def save_parameters(self) -> None:
+        """Save the input parameters of the worm simulation."""
+
         self.input_parameters.save(save_dir=self.save_dir)
 
     def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int) -> None:
+        """Set the extension sweeps in the checkpoint files."""
+
         checkpoint_path = self.input_parameters.get_checkpoint_path(self.save_dir)
         for checkpoint_file in checkpoint_path.parent.glob(f"{checkpoint_path.name}*"):
             with h5py.File(checkpoint_file, "r+") as f:
@@ -238,6 +260,8 @@ class WormSimulation(WormSimulationInterface):
                     f["parameters/extension_sweeps"] = extension_sweeps
 
     def get_extension_sweeps_from_checkpoints(self) -> int | None:
+        """Get the extension sweeps from the checkpoint files."""
+
         extension_sweeps = None
         checkpoint_path = self.input_parameters.get_checkpoint_path(self.save_dir)
         for checkpoint_file in checkpoint_path.parent.glob(f"{checkpoint_path.name}*"):
@@ -310,8 +334,8 @@ class WormSimulation(WormSimulationInterface):
         tau_int = self.observables.get_error_analysis("primary", "density")["tau_int"]
         if tau_int is not None and not np.isnan(tau_int).all():
             return float(np.nanmax(tau_int))
-        else:
-            return None
+
+        return None
 
     @property
     def uncorrected_max_density_error(self) -> float | None:
@@ -319,31 +343,32 @@ class WormSimulation(WormSimulationInterface):
                                                           "density")["naive_error"]
         if naive_error is not None and not np.isnan(naive_error).all():
             return float(np.nanmax(naive_error))
-        else:
-            return None
+
+        return None
 
     @property
     def max_density_error(self) -> float | None:
         error = self.observables.get_error_analysis("primary", "density")["error"]
         if error is not None and not np.isnan(error).all():
             return float(np.nanmax(error))
-        else:
-            return None
+
+        return None
 
     @property
     def valid(self) -> bool:
         return self.max_density_error is not None
 
-    def plot_observables(
-            self,
-            observable_names: dict[str, list[str]] = {"primary": ["density"]}) -> None:
+    def plot_observables(self,
+                         observable_names: dict[str, list[str]] | None = None) -> None:
         """
         Plot the results of the worm calculation.
         """
+        if observable_names is None:
+            observable_names = {"primary": ["density"]}
 
         inputs = self.input_parameters.mu
 
-        for obs_type, obs_names in observable_names.items():
+        for _, obs_names in observable_names.items():
             for obs in obs_names:
 
                 fig, ax = plt.subplots(1, 3, figsize=(12, 4))
@@ -356,15 +381,15 @@ class WormSimulation(WormSimulationInterface):
                     if expectation_value.ndim == 2:
                         value_plot = ax[0].imshow(expectation_value)
 
-                    ax[0].set_title(obs)
-                    fig.colorbar(value_plot, ax=ax[0])
+                        ax[0].set_title(obs)
+                        fig.colorbar(value_plot, ax=ax[0])
 
                 if (error := error_analysis["error"]) is not None:
                     if error.ndim == 2:
                         error_plot = ax[1].imshow(error)
 
-                    ax[1].set_title("Error")
-                    fig.colorbar(error_plot, ax=ax[1])
+                        ax[1].set_title("Error")
+                        fig.colorbar(error_plot, ax=ax[1])
 
                 chem_pot_plot = ax[2].imshow(
                     inputs.reshape(self.input_parameters.Lx, self.input_parameters.Ly))

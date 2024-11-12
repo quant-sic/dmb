@@ -1,3 +1,5 @@
+"""Constraints for the model output."""
+
 import torch
 
 

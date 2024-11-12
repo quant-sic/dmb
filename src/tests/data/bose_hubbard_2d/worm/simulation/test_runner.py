@@ -120,9 +120,8 @@ class FakeWormSimulation(WormSimulationInterface):
     def set_extension_sweeps_in_checkpoints(self, extension_sweeps: int) -> None:
         pass
 
-    def plot_observables(
-            self,
-            observable_names: dict[str, list[str]] = {"primary": ["density"]}) -> None:
+    def plot_observables(self,
+                         observable_names: dict[str, list[str]] | None = None) -> None:
         self.plots_calls.append("plot_observables")
 
     @cached_property

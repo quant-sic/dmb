@@ -1,3 +1,5 @@
+"""Module for generating network input for the Bose-Hubbard 2D model."""
+
 import math
 
 import numpy as np
@@ -12,7 +14,8 @@ __all__ = [
 
 
 def get_ckeckerboard_projection(target_density: torch.Tensor) -> torch.Tensor:
-    """Determines and returns the checkerboard version (out of two possible) that has the largest correlation with the input mu.
+    """Determines and returns the checkerboard version (out of two possible)
+    that has the largest correlation with the input mu.
 
     Args:
         target_density: Target density.
@@ -45,10 +48,11 @@ def get_ckeckerboard_projection(target_density: torch.Tensor) -> torch.Tensor:
 
     if corr_1 > corr_2:
         return cb_1
-    else:
-        return cb_2
+
+    return cb_2
 
 
+# pylint: disable=too-many-branches
 def get_nn_input(
     mu: torch.Tensor | np.ndarray,
     U_on: torch.Tensor | np.ndarray | float,
@@ -56,6 +60,18 @@ def get_nn_input(
     cb_projection: bool = True,
     target_density: torch.Tensor | np.ndarray | None = None,
 ) -> torch.Tensor:
+    """Get network input for the Bose-Hubbard 2D model.
+
+    Args:
+        mu: Chemical potential.
+        U_on: On-site interaction.
+        V_nn: Nearest-neighbor interaction.
+        cb_projection: Whether to use checkerboard projection.
+        target_density: Target density.
+
+    Returns:
+        Network input.
+    """
     # convert to torch.Tensor if necessary
     if isinstance(mu, np.ndarray):
         mu = torch.from_numpy(mu).float()
@@ -129,6 +145,19 @@ def get_nn_input_dimless_const_parameters(
     cb_projection: bool = True,
     target_density: torch.Tensor | np.ndarray | None = None,
 ) -> torch.Tensor:
+    """Get network input for the Bose-Hubbard 2D model with dimensionless
+    parameters.
+
+    Args:
+        muU: Chemical potential.
+        ztU: Dimensionless on-site interaction.
+        zVU: Dimensionless nearest-neighbor interaction.
+        cb_projection: Whether to use checkerboard projection.
+        target_density: Target density.
+
+    Returns:
+        Network input.
+    """
     # convert to torch.Tensor if necessary
     if isinstance(muU, np.ndarray):
         muU = torch.from_numpy(muU).float()

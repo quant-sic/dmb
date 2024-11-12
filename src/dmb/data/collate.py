@@ -1,3 +1,5 @@
+"""Collate functionality for data loading."""
+
 from typing import TypedDict
 
 import numpy as np

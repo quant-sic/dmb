@@ -1,7 +1,9 @@
+"""LightningDataModule for BoseHubbard2dDataset."""
+
 from typing import Callable
 
 import lightning.pytorch as pl
-from attrs import define
+from attrs import define, field
 from torch.utils.data import DataLoader, Subset
 
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
@@ -15,6 +17,7 @@ log = create_logger(__name__)
 
 @define(hash=False, eq=False)
 class BoseHubbard2dDataModule(pl.LightningDataModule):
+    """LightningDataModule for BoseHubbard2dDataset."""
 
     dataset: BoseHubbard2dDataset
     split: Split
@@ -22,13 +25,14 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
     num_workers: int
     pin_memory: bool
 
+    stage_subsets: dict[str, Subset[BoseHubbard2dDataset]] = field(init=False)
+
     def __attrs_pre_init__(self) -> None:
         super().__init__()
 
-    def __attrs_post_init__(self) -> None:
-        self.stage_subsets: dict[str, Subset[BoseHubbard2dDataset]]
-
     def get_collate_fn(self) -> Callable:
+        """Get the collate function for the dataset."""
+
         collate_fns: list[Callable] = [collate_sizes]
 
         return chain_fns(collate_fns)

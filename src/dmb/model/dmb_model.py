@@ -42,6 +42,7 @@ class DMBModel(nn.Module):
     def forward(
             self,
             x: torch.Tensor | list[torch.Tensor]) -> torch.Tensor | list[torch.Tensor]:
+        """Compute forward pass."""
         if isinstance(x, (tuple, list)):
             out: list[torch.Tensor] | torch.Tensor = [
                 self.forward_single_size(_x) for _x in x

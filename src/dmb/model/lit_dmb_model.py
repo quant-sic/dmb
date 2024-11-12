@@ -1,3 +1,4 @@
+"""Lightning module for DMB models."""
 from __future__ import annotations
 
 import functools
@@ -25,6 +26,7 @@ log = create_logger(__name__)
 
 @define(hash=False, eq=False)
 class LitDMBModel(pl.LightningModule):
+    """Lightning module for DMB models."""
 
     model: torch.nn.Module
     optimizer: functools.partial[Optimizer]
@@ -84,7 +86,10 @@ class LitDMBModel(pl.LightningModule):
                           model_out: torch.Tensor) -> None:
         self.metrics.update(preds=model_out, target=batch["outputs"])
 
-    def training_step(self, batch: MultipleSizesBatch, batch_idx: int) -> torch.Tensor:
+    def training_step(
+        self,
+        batch: MultipleSizesBatch,
+    ) -> torch.Tensor:
         model_out, loss = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
@@ -101,7 +106,7 @@ class LitDMBModel(pl.LightningModule):
 
         return loss
 
-    def validation_step(self, batch: MultipleSizesBatch, batch_idx: int) -> None:
+    def validation_step(self, batch: MultipleSizesBatch) -> None:
         model_out, loss = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
@@ -116,7 +121,7 @@ class LitDMBModel(pl.LightningModule):
             batch_size=batch_size,
         )
 
-    def test_step(self, batch: MultipleSizesBatch, batch_idx: int) -> None:
+    def test_step(self, batch: MultipleSizesBatch) -> None:
         model_out, loss = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 

@@ -1,3 +1,5 @@
+"""Loss functions for training DMB models."""
+
 from __future__ import annotations
 
 from typing import Any, Literal, cast
@@ -10,22 +12,34 @@ log = create_logger(__name__)
 
 
 class MSELoss(torch.nn.Module):
+    """Mean Squared Error loss function."""
 
     def __init__(
         self,
-        reduction: Literal["mean"] | None = "mean",
         *args: Any,
+        reduction: Literal["mean"] | None = "mean",
         **kwargs: Any,
     ) -> None:
+        """Initialize the loss function.
+
+        Args:
+            reduction (Literal["mean"], optional): The reduction method.
+                Defaults to "mean".
+        """
         super().__init__()
 
         self.reduction = reduction
 
-    def forward_impl(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    def forward_single_size(self, y_pred: torch.Tensor,
+                            y_true: torch.Tensor) -> torch.Tensor:
+        """Calculate the loss for a single size."""
+
         loss = (y_true - y_pred.view(*y_true.shape))**2
 
         if self.reduction == "mean":
             loss_out = torch.mean(loss)
+        else:
+            raise ValueError(f"Reduction {self.reduction} not supported.")
 
         return loss_out
 
@@ -34,6 +48,8 @@ class MSELoss(torch.nn.Module):
         y_pred: list[torch.Tensor] | torch.Tensor,
         y_true: list[torch.Tensor] | torch.Tensor,
     ) -> torch.Tensor:
+        """Calculate the loss for the predicted and true values."""
+
         if isinstance(y_pred, torch.Tensor) and isinstance(y_true, torch.Tensor):
             y_pred = [y_pred]
             y_true = [y_true]
@@ -47,7 +63,7 @@ class MSELoss(torch.nn.Module):
         loss: torch.Tensor = cast(
             torch.Tensor,
             sum(
-                self.forward_impl(y_pred_, y_true_)
+                self.forward_single_size(y_pred_, y_true_)
                 for y_pred_, y_true_ in zip(y_pred, y_true)),
         )
 
@@ -55,11 +71,12 @@ class MSELoss(torch.nn.Module):
 
 
 class MSLELoss(torch.nn.Module):
+    """Mean Squared Logarithmic Error loss function."""
 
     def __init__(
         self,
-        reduction: Literal["mean"] = "mean",
         *args: Any,
+        reduction: Literal["mean"] = "mean",
         **kwargs: Any,
     ) -> None:
         super().__init__()
@@ -81,6 +98,8 @@ class MSLELoss(torch.nn.Module):
 
         if self.reduction == "mean":
             loss_out: torch.Tensor = sum(loss[valid_mask]) / torch.sum(valid_mask)
+        else:
+            raise ValueError(f"Reduction {self.reduction} not supported.")
 
         return loss_out
 
@@ -89,6 +108,8 @@ class MSLELoss(torch.nn.Module):
         y_pred: list[torch.Tensor] | torch.Tensor,
         y_true: list[torch.Tensor] | torch.Tensor,
     ) -> torch.Tensor:
+        """Calculate the loss for the predicted and true values."""
+
         if isinstance(y_pred, torch.Tensor) and isinstance(y_true, torch.Tensor):
             y_pred = [y_pred]
             y_true = [y_true]

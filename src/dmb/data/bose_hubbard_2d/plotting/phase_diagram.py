@@ -1,7 +1,7 @@
 """Plotting functions for the phase diagram of the Bose-Hubbard model in 2D."""
 
 from collections import defaultdict
-from typing import Callable, Generator
+from typing import Generator
 
 import matplotlib.pyplot as plt
 import numpy as np
