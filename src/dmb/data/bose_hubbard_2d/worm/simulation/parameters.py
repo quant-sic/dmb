@@ -4,7 +4,6 @@ from __future__ import annotations
 
 __all__ = ["WormInputParameters"]
 
-from ast import literal_eval
 from pathlib import Path
 from typing import Any
 
@@ -128,7 +127,7 @@ class WormInputParameters:
                             raise ValueError(
                                 f"Inconsistent attribute {key} in {cls.__name__}")
 
-                        value = literal_eval(attributes[key])(value)  # type: ignore
+                        value = eval(attributes[key])(value)  # type: ignore # pylint: disable=eval-used
 
                     # add to dictionary
                     params[key] = value
@@ -179,7 +178,7 @@ class WormInputParameters:
 
             for attribute in self.__attrs_attrs__:
                 if not (attribute.name in ("mu", "t_hop", "U_on", "V_nn")
-                        and literal_eval(attribute.type) is np.ndarray):  # type: ignore
+                        and eval(attribute.type) is np.ndarray):  # type: ignore # pylint: disable=eval-used
                     f.write(f"{attribute.name} = {getattr(self,attribute.name)}\n")
 
     def save(self, save_dir: Path) -> None:
