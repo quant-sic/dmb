@@ -116,8 +116,8 @@ class BoseHubbard2dDataset(DMBDataset):
 
     sample_filter_strategy: SampleFilterStrategy = field(
         factory=lambda: BoseHubbard2dSampleFilterStrategy(
-            ztU_range=(-0.05, 1.0),
-            muU_range=(0.05, 3.0),
+            ztU_range=(0.05, 1.0),
+            muU_range=(-0.05, 3.0),
             zVU_range=(0.75, 1.75),
             L_range=(2, 20),
             max_density_error=0.015,
