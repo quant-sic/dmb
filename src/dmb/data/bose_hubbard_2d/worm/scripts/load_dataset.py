@@ -1,13 +1,12 @@
 """Load simulation data from a directory containing simulation directories and
 save it to a dataset directory."""
 
-import itertools
 import json
-import shutil
 from pathlib import Path
 
 import numpy as np
 import torch
+from attrs import frozen
 from tqdm import tqdm
 from typer import Typer
 
@@ -17,123 +16,91 @@ from dmb.logging import create_logger
 
 log = create_logger(__name__)
 
-
-def get_simulation_valid(
-    simulation_dir: Path,
-    redo: bool = False,
-) -> bool:
-    """Check if a simulation directory is valid."""
-
-    try:
-        sim = WormSimulation.from_dir(simulation_dir)
-    except (OSError, KeyError, ValueError):
-        log.error(f"Could not load simulation from {simulation_dir}")
-        return False
-
-    if "clean" in sim.record and not sim.record["clean"] and not redo:
-        return False
-
-    if "clean" in sim.record and sim.record["clean"] and not redo:
-        return True
-
-    valid = sim.valid
-
-    # general purpose validation
-    sim.record["clean"] = valid
-
-    return valid
+app = Typer()
 
 
-def filter_by_error(
-    sim_dir: Path,
-    max_density_error: float,
-    recalculate_errors: bool = False,
-) -> bool:
-    """Filter a simulation directory by error."""
+@frozen
+class FilterStrategy:
+    """A strategy for filtering simulation directories."""
 
-    try:
-        simulation = WormSimulation.from_dir(sim_dir)
-    except (OSError, KeyError, ValueError):
-        log.error(f"Could not load simulation from {sim_dir}")
-        return False
+    clean: bool
+    max_density_error: float | None
+    recalculate_errors: bool
+    reevaluate: bool
 
-    try:
+    @staticmethod
+    def _get_simulation_valid(sim_dir: Path, reevaluate: bool) -> bool:
+        """Check if a simulation directory is valid."""
 
-        if len(simulation.record["steps"]) == 0:
-            simulation.record["steps"] = [{"error": None, "tau_max": None}]
+        try:
+            sim = WormSimulation.from_dir(sim_dir)
+        except (OSError, KeyError, ValueError):
+            log.error(f"Could not load simulation from {sim_dir}")
+            return False
 
-        error_key = ("error" if "error" in simulation.record["steps"][-1] else
-                     "max_density_error")
+        if "clean" in sim.record and not sim.record["clean"] and not reevaluate:
+            return False
 
-        if recalculate_errors:
-            log.info(f"Recalculating errors for {simulation.save_dir}")
+        if "clean" in sim.record and sim.record["clean"] and not reevaluate:
+            return True
 
-            simulation.record["steps"][-1][error_key] = simulation.max_density_error
-            simulation.record["steps"][-1]["tau_max"] = simulation.max_tau_int
+        valid = sim.valid
 
-        result: bool = (simulation.record["steps"][-1][error_key] <= max_density_error
-                        ) and (simulation.record["steps"][-1]["tau_max"] > 0)
-        return result
+        # general purpose validation
+        sim.record["clean"] = valid
 
-    except (IndexError, TypeError, KeyError) as e:
-        log.error(f"Error {e} During error filtering for {simulation}")
-        return False
+        return valid
 
+    @staticmethod
+    def _filter_by_error(sim_dir: Path, max_density_error: float,
+                         recalculate_errors: bool) -> bool:
+        """Filter a simulation directory by error."""
 
-def clean_sim_dirs(
-    sim_dirs: list[Path],
-    redo: bool = False,
-    max_density_error: float | None = None,
-    recalculate_errors: bool = False,
-    delete_unreadable: bool = False,
-) -> list[Path]:
-    """Clean simulation directories by checking if they are valid and filtering
-    by error.
+        try:
+            simulation = WormSimulation.from_dir(sim_dir)
+        except (OSError, KeyError, ValueError):
+            log.error(f"Could not load simulation from {sim_dir}")
+            return False
 
-    Args:
-        sim_dirs: List of simulation directories.
-        redo: Redo the cleaning process.
-        max_density_error: Maximum density error to include in the dataset.
-            If None, no filtering is done.
-        recalculate_errors: Recalculate the errors for the simulations.
-        delete_unreadable: Delete unreadable simulation directories.
-    
-    Returns:
-        List of valid simulation directories.
-    """
+        try:
 
-    valid_sim_dirs = [
-        get_simulation_valid(
-            sim_dir,
-            redo=redo,
-        ) for sim_dir in sim_dirs
-    ]
+            if len(simulation.record["steps"]) == 0:
+                simulation.record["steps"] = [{"error": None, "tau_max": None}]
 
-    if delete_unreadable:
-        for sim_dir, valid in zip(sim_dirs, valid_sim_dirs):
-            if not valid:
-                log.info(f"Deleting {sim_dir}")
-                shutil.rmtree(sim_dir)
+            error_key = ("error" if "error" in simulation.record["steps"][-1] else
+                         "max_density_error")
 
-    sim_dirs = list(itertools.compress(
-        sim_dirs,
-        valid_sim_dirs,
-    ))
+            if recalculate_errors:
+                log.info(f"Recalculating errors for {simulation.save_dir}")
 
-    if max_density_error is not None:
-        sim_dirs = list(
-            itertools.compress(
-                sim_dirs,
-                [
-                    filter_by_error(
-                        sim_dir,
-                        max_density_error=max_density_error,
-                        recalculate_errors=recalculate_errors,
-                    ) for sim_dir in sim_dirs
-                ],
-            ))
+                simulation.record["steps"][-1][error_key] = simulation.max_density_error
+                simulation.record["steps"][-1]["tau_max"] = simulation.max_tau_int
 
-    return sim_dirs
+            result: bool = (simulation.record["steps"][-1][error_key]
+                            <= max_density_error) and (
+                                simulation.record["steps"][-1]["tau_max"] > 0)
+            return result
+
+        except (IndexError, TypeError, KeyError) as e:
+            log.error(f"Error {e} During error filtering for {simulation}")
+            return False
+
+    def filter(self, sim_dir: Path) -> bool:
+        """Filter a simulation directory."""
+
+        filter_result = True
+
+        if self.clean:
+            filter_result &= self._get_simulation_valid(sim_dir,
+                                                        reevaluate=self.reevaluate)
+
+        if self.max_density_error is not None:
+            filter_result &= self._filter_by_error(
+                sim_dir,
+                max_density_error=self.max_density_error,
+                recalculate_errors=self.recalculate_errors)
+
+        return filter_result
 
 
 def load_sample(simulation_dir: Path,
@@ -147,8 +114,12 @@ def load_sample(simulation_dir: Path,
     try:
         sim = WormSimulation.from_dir(simulation_dir)
         saved_observables = sim.record["saved_observables"]
+
     except:  # pylint: disable=bare-except # noqa: E722
         reload = True
+    else:
+        if not set(saved_observables) == set(observables):
+            reload = True
 
     if not inputs_path.exists() or not outputs_path.exists() or reload:
         sim = WormSimulation.from_dir(simulation_dir)
@@ -210,9 +181,6 @@ def load_sample(simulation_dir: Path,
     }
 
     return inputs, outputs, metadata
-
-
-app = Typer()
 
 
 @app.command()
@@ -282,24 +250,16 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
 
     log.info(f"Found {len(all_simulation_directories)} simulation directories.")
 
-    if clean:
-        clean_simulation_directories = clean_sim_dirs(
-            all_simulation_directories,
-            redo=reload,
-            max_density_error=max_density_error,
-            recalculate_errors=recalculate_errors,
-            delete_unreadable=delete_unreadable,
-        )
-
-    else:
-        clean_simulation_directories = all_simulation_directories
-
-    log.info(f"Found {len(clean_simulation_directories)} valid simulation directories.")
+    filter_strategy = FilterStrategy(clean=clean,
+                                     max_density_error=max_density_error,
+                                     recalculate_errors=recalculate_errors,
+                                     reevaluate=reload)
 
     samples_dir = dataset_save_path / "samples"
     samples_dir.mkdir(exist_ok=True, parents=True)
 
-    for sim_dir in tqdm(clean_simulation_directories):
+    for sim_dir in tqdm(filter(filter_strategy.filter, all_simulation_directories)):
+
         inputs, outputs, metadata = load_sample(sim_dir,
                                                 list(observables),
                                                 reload=reload)
@@ -320,36 +280,3 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
 
 if __name__ == "__main__":
     app()
-
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--simulations-dir",
-    #     type=Path,
-    #     required=True,
-    #     help="Path to the directory containing the simulation directories.",
-    # )
-    # parser.add_argument(
-    #     "--dataset-save-path",
-    #     type=Path,
-    #     required=True,
-    #     help="Path to the directory to save the dataset.",
-    # )
-    # parser.add_argument(
-    #     "--max-density-error",
-    #     type=float
-    #     default=0.015,
-    #     help="Maximum density error to include in the dataset.",
-    # )
-    # parser.add_argument(
-    #     "--include-tune-dirs",
-    #     action="store_true",
-    #     help="Include the tune directories in the dataset.",
-    # )
-    # args = parser.parse_args()
-
-    # load_dataset_simulations(
-    #     simulations_dir=args.simulations_dir,
-    #     dataset_save_path=args.dataset_save_path,
-    #     include_tune_dirs=args.include_tune_dirs,
-    #     max_density_error=args.max_density_error,
-    # )

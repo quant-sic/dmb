@@ -80,17 +80,16 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
     max_density_error: float
     allow_negative_mu_null_error: bool = False
 
-    @staticmethod
-    def _filter_error(metadata: dict[str, float]) -> bool:
+    def _filter_error(self, metadata: dict[str, float]) -> bool:
         """Filter samples based on the maximum density error."""
-        if metadata["max_density_error"] and metadata["max_density_error"] < self.max_density_error:
+        if metadata["max_density_error"] and metadata[
+                "max_density_error"] < self.max_density_error:
             return True
 
         if self.allow_negative_mu_null_error and metadata["mu"] < 0:
             return True
 
         return False
-
 
     def filter(self, sample: DMBSample) -> bool:
         """Return whether a sample should be included in the dataset."""
