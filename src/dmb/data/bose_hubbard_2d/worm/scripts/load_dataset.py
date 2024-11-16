@@ -1,7 +1,6 @@
 """Load simulation data from a directory containing simulation directories and
 save it to a dataset directory."""
 
-import argparse
 import itertools
 import json
 import shutil
@@ -10,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from tqdm import tqdm
+from typer import Typer
 
 from dmb.data.bose_hubbard_2d.nn_input import get_nn_input
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
@@ -94,6 +94,7 @@ def clean_sim_dirs(
         sim_dirs: List of simulation directories.
         redo: Redo the cleaning process.
         max_density_error: Maximum density error to include in the dataset.
+            If None, no filtering is done.
         recalculate_errors: Recalculate the errors for the simulations.
         delete_unreadable: Delete unreadable simulation directories.
     
@@ -211,16 +212,20 @@ def load_sample(simulation_dir: Path,
     return inputs, outputs, metadata
 
 
-def load_dataset_simulations(
+app = Typer()
+
+
+@app.command()
+def load_dataset_simulations(  # pylint: disable=dangerous-default-value
     simulations_dir: Path,
     dataset_save_path: Path,
     include_tune_dirs: bool = False,
     clean: bool = True,
-    reload: bool = True,
-    max_density_error: float = 0.015,
+    reload: bool = False,
+    max_density_error: float | None = None,
     recalculate_errors: bool = False,
     delete_unreadable: bool = False,
-    observables: tuple[str, ...] = (
+    observables: list[str] = [
         "density",
         "density_density_corr_0",
         "density_density_corr_1",
@@ -230,7 +235,7 @@ def load_dataset_simulations(
         "density_max",
         "density_min",
         "density_variance",
-    ),
+    ],
 ) -> None:
     """Load simulation data from a directory containing simulation directories
     and save it to a dataset directory.
@@ -247,6 +252,17 @@ def load_dataset_simulations(
         delete_unreadable: Delete unreadable simulation directories.
         observables: list of observables to include in the dataset.
     """
+    log.info("Loading dataset simulations with the following parameters:\n\n"
+             f"simulations_dir = {simulations_dir}\n"
+             f"dataset_save_path = {dataset_save_path}\n"
+             f"include_tune_dirs = {include_tune_dirs}\n"
+             f"clean = {clean}\n"
+             f"reload = {reload}\n"
+             f"max_density_error = {max_density_error}\n"
+             f"recalculate_errors = {recalculate_errors}\n"
+             f"delete_unreadable = {delete_unreadable}\n"
+             f"observables = {observables}\n")
+
     dataset_save_path.mkdir(exist_ok=True, parents=True)
     with open(dataset_save_path / "metadata.json", "w", encoding="utf-8") as f:
         json.dump(
@@ -303,36 +319,37 @@ def load_dataset_simulations(
 
 
 if __name__ == "__main__":
+    app()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--simulations-dir",
-        type=Path,
-        required=True,
-        help="Path to the directory containing the simulation directories.",
-    )
-    parser.add_argument(
-        "--dataset-save-path",
-        type=Path,
-        required=True,
-        help="Path to the directory to save the dataset.",
-    )
-    parser.add_argument(
-        "--max-density-error",
-        type=float,
-        default=0.015,
-        help="Maximum density error to include in the dataset.",
-    )
-    parser.add_argument(
-        "--include-tune-dirs",
-        action="store_true",
-        help="Include the tune directories in the dataset.",
-    )
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument(
+    #     "--simulations-dir",
+    #     type=Path,
+    #     required=True,
+    #     help="Path to the directory containing the simulation directories.",
+    # )
+    # parser.add_argument(
+    #     "--dataset-save-path",
+    #     type=Path,
+    #     required=True,
+    #     help="Path to the directory to save the dataset.",
+    # )
+    # parser.add_argument(
+    #     "--max-density-error",
+    #     type=float
+    #     default=0.015,
+    #     help="Maximum density error to include in the dataset.",
+    # )
+    # parser.add_argument(
+    #     "--include-tune-dirs",
+    #     action="store_true",
+    #     help="Include the tune directories in the dataset.",
+    # )
+    # args = parser.parse_args()
 
-    load_dataset_simulations(
-        simulations_dir=args.simulations_dir,
-        dataset_save_path=args.dataset_save_path,
-        include_tune_dirs=args.include_tune_dirs,
-        max_density_error=args.max_density_error,
-    )
+    # load_dataset_simulations(
+    #     simulations_dir=args.simulations_dir,
+    #     dataset_save_path=args.dataset_save_path,
+    #     include_tune_dirs=args.include_tune_dirs,
+    #     max_density_error=args.max_density_error,
+    # )

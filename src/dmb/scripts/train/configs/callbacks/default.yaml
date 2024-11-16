@@ -14,7 +14,7 @@ lr_monitor:
 
 plotting:
   _target_: dmb.scripts.train.callbacks.PlottingCallback
-  plot_interval: 250
+  plot_interval: 500
 
 progress_bar:
   _target_: lightning.pytorch.callbacks.TQDMProgressBar

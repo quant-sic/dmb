@@ -1,14 +1,16 @@
 """Dataset classes for DMB data."""
 
+import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Iterable, TypedDict
+from typing import Any, Iterable, TypedDict
 
 import torch
-from attrs import define, field
+from attrs import define, field, frozen
 from torch.utils.data import Dataset
 
-from dmb.data.transforms import InputOutputDMBTransform
+from dmb.data.transforms import DMBDatasetTransform, \
+    IdentityDMBDatasetTransform
 
 
 class DMBData(TypedDict):
@@ -35,6 +37,61 @@ class IdDataset(Dataset, ABC):
         """Return the indices of the samples with the given IDs."""
 
 
+@frozen
+class DMBSample:
+    """A sample in a DMB dataset.
+    
+    - The directory name is the sample ID.
+    - The directory contains the following files:
+        - 'inputs.pt': The input tensor.
+        - 'outputs.pt': The output tensor.
+        - 'metadata.json': The metadata dictionary.
+    """
+
+    id: str
+    sample_dir_path: Path
+
+    @property
+    def inputs(self) -> torch.Tensor:
+        """Return the inputs tensor."""
+        inputs: torch.Tensor = torch.load(self.sample_dir_path / "inputs.pt",
+                                          map_location=torch.device("cpu"),
+                                          weights_only=True)
+        return inputs
+
+    @property
+    def outputs(self) -> torch.Tensor:
+        """Return the outputs tensor."""
+        outputs: torch.Tensor = torch.load(self.sample_dir_path / "outputs.pt",
+                                           map_location=torch.device("cpu"),
+                                           weights_only=True)
+        return outputs
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Return the metadata dictionary."""
+        with open(self.sample_dir_path / "metadata.json", encoding='utf-8') as file:
+            metadata: dict = json.load(file)
+
+        return metadata
+
+
+class SampleFilterStrategy(ABC):
+    """Strategy for filtering samples."""
+
+    @abstractmethod
+    def filter(self, sample: DMBSample) -> bool:
+        """Return whether the sample should be included."""
+
+
+class UseAllSamplesFilterStrategy(SampleFilterStrategy):
+    """Strategy for using all samples."""
+
+    def filter(self, sample: DMBSample) -> bool:
+        """Return True for all samples."""
+        return True
+
+
 @define
 class DMBDataset(IdDataset):
     """Dataset for DMB data.
@@ -43,49 +100,39 @@ class DMBDataset(IdDataset):
 
         - 'samples': Directory containing the samples.
             - Each sample is stored in a separate directory.
-            - The directory name is the sample ID.
-            - The directory contains the following files:
-                - 'inputs.pt': The input tensor.
-                - 'outputs.pt': The output tensor.
-                - 'metadata.json': The metadata dictionary.
 
         - 'metadata.json': The metadata dictionary for the dataset.
     """
 
     dataset_dir_path: Path | str
-    transforms: InputOutputDMBTransform
+
+    transforms: DMBDatasetTransform = field(factory=IdentityDMBDatasetTransform)
+    sample_filter_strategy: SampleFilterStrategy = field(
+        factory=UseAllSamplesFilterStrategy)
 
     sample_ids: list[str] = field(init=False)
-    sample_id_paths: list[Path] = field(init=False)
+    samples: list[DMBSample] = field(init=False)
 
     def __attrs_post_init__(self) -> None:
         samples_dir_path = Path(self.dataset_dir_path) / "samples"
         samples_dir_path.mkdir(parents=True, exist_ok=True)
 
-        self.sample_ids = [
-            path.name for path in samples_dir_path.iterdir() if path.is_dir()
-        ]
-        self.sample_id_paths = [
-            samples_dir_path / sample_id for sample_id in self.sample_ids
-        ]
+        self.samples = list(
+            filter(
+                self.sample_filter_strategy.filter,
+                (DMBSample(id=sample_id, sample_dir_path=samples_dir_path / sample_id)
+                 for sample_id in (path.name for path in samples_dir_path.iterdir()
+                                   if path.is_dir()))))
+
+        self.sample_ids = [sample.id for sample in self.samples]
 
     def __len__(self) -> int:
-        return len(self.sample_ids)
+        return len(self.samples)
 
     def __getitem__(self, idx: int) -> DMBData:
 
-        inputs = torch.load(
-            self.sample_id_paths[idx] / "inputs.pt",
-            weights_only=True,
-            map_location=torch.device("cpu"),
-        )
-        outputs = torch.load(
-            self.sample_id_paths[idx] / "outputs.pt",
-            weights_only=True,
-            map_location=torch.device("cpu"),
-        )
-
-        inputs_transformed, outputs_transformed = self.transforms(inputs, outputs)
+        inputs_transformed, outputs_transformed = self.transforms(
+            self.samples[idx].inputs, self.samples[idx].outputs)
 
         return DMBData(inputs=inputs_transformed, outputs=outputs_transformed)
 

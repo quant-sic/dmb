@@ -146,9 +146,8 @@ async def simulate(
     if "SLURM_JOB_ID" in os.environ:
         name_prefix += os.environ["SLURM_JOB_ID"] + "_"
 
-    save_dir = (
-        REPO_DATA_ROOT /
-        f"bose_hubbard_2d/{type}/simulations/{now}_sample_{name_prefix}{sample_id}")
+    save_dir = (REPO_DATA_ROOT / (f"bose_hubbard_2d/{potential_type}/simulations/"
+                                  f"{now}_sample_{name_prefix}{sample_id}"))
 
     shutil.rmtree(save_dir, ignore_errors=True)
 
@@ -174,7 +173,7 @@ if __name__ == "__main__":
                         default=1,
                         help="number of samples to run")
     parser.add_argument("--number_of_concurrent_jobs", type=int, default=1)
-    parser.add_argument("--type",
+    parser.add_argument("--potential_type",
                         type=str,
                         default="random",
                         choices=["random", "uniform"])
@@ -226,7 +225,7 @@ if __name__ == "__main__":
         async with semaphore:
             await simulate(
                 sample_id,
-                potential_type=args.type,
+                potential_type=args.potential_type,
                 L_half_min=args.L_half_min,
                 L_half_max=args.L_half_max,
                 U_on_min=args.U_on_min,

@@ -13,6 +13,17 @@ __all__ = [
 ]
 
 
+def convert_dimless_to_physical(ztU: float, muU: float, zVU: float,
+                                J: float) -> tuple[float, float, float]:
+    """Convert the parameters from dimensionless to physical units."""
+
+    U_on = 4 * J / ztU
+    mu = muU * U_on
+    V_nn = zVU * U_on / 4
+
+    return U_on, mu, V_nn
+
+
 def get_ckeckerboard_projection(target_density: torch.Tensor) -> torch.Tensor:
     """Determines and returns the checkerboard version (out of two possible)
     that has the largest correlation with the input mu.

@@ -26,7 +26,7 @@ class MSE(torchmetrics.Metric):
         mse: torch.Tensor = self.mse.compute()
         return mse
 
-    def update_impl(self, preds: torch.Tensor, target: torch.Tensor) -> None:
+    def update_single_size(self, preds: torch.Tensor, target: torch.Tensor) -> None:
         """Update the Mean Squared Error (MSE) metric."""
         self.mse.update(preds.reshape(-1), target.reshape(-1))
 
@@ -45,9 +45,9 @@ class MSE(torchmetrics.Metric):
 
         if isinstance(preds, (list, tuple)):
             for _preds, _target in zip(preds, target):
-                self.update_impl(_preds, _target)
+                self.update_single_size(_preds, _target)
         else:
-            self.update_impl(preds, cast(torch.Tensor, target))
+            self.update_single_size(preds, cast(torch.Tensor, target))
 
     def to(self, *args: Any, **kwargs: Any) -> MSE:
         """Move the Mean Squared Error (MSE) metric to a new device."""

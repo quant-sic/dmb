@@ -1,12 +1,13 @@
 """Transforms for the Bose-Hubbard 2D dataset."""
+from __future__ import annotations
 
-from typing import Callable, Literal
+from typing import Literal
 
+import numpy as np
 import torch
-from attrs import define, field
-from numpy.random import RandomState  # pylint: disable=no-name-in-module
 
-from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
+from dmb.data.transforms import DMBDatasetTransform, DMBTransform, \
+    InputOutputDMBTransform
 
 
 class GaussianNoiseTransform(DMBTransform):
@@ -31,7 +32,6 @@ class GaussianNoiseTransform(DMBTransform):
         return self.__class__.__name__ + f"(mean={self.mean}, std={self.std})"
 
 
-@define
 class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
     """Square symmetry group augmentations.
 
@@ -47,13 +47,11 @@ class SquareSymmetryGroupTransforms(InputOutputDMBTransform):
     - reflection x=-y
     """
 
-    random_number_generator: Callable[[], float] = field(default=RandomState(42).rand)
-
     def __call__(self, x: torch.Tensor,
                  y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
 
         # with p=1/8 each choose one symmetry transform at random and apply it
-        rnd = self.random_number_generator()
+        rnd = np.random.rand()
 
         if rnd < 1 / 8:  # unity
             pass
@@ -140,7 +138,7 @@ class TupleWrapperOutTransform(InputOutputDMBTransform):
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
 
 
-class BoseHubbard2dTransforms(InputOutputDMBTransform):
+class BoseHubbard2dTransforms(DMBDatasetTransform):
     """Transforms for the Bose-Hubbard 2D dataset."""
 
     def __init__(
@@ -152,6 +150,7 @@ class BoseHubbard2dTransforms(InputOutputDMBTransform):
                                    base_augmentations)
         self.train_augmentations = ([] if train_augmentations is None else
                                     train_augmentations)
+
         self._mode: Literal["base", "train"] = "base"
 
     @property

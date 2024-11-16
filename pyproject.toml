@@ -22,6 +22,7 @@ dependencies = [
     "torch>=2.4.1",
     "torchvision>=0.20.1",
     "tqdm>=4.66.5",
+    "typer>=0.13.0",
     "wandb>=0.18.3",
 ]
 
@@ -89,9 +90,9 @@ good-names = [
   "logger",
   "pytestmark"
 ]
-argument-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
-variable-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
-attr-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+argument-rgx = "([a-z_][a-z0-9_]{0,40}$|[JL(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+variable-rgx = "([a-z_][a-z0-9_]{0,40}$|[JL(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+attr-rgx = "([a-z_][a-z0-9_]{0,40}$|[JL(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
 
 [tool.pylint.FORMAT]
 max-line-length = 88

@@ -1,17 +1,16 @@
 """Tests for the Bose-Hubbard 2D transforms."""
 
-import functools
 from typing import Literal
 
 import torch
-from numpy.random import RandomState  # pylint: disable=no-name-in-module
 from pytest_cases import fixture, parametrize, parametrize_with_cases
 
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms, \
     GaussianNoiseTransform, SquareSymmetryGroupTransforms, \
     TupleWrapperInTransform, TupleWrapperOutTransform
 from dmb.data.dataset import DMBData
-from dmb.data.transforms import DMBTransform, InputOutputDMBTransform
+from dmb.data.transforms import DMBDatasetTransform, DMBTransform, \
+    InputOutputDMBTransform
 
 
 class DMBDataCases:
@@ -102,30 +101,10 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
     """Tests for the SquareSymmetryGroupTransforms class."""
 
     @staticmethod
-    def case_square_symmetry_group_transforms() -> SquareSymmetryGroupTransforms:
-        """Return a square symmetry group transform."""
-        return SquareSymmetryGroupTransforms()
-
-    @staticmethod
-    def case_non_identity_square_symmetry_group_transforms(
-    ) -> (SquareSymmetryGroupTransforms):
-        """Return a transform that is not the identity."""
-        return SquareSymmetryGroupTransforms(random_number_generator=functools.partial(
-            RandomState(42).uniform, low=1 / 8, high=1))
-
-    @staticmethod
     @fixture(scope="class", name="transform")
-    @parametrize_with_cases(
-        "transform_variant",
-        cases=[
-            case_square_symmetry_group_transforms,
-            case_non_identity_square_symmetry_group_transforms,
-        ],
-    )
-    def fixture_transform(
-        transform_variant: SquareSymmetryGroupTransforms, ) -> InputOutputDMBTransform:
+    def fixture_transform() -> SquareSymmetryGroupTransforms:
         """Return the transform variant."""
-        return transform_variant
+        return SquareSymmetryGroupTransforms()
 
     @staticmethod
     @parametrize_with_cases("data", cases=DMBDataCases, glob="*equal_input_output*")
@@ -141,21 +120,6 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
             assert torch.allclose(x_, y_)
 
         assert any(not torch.allclose(x_, data["inputs"]) for x_ in x)
-
-    @staticmethod
-    @parametrize_with_cases("data", cases=DMBDataCases, glob="*equal_input_output*")
-    @parametrize_with_cases(
-        "non_identity_transform",
-        cases=[case_non_identity_square_symmetry_group_transforms],
-    )
-    def test_non_identity_equal_input_output(
-            non_identity_transform: InputOutputDMBTransform, data: DMBData) -> None:
-        """Test that the transform is not the identity."""
-        x, y = non_identity_transform(data["inputs"], data["outputs"])
-
-        assert torch.allclose(x, y)
-        assert not torch.allclose(x, data["inputs"])
-        assert not torch.allclose(y, data["outputs"])
 
 
 class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
@@ -260,7 +224,7 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
         ],
     )
     def fixture_transform(
-        transform_variant: BoseHubbard2dTransforms, ) -> InputOutputDMBTransform:
+        transform_variant: BoseHubbard2dTransforms, ) -> DMBDatasetTransform:
         """Return the transform variant."""
         return transform_variant
 

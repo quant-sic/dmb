@@ -17,7 +17,7 @@ class MSELoss(torch.nn.Module):
     def __init__(
         self,
         *args: Any,
-        reduction: Literal["mean"] | None = "mean",
+        reduction: Literal["mean", "size_mean"] = "mean",
         **kwargs: Any,
     ) -> None:
         """Initialize the loss function.
@@ -31,17 +31,13 @@ class MSELoss(torch.nn.Module):
         self.reduction = reduction
 
     def forward_single_size(self, y_pred: torch.Tensor,
-                            y_true: torch.Tensor) -> torch.Tensor:
+                            y_true: torch.Tensor) -> tuple[torch.Tensor, int]:
         """Calculate the loss for a single size."""
 
-        loss = (y_true - y_pred.view(*y_true.shape))**2
+        loss_out = torch.mean((y_true - y_pred.view(*y_true.shape))**2)
+        n_elements = y_true.numel()
 
-        if self.reduction == "mean":
-            loss_out = torch.mean(loss)
-        else:
-            raise ValueError(f"Reduction {self.reduction} not supported.")
-
-        return loss_out
+        return loss_out, n_elements
 
     def forward(
         self,
@@ -60,12 +56,18 @@ class MSELoss(torch.nn.Module):
                 "y_pred and y_true must be of the same type. "
                 f"Type y_pred: {type(y_pred)}, type y_true: {type(y_true)}")
 
-        loss: torch.Tensor = cast(
-            torch.Tensor,
-            sum(
-                self.forward_single_size(y_pred_, y_true_)
-                for y_pred_, y_true_ in zip(y_pred, y_true)),
-        )
+        losses, size_n_elements = zip(*[
+            self.forward_single_size(y_pred_, y_true_)
+            for y_pred_, y_true_ in zip(y_pred, y_true)
+        ])
+
+        if self.reduction == "size_mean":
+            loss: torch.Tensor = cast(torch.Tensor, sum(losses)) / len(losses)
+        elif self.reduction == "mean":
+            loss = sum(_loss * _n_elements for _loss, _n_elements in zip(
+                losses, size_n_elements)) / sum(size_n_elements)
+        else:
+            raise ValueError(f"Reduction {self.reduction} not supported.")
 
         return loss
 
@@ -83,7 +85,8 @@ class MSLELoss(torch.nn.Module):
 
         self.reduction = reduction
 
-    def forward_impl(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    def forward_single_size(self, y_pred: torch.Tensor,
+                            y_true: torch.Tensor) -> tuple[torch.Tensor, int]:
         """
         Args:
             y_pred (torch.Tensor): Predicted values.
@@ -93,15 +96,12 @@ class MSLELoss(torch.nn.Module):
             torch.Tensor: Loss value.
         """
         loss = torch.log((y_true + 1) / (y_pred + 1))**2
-
         valid_mask = loss.isfinite()
 
-        if self.reduction == "mean":
-            loss_out: torch.Tensor = sum(loss[valid_mask]) / torch.sum(valid_mask)
-        else:
-            raise ValueError(f"Reduction {self.reduction} not supported.")
+        loss_out: torch.Tensor = sum(loss[valid_mask]) / torch.sum(valid_mask)
+        number_of_elements = int(torch.sum(valid_mask).item())
 
-        return loss_out
+        return loss_out, number_of_elements
 
     def forward(
         self,
@@ -120,11 +120,19 @@ class MSLELoss(torch.nn.Module):
                 "y_pred and y_true must be of the same type. "
                 f"Type y_pred: {type(y_pred)}, type y_true: {type(y_true)}")
 
-        loss: torch.Tensor = cast(
-            torch.Tensor,
-            sum(
-                self.forward_impl(y_pred_, y_true_)
-                for y_pred_, y_true_ in zip(y_pred, y_true)),
-        )
+        losses, size_n_elements = zip(*[
+            self.forward_single_size(y_pred_, y_true_)
+            for y_pred_, y_true_ in zip(y_pred, y_true)
+        ])
+
+        if self.reduction == "mean":
+            loss: torch.Tensor = cast(
+                torch.Tensor,
+                sum(_loss * _n_elements
+                    for _loss, _n_elements in zip(losses, size_n_elements)) /
+                sum(size_n_elements),
+            )
+        else:
+            raise ValueError(f"Reduction {self.reduction} not supported.")
 
         return loss
