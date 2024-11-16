@@ -27,13 +27,14 @@ def periodic_grf(shape: tuple[int, int], power: float) -> np.ndarray:
 
 def get_random_trapping_potential(
         shape: tuple[int, int],
-        desired_abs_max: float,
+        mu_offset: float,
+        scale_range: tuple[float, float] = (0.3, 2),
         power: Optional[float] = None) -> tuple[float, np.ndarray]:
     """Generate a random trapping potential.
 
     Args:
         shape: shape of the potential
-        desired_abs_max: desired absolute maximum of the potential
+        mu_offset: offset of the potential
         power: power of the power-law power spectrum
 
     Returns:
@@ -42,7 +43,7 @@ def get_random_trapping_potential(
     if power is None:
         power = stats.loguniform.rvs(0.1, 10)
 
-    scale = float(np.random.uniform(0.3, 1)) * desired_abs_max
+    scale = float(np.random.uniform(*scale_range)) * abs(mu_offset)
 
     potential = periodic_grf(shape, power)
     potential_rescaled = potential * scale / abs(potential).max()

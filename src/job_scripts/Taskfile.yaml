@@ -92,13 +92,16 @@ tasks:
 
   run_qmc_random:
     desc: Run QMC on random potentials
+    vars:
+      NUMBER_OF_SAMPLES: 2500
+      NUMBER_OF_CONCURRENT_JOBS: 50
     cmds:
       - task: run_qmc
         vars:
           QMC_TASK: random
           QMC_SCRIPT_FILE: create_random.py
-          QMC_TASK_ARGS: "--potential_type random --number_of_samples 2500" #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
-          NUMBER_OF_CONCURRENT_JOBS: 50
+          QMC_TASK_ARGS: "--potential_type random --number_of_samples {{ .NUMBER_OF_SAMPLES }}" #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
+          NUMBER_OF_CONCURRENT_JOBS: "{{ .NUMBER_OF_CONCURRENT_JOBS }}"
           SLURM_ARRAY_SIZE: 1
 
   run_qmc_box:
@@ -186,7 +189,7 @@ tasks:
       DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset/max_density_error_0.015"
 
       SPLIT_FILE: '{{ .SPLIT_FILE | default "v2.json" }}'
-      SPLIT_FILE_PATH: '{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_FILE }}'
+      SPLIT_FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_FILE }}"
 
       _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
 

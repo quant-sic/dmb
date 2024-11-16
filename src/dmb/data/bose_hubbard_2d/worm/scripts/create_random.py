@@ -41,7 +41,8 @@ def draw_random_config(
     mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
     power, V_trap = get_random_trapping_potential(shape=(L, L),
-                                                  desired_abs_max=abs(mu_offset) / 2)
+                                                  mu_offset=mu_offset)
+
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
     V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
                                 axis=0).repeat(2, axis=0)
