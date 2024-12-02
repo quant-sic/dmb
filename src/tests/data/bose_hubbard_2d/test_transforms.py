@@ -1,12 +1,15 @@
 """Tests for the Bose-Hubbard 2D transforms."""
 
+import itertools
 from typing import Literal
 
 import torch
+from pytest_cases import case
+from pytest_cases import filters as ft
 from pytest_cases import fixture, parametrize, parametrize_with_cases
 
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms, \
-    GaussianNoiseTransform, SquareSymmetryGroupTransforms, \
+    D4Group, D4GroupTransforms, GaussianNoiseTransform, \
     TupleWrapperInTransform, TupleWrapperOutTransform
 from dmb.data.dataset import DMBData
 from dmb.data.transforms import DMBDatasetTransform, DMBTransform, \
@@ -21,14 +24,22 @@ class DMBDataCases:
         """Return a DMBData object with random input and output."""
         inputs = torch.randn(4, 10, 10)
         outputs = torch.randn(6, 10, 10)
-        return DMBData(inputs=inputs, outputs=outputs)
+        return DMBData(inputs=inputs, outputs=outputs, sample_id="random")
 
     @staticmethod
     def case_equal_input_output() -> DMBData:
         """Return a DMBData object with equal input and output."""
         inputs = torch.randn(4, 10, 10)
         outputs = inputs.clone()
-        return DMBData(inputs=inputs, outputs=outputs)
+        return DMBData(inputs=inputs, outputs=outputs, sample_id="equal_input_output")
+
+    @staticmethod
+    @case(tags=["all_values_different"])
+    def case_all_values_different() -> DMBData:
+        """Return a DMBData object with different input and output."""
+        inputs = torch.arange(400).reshape(4, 10, 10).float()
+        outputs = inputs + inputs.max() + 1
+        return DMBData(inputs=inputs, outputs=outputs, sample_id="all_values_different")
 
 
 class InputOutputDMBTransformTests:
@@ -38,9 +49,9 @@ class InputOutputDMBTransformTests:
     @parametrize_with_cases("data", cases=DMBDataCases)
     def test_types(transform: InputOutputDMBTransform, data: DMBData) -> None:
         """Test that the transform returns the right types."""
-        x, y = transform(data["inputs"], data["outputs"])
-        assert isinstance(x, torch.Tensor)
-        assert isinstance(y, torch.Tensor)
+        data_out = transform(data)
+        assert isinstance(data_out.inputs, torch.Tensor)
+        assert isinstance(data_out.outputs, torch.Tensor)
 
 
 class FakeDMBTransform(DMBTransform):
@@ -87,24 +98,24 @@ class TestTupleWrapperTransform(InputOutputDMBTransformTests):
         data: DMBData,
     ) -> None:
         """Test that the right input/output is altered."""
-        x, y = wrapper_transform(data["inputs"], data["outputs"])
+        data_out = wrapper_transform(data)
 
         if isinstance(wrapper_transform, TupleWrapperInTransform):
-            assert torch.allclose(x, data["inputs"] + 1)
-            assert torch.allclose(y, data["outputs"])
+            assert torch.allclose(data_out.inputs, data.inputs + 1)
+            assert torch.allclose(data_out.outputs, data.outputs)
         else:
-            assert torch.allclose(x, data["inputs"])
-            assert torch.allclose(y, data["outputs"] + 1)
+            assert torch.allclose(data_out.inputs, data.inputs)
+            assert torch.allclose(data_out.outputs, data.outputs + 1)
 
 
-class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
-    """Tests for the SquareSymmetryGroupTransforms class."""
+class TestD4GroupTransforms(InputOutputDMBTransformTests):
+    """Tests for the D4GroupTransforms class."""
 
     @staticmethod
     @fixture(scope="class", name="transform")
-    def fixture_transform() -> SquareSymmetryGroupTransforms:
+    def fixture_transform() -> D4GroupTransforms:
         """Return the transform variant."""
-        return SquareSymmetryGroupTransforms()
+        return D4GroupTransforms()
 
     @staticmethod
     @parametrize_with_cases("data", cases=DMBDataCases, glob="*equal_input_output*")
@@ -114,12 +125,12 @@ class TestSquareSymmetryGroupTransforms(InputOutputDMBTransformTests):
         x, y = [], []
 
         for _ in range(1000):
-            x_, y_ = transform(data["inputs"], data["outputs"])
-            x.append(x_)
-            y.append(y_)
-            assert torch.allclose(x_, y_)
+            data_out = transform(data)
+            x.append(data_out.inputs)
+            y.append(data_out.outputs)
+            assert torch.allclose(data_out.inputs, data_out.outputs)
 
-        assert any(not torch.allclose(x_, data["inputs"]) for x_ in x)
+        assert any(not torch.allclose(x_, data.inputs) for x_ in x)
 
 
 class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
@@ -178,14 +189,14 @@ class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
         data: DMBData,
     ) -> None:
         """Test that the right input/output is altered."""
-        x, y = wrapper_transform(data["inputs"], data["outputs"])
+        data_out = wrapper_transform(data)
 
         if isinstance(wrapper_transform, TupleWrapperInTransform):
-            assert not torch.allclose(x, data["inputs"])
-            assert torch.allclose(y, data["outputs"])
+            assert not torch.allclose(data_out.inputs, data.inputs)
+            assert torch.allclose(data_out.outputs, data.outputs)
         else:
-            assert torch.allclose(x, data["inputs"])
-            assert not torch.allclose(y, data["outputs"])
+            assert torch.allclose(data_out.inputs, data.inputs)
+            assert not torch.allclose(data_out.outputs, data.outputs)
         # highly unlikely to be equal (minimal chance due to limited
         #float precision), assumes std > 0
 
@@ -273,6 +284,49 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
                              current_cases["transform_variant"].id)
 
         transform_variant.mode = mode
-        x, _ = transform_variant(data["inputs"], data["outputs"])
+        data_out = transform_variant(data)
 
-        assert torch.allclose(x, data["inputs"] + expected_change)
+        assert torch.allclose(data_out.inputs, data.inputs + expected_change)
+
+
+class TestD4Group:
+    """Tests for the D4Group class."""
+
+    @staticmethod
+    @fixture(scope="class", name="d4_group")
+    def fixture_d4_group() -> D4Group:
+        """Return a D4Group instance."""
+        return D4Group()
+
+    @staticmethod
+    @parametrize_with_cases("data",
+                            cases=DMBDataCases,
+                            filter=ft.has_tag('all_values_different'))
+    def test_all_different(data: DMBData, d4_group: D4Group) -> None:
+        """Test that all D4 group elements transform the input differently."""
+
+        original = data.inputs
+
+        assert torch.allclose(original,
+                              d4_group.elements["identity"].transform(original))
+
+        transformed = [
+            element.transform(original) for element in d4_group.elements.values()
+            if element.name != "identity"
+        ]
+
+        for v1, v2 in itertools.combinations(transformed, 2):
+            assert not torch.allclose(v1, v2)
+
+    @staticmethod
+    @parametrize_with_cases("data",
+                            cases=DMBDataCases,
+                            filter=ft.has_tag('all_values_different'))
+    def test_inverse(data: DMBData, d4_group: D4Group) -> None:
+        """Test that the D4 group transformation inverse transforms are correct."""
+
+        original = data.inputs
+
+        for element in d4_group.elements.values():
+            assert torch.allclose(
+                original, element.inverse_transform(element.transform(original)))

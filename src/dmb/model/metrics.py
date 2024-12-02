@@ -6,6 +6,8 @@ from typing import Any, cast
 
 import torch
 import torchmetrics
+from torchmetrics.functional.regression.mse import \
+    _mean_squared_error_compute, _mean_squared_error_update
 
 from dmb.logging import create_logger
 
@@ -15,20 +17,51 @@ log = create_logger(__name__)
 class MSE(torchmetrics.Metric):
     """Mean Squared Error (MSE) metric."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:  # pylint: disable=unused-argument
-        """Initialize the Mean Squared Error (MSE) metric."""
-        super().__init__()
+    is_differentiable = True
+    higher_is_better = False
+    full_state_update = False
+    plot_lower_bound: float = 0.0
 
-        self.mse: torchmetrics.Metric = torchmetrics.MeanSquaredError()
+    sum_squared_error: torch.Tensor
+    total: torch.Tensor
+
+    def __init__(self,
+                 *args: Any,
+                 squared: bool = True,
+                 num_outputs: int = 1,
+                 **kwargs: Any) -> None:  # pylint: disable=unused-argument
+        """Initialize the Mean Squared Error (MSE) metric."""
+
+        super().__init__(**kwargs)
+
+        if not isinstance(squared, bool):
+            raise ValueError(
+                f"Expected argument `squared` to be a boolean but got {squared}")
+        self.squared = squared
+
+        if not (isinstance(num_outputs, int) and num_outputs > 0):
+            raise ValueError(
+                f"Expected num_outputs to be a positive integer but got {num_outputs}")
+        self.num_outputs = num_outputs
+
+        self.add_state("sum_squared_error",
+                       default=torch.zeros(self.num_outputs),
+                       dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def compute(self) -> torch.Tensor:
         """Compute the Mean Squared Error (MSE) metric."""
-        mse: torch.Tensor = self.mse.compute()
-        return mse
+        return _mean_squared_error_compute(self.sum_squared_error,
+                                           self.total,
+                                           squared=self.squared)
 
     def update_single_size(self, preds: torch.Tensor, target: torch.Tensor) -> None:
         """Update the Mean Squared Error (MSE) metric."""
-        self.mse.update(preds.reshape(-1), target.reshape(-1))
+        sum_squared_error, num_obs = _mean_squared_error_update(
+            preds.reshape(-1), target.reshape(-1), num_outputs=self.num_outputs)
+
+        self.sum_squared_error = self.sum_squared_error.clone() + sum_squared_error
+        self.total = self.total.clone() + num_obs
 
     def update(
         self,
@@ -49,18 +82,8 @@ class MSE(torchmetrics.Metric):
         else:
             self.update_single_size(preds, cast(torch.Tensor, target))
 
-    def to(self, *args: Any, **kwargs: Any) -> MSE:
-        """Move the Mean Squared Error (MSE) metric to a new device."""
-        self.mse = self.mse.to(*args, **kwargs)
-
-        return self
-
-    def set_dtype(self, dst_type: str | torch.dtype) -> MSE:
-        """Set the data type of the Mean Squared Error (MSE) metric."""
-        self.mse = self.mse.set_dtype(dst_type)
-
-        return self
-
     def reset(self) -> None:
         """Reset the Mean Squared Error (MSE) metric."""
-        self.mse.reset()
+        self.sum_squared_error = torch.zeros(self.num_outputs,
+                                             device=self.sum_squared_error.device)
+        self.total = torch.tensor(0, device=self.total.device)

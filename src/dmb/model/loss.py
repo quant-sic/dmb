@@ -2,13 +2,114 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import Any, Literal, cast
 
 import torch
+from attrs import define, frozen
 
+from dmb.data.collate import MultipleSizesBatch
+from dmb.data.transforms import GroupElement
 from dmb.logging import create_logger
 
 log = create_logger(__name__)
+
+
+@frozen
+class LossOutput:
+    """Output of a loss function."""
+
+    loss: torch.Tensor
+    loggables: dict[str, torch.Tensor] = {}
+
+
+class Loss(ABC, torch.nn.Module):
+    """Base class for loss functions."""
+
+    @abstractmethod
+    def forward(self, model_output: list[torch.Tensor],
+                batch: MultipleSizesBatch) -> LossOutput:
+        """Calculate the loss for the predicted and true values."""
+
+
+@define(hash=False, eq=False)
+class WeightedLoss(Loss):
+
+    constituent_losses: dict[str, Loss]
+    weights: dict[str, float] | None = None
+
+    def __attrs_pre_init__(self) -> None:
+        super().__init__()
+
+    def __attrs_post_init__(self) -> None:
+        if self.weights is None:
+            self.weights = {name: 1.0 for name in self.losses.keys()}
+
+    def forward(self, model_output: list[torch.Tensor],
+                batch: MultipleSizesBatch) -> LossOutput:
+        """Calculate the loss for the predicted and true values."""
+
+        constituent_losses_values = {
+            name: loss(model_output, batch).loss
+            for name, loss in self.constituent_losses.items()
+        }
+        total_loss = sum(
+            cast(dict[str, float], self.weights)[name] * loss_value
+            for name, loss_value in constituent_losses_values.items())
+
+        return LossOutput(loss=total_loss, loggables=constituent_losses_values)
+
+
+class EquivarianceLoss(Loss):
+    """Equivariance loss."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__()
+
+    def forward_single_size(
+            self, y_pred: torch.Tensor, y_true: torch.Tensor, sample_ids: list[str],
+            group_elements: list[list[GroupElement]]) -> tuple[torch.Tensor, int]:
+
+        # transform back to original sample
+        y_pred_original = torch.stack([
+            GroupElement.from_group_elements(group_elements).inverse_transform(
+                y_pred_sample)
+            for y_pred_sample, group_elements in zip(y_pred, group_elements)
+        ])
+        losses = []
+
+        # get indices of sample groups with same id
+        for sample_id in sample_ids:
+            sample_indices = [
+                idx for idx, id in enumerate(sample_ids) if id == sample_id
+            ]
+
+            # get average
+            y_pred_original_sample = torch.mean(y_pred_original[sample_indices], dim=0)
+
+            # mse between average and y_pred_original
+            losses.append(
+                torch.mean(
+                    (y_pred_original[sample_indices] - y_pred_original_sample)**2))
+
+        loss = torch.mean(torch.stack(losses))
+
+        return loss, len(set(sample_ids))
+
+    def forward(self, model_output: list[torch.Tensor],
+                batch: MultipleSizesBatch) -> LossOutput:
+        """Calculate the loss for the predicted and true values."""
+
+        losses_out, n_samples_losses = zip(*[
+            self.forward_single_size(y_pred, y_true, sample_ids, group_elements)
+            for y_pred, y_true, sample_ids, group_elements in zip(
+                model_output, batch.outputs, batch.sample_ids, batch.group_elements)
+        ])
+
+        loss = sum(loss * n_samples_loss for loss, n_samples_loss in zip(
+            losses_out, n_samples_losses)) / sum(n_samples_losses)
+
+        return LossOutput(loss=loss)
 
 
 class MSELoss(torch.nn.Module):
@@ -41,24 +142,14 @@ class MSELoss(torch.nn.Module):
 
     def forward(
         self,
-        y_pred: list[torch.Tensor] | torch.Tensor,
-        y_true: list[torch.Tensor] | torch.Tensor,
-    ) -> torch.Tensor:
+        model_output: list[torch.Tensor],
+        batch: MultipleSizesBatch,
+    ) -> LossOutput:
         """Calculate the loss for the predicted and true values."""
 
-        if isinstance(y_pred, torch.Tensor) and isinstance(y_true, torch.Tensor):
-            y_pred = [y_pred]
-            y_true = [y_true]
-        elif isinstance(y_pred, list) and isinstance(y_true, list):
-            pass
-        else:
-            raise ValueError(
-                "y_pred and y_true must be of the same type. "
-                f"Type y_pred: {type(y_pred)}, type y_true: {type(y_true)}")
-
         losses, size_n_elements = zip(*[
-            self.forward_single_size(y_pred_, y_true_)
-            for y_pred_, y_true_ in zip(y_pred, y_true)
+            self.forward_single_size(y_pred, y_true)
+            for y_pred, y_true in zip(model_output, batch.outputs)
         ])
 
         if self.reduction == "size_mean":
@@ -69,7 +160,7 @@ class MSELoss(torch.nn.Module):
         else:
             raise ValueError(f"Reduction {self.reduction} not supported.")
 
-        return loss
+        return LossOutput(loss=loss)
 
 
 class MSLELoss(torch.nn.Module):
@@ -105,24 +196,14 @@ class MSLELoss(torch.nn.Module):
 
     def forward(
         self,
-        y_pred: list[torch.Tensor] | torch.Tensor,
-        y_true: list[torch.Tensor] | torch.Tensor,
-    ) -> torch.Tensor:
+        model_output: list[torch.Tensor],
+        batch: MultipleSizesBatch,
+    ) -> LossOutput:
         """Calculate the loss for the predicted and true values."""
 
-        if isinstance(y_pred, torch.Tensor) and isinstance(y_true, torch.Tensor):
-            y_pred = [y_pred]
-            y_true = [y_true]
-        elif isinstance(y_pred, list) and isinstance(y_true, list):
-            pass
-        else:
-            raise ValueError(
-                "y_pred and y_true must be of the same type. "
-                f"Type y_pred: {type(y_pred)}, type y_true: {type(y_true)}")
-
         losses, size_n_elements = zip(*[
-            self.forward_single_size(y_pred_, y_true_)
-            for y_pred_, y_true_ in zip(y_pred, y_true)
+            self.forward_single_size(y_pred, y_true)
+            for y_pred, y_true in zip(model_output, batch.outputs)
         ])
 
         if self.reduction == "mean":
@@ -135,4 +216,4 @@ class MSLELoss(torch.nn.Module):
         else:
             raise ValueError(f"Reduction {self.reduction} not supported.")
 
-        return loss
+        return LossOutput(loss=loss)

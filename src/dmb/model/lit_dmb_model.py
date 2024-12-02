@@ -12,7 +12,7 @@ import lightning.pytorch as pl
 import torch
 import torchmetrics
 import yaml
-from attrs import define
+from attrs import define, field, frozen
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from omegaconf import DictConfig
 from torch.optim import Optimizer
@@ -20,8 +20,29 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from dmb.data.collate import MultipleSizesBatch
 from dmb.logging import create_logger
+from dmb.model.loss import Loss, LossOutput
+from dmb.paths import REPO_LOGS_ROOT
 
 log = create_logger(__name__)
+
+
+@frozen
+class WeightsCheckpoint:
+    """Weights checkpoint path configuration.
+    
+    Attributes:
+        path: The path to the checkpoint file.
+        state_dict: The state_dict of the model.
+    """
+    path: Path
+    state_dict: dict[str, Any] = field(init=False)
+
+    def __attrs_post_init__(self) -> None:
+        object.__setattr__(
+            self, "state_dict",
+            torch.load(REPO_LOGS_ROOT / self.path,
+                       weights_only=True,
+                       map_location=torch.device('cpu'))["state_dict"])
 
 
 @define(hash=False, eq=False)
@@ -31,14 +52,18 @@ class LitDMBModel(pl.LightningModule):
     model: torch.nn.Module
     optimizer: functools.partial[Optimizer]
     lr_scheduler: dict[str, functools.partial[_LRScheduler | Any]]
-    loss: torch.nn.Module
+    loss: Loss
     metrics: torchmetrics.MetricCollection
+    weights_checkpoint: WeightsCheckpoint | None = None
 
     def __attrs_pre_init__(self) -> None:
         super().__init__()
 
     def __attrs_post_init__(self) -> None:
         self.example_input_array = torch.zeros(1, 4, 10, 10)
+
+        if self.weights_checkpoint is not None:
+            self.load_state_dict(self.weights_checkpoint.state_dict, strict=True)
 
     @classmethod
     def load_from_logged_checkpoint(cls, log_dir: Path,
@@ -61,7 +86,8 @@ class LitDMBModel(pl.LightningModule):
         config_without_target = {
             "lit_model": {
                 k: v
-                for k, v in config.lit_model.items() if k != "_target_"
+                for k, v in config.lit_model.items()
+                if not k in ("_target_", "weights_checkpoint")
             }
         }
         model: LitDMBModel = cls.load_from_checkpoint(
@@ -75,65 +101,71 @@ class LitDMBModel(pl.LightningModule):
         return out
 
     def _calculate_loss(self,
-                        batch: MultipleSizesBatch) -> tuple[torch.Tensor, torch.Tensor]:
+                        batch: MultipleSizesBatch) -> tuple[torch.Tensor, LossOutput]:
 
-        model_out = self(batch["inputs"])
-        loss = self.loss(model_out, batch["outputs"])
+        model_out = self(batch.inputs)
+        loss_output = self.loss(model_out, batch)
 
-        return model_out, loss
+        return model_out, loss_output
 
     def _evaluate_metrics(self, batch: MultipleSizesBatch,
                           model_out: torch.Tensor) -> None:
-        self.metrics.update(preds=model_out, target=batch["outputs"])
+        self.metrics.update(preds=model_out, target=batch.outputs)
 
     def training_step(
         self,
         batch: MultipleSizesBatch,
     ) -> torch.Tensor:
-        model_out, loss = self._calculate_loss(batch)
+        model_out, loss_output = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
         # log metrics
-        batch_size = sum(len(b) for b in batch)
         self.log_metrics(
             stage="train",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {"loss": loss}.items())),
+                itertools.chain(self.metrics.items(), {
+                    "loss": loss_output.loss,
+                    **loss_output.loggables
+                }.items())),
             on_step=True,
             on_epoch=True,
-            batch_size=batch_size,
+            batch_size=batch.size,
         )
 
-        return loss
+        return loss_output.loss
 
     def validation_step(self, batch: MultipleSizesBatch) -> None:
-        model_out, loss = self._calculate_loss(batch)
+        model_out, loss_output = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
         # log metrics
-        batch_size = sum(len(b) for b in batch)
         self.log_metrics(
             stage="val",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {"loss": loss}.items())),
+                itertools.chain(self.metrics.items(), {
+                    "loss": loss_output.loss,
+                    **loss_output.loggables
+                }.items())),
             on_step=False,
             on_epoch=True,
-            batch_size=batch_size,
+            batch_size=batch.size,
         )
 
     def test_step(self, batch: MultipleSizesBatch) -> None:
-        model_out, loss = self._calculate_loss(batch)
+        model_out, loss_output = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
         # log metrics
-        batch_size = sum(len(b) for b in batch)
         self.log_metrics(
             stage="test",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {"loss": loss}.items())),
+                itertools.chain(self.metrics.items(), {
+                    "loss": loss_output.loss,
+                    **loss_output.loggables
+                }.items())),
             on_step=False,
             on_epoch=True,
-            batch_size=batch_size,
+            batch_size=batch.size,
         )
 
     def configure_optimizers(self) -> OptimizerLRScheduler:

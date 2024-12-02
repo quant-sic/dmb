@@ -1,10 +1,58 @@
 """Data transforms."""
+from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Literal
+from typing import Callable, Literal
 
 import torch
-from attrs import define
+from attrs import define, frozen
+
+
+@frozen
+class GroupElement:
+    """Element of a group."""
+
+    name: str
+    transform: Callable[[torch.Tensor], torch.Tensor]
+    inverse_transform: Callable[[torch.Tensor], torch.Tensor]
+
+    @staticmethod
+    def _compose(
+            elements: list[GroupElement]) -> Callable[[torch.Tensor], torch.Tensor]:
+
+        def inner(x: torch.Tensor) -> torch.Tensor:
+            for element in reversed(elements):
+                x = element.transform(x)
+            return x
+
+        return inner
+
+    @staticmethod
+    def _compose_inverse(
+            elements: list[GroupElement]) -> Callable[[torch.Tensor], torch.Tensor]:
+
+        def inner(x: torch.Tensor) -> torch.Tensor:
+            for element in elements:
+                x = element.inverse_transform(x)
+            return x
+
+        return inner
+
+    @classmethod
+    def from_group_elements(cls, group_elements: list[GroupElement]) -> GroupElement:
+        return cls(name="_".join([element.name for element in group_elements]),
+                   transform=cls._compose(group_elements),
+                   inverse_transform=cls._compose_inverse(group_elements))
+
+
+@frozen
+class DMBData:
+    """A DMB data sample."""
+
+    inputs: torch.Tensor
+    outputs: torch.Tensor
+    sample_id: str
+    group_elements: list[GroupElement] = []
 
 
 class DMBTransform(metaclass=ABCMeta):
@@ -19,8 +67,7 @@ class InputOutputDMBTransform(metaclass=ABCMeta):
     """A data augmentation protocol for input-output pairs"""
 
     @abstractmethod
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, dmb_data: DMBData) -> DMBData:
         """Apply the transform to the input-output pair."""
 
 
@@ -28,8 +75,7 @@ class DMBDatasetTransform(metaclass=ABCMeta):
     """A dataset transform for DMB data."""
 
     @abstractmethod
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, dmb_data: DMBData) -> DMBData:
         """Apply the transform to the input-output pair."""
 
     @property
@@ -53,9 +99,8 @@ class IdentityDMBDatasetTransform(DMBDatasetTransform):
 
     mode: Literal["base", "train"] = "base"
 
-    def __call__(self, x: torch.Tensor,
-                 y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        return x, y
+    def __call__(self, dmb_data: DMBData) -> DMBData:
+        return dmb_data
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()"

@@ -19,6 +19,7 @@
 
 .venv
 .trunk
+.cache
 
 .ipynb_checkpoints/**/ */
 

@@ -3,21 +3,14 @@
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Iterable, TypedDict
+from typing import Any, Iterable
 
 import torch
 from attrs import define, field, frozen
 from torch.utils.data import Dataset
 
-from dmb.data.transforms import DMBDatasetTransform, \
+from dmb.data.transforms import DMBData, DMBDatasetTransform, \
     IdentityDMBDatasetTransform
-
-
-class DMBData(TypedDict):
-    """A DMB data sample."""
-
-    inputs: torch.Tensor
-    outputs: torch.Tensor
 
 
 class IdDataset(Dataset, ABC):
@@ -131,10 +124,11 @@ class DMBDataset(IdDataset):
 
     def __getitem__(self, idx: int) -> DMBData:
 
-        inputs_transformed, outputs_transformed = self.transforms(
-            self.samples[idx].inputs, self.samples[idx].outputs)
+        dmb_data = DMBData(inputs=self.samples[idx].inputs,
+                           outputs=self.samples[idx].outputs,
+                           sample_id=self.samples[idx].id)
 
-        return DMBData(inputs=inputs_transformed, outputs=outputs_transformed)
+        return self.transforms(dmb_data)
 
     @property
     def ids(self) -> tuple[str, ...]:
