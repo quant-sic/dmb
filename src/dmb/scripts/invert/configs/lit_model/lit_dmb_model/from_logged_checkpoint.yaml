@@ -1,0 +1,4 @@
+_target_: dmb.model.lit_dmb_model.LitDMBModel.load_from_logged_checkpoint
+
+log_dir: ???
+checkpoint_path: ???

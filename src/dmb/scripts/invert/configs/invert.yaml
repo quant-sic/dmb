@@ -1,0 +1,18 @@
+defaults:
+  - _self_
+  - hydra: default
+  - paths: default
+  - logger: wandb 
+  - trainer: default
+  - callbacks: default
+  
+  - lit_model: inversion_result_lit_model
+
+  - experiment: null
+
+task_name: "invert"
+exp_name: null
+
+ckpt_path: null
+seed: 42
+
