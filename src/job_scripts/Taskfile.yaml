@@ -43,7 +43,6 @@ tasks:
       - task: load_dataset
         vars:
           DATA_DIR: "bose_hubbard_2d/box/1.0/0.1/41"
-          MAX_DENSITY_ERROR: 0.3
           INCLUDE_TUNE_DIRS: "--include-tune-dirs"
 
   load_dataset_wedding_cake:
@@ -59,12 +58,10 @@ tasks:
       - task: load_dataset
         vars:
           DATA_DIR: "bose_hubbard_2d/mu_cut/1.0/0.1/16"
-          MAX_DENSITY_ERROR: 0.015
 
       - task: load_dataset
         vars:
           DATA_DIR: "bose_hubbard_2d/mu_cut/1.0/0.25/16"
-          MAX_DENSITY_ERROR: 0.015
 
   load_dataset_random:
     desc: Load the random dataset
@@ -169,7 +166,7 @@ tasks:
       SPLIT_NAME_FROM_TIME:
         sh: date +'%Y-%m-%d_%H-%M-%S'
       SPLIT_NAME: "{{ .SPLIT_NAME | default .SPLIT_NAME_FROM_TIME }}"
-      DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset/max_density_error_0.015"
+      DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset"
 
     cmds:
       - task: create_split
@@ -186,7 +183,7 @@ tasks:
       JOB_NAME: train
       EXPERIMENT: '{{ .EXPERIMENT | default "train/bose_hubbard_2d/worm/se_resnet_mse_softplus" }}'
 
-      DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset/max_density_error_0.015"
+      DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset"
 
       SPLIT_FILE: '{{ .SPLIT_FILE | default "v2.json" }}'
       SPLIT_FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_FILE }}"

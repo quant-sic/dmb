@@ -17,17 +17,17 @@ trainer:
   accumulate_grad_batches: 8
   precision: 16-mixed
   deterministic: False
-  check_val_every_n_epoch: 25
+  log_every_n_steps: 25
 
 datamodule:
 
-  batch_size: 1024
+  batch_size: 2048
 
   dataset:
     transforms:       
       _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
       train_augmentations:           
-        - _target_: dmb.data.bose_hubbard_2d.transforms.SquareSymmetryGroupTransforms
+        - _target_: dmb.data.bose_hubbard_2d.transforms.D4GroupTransforms
         - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperOutTransform
           transform: 
             _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoiseTransform
@@ -42,7 +42,7 @@ lit_model:
 
     module_list: [
       {
-        _target_: dmb.model.models.simple_resnet2d.ResNet2d,
+        _target_: dmb.model.modules.ResNet2d,
         in_channels: 4,
         out_channels: 9,
         kernel_sizes: [5,3,3,3,3,3,3,3,3],

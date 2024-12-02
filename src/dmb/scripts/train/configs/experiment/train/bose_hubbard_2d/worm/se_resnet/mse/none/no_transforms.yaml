@@ -8,54 +8,61 @@ defaults:
   - override /trainer: default
   - _self_
 
-exp_name: "bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus"
+exp_name: "bose_hubbard_2d/worm/all_obs/se_resnet/mse/none"
 
 seed: 12345
 
 trainer:
   max_epochs: 10000
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 16
   precision: 16-mixed
   deterministic: False
-  check_val_every_n_epoch: 25
+  check_val_every_n_epoch: 10
 
 datamodule:
 
-  batch_size: 1024
+  batch_size: 2048
 
   dataset:
     transforms: 
       train_augmentations:           
-        - _target_: dmb.data.bose_hubbard_2d.transforms.SquareSymmetryGroupTransforms
+        - _target_: dmb.data.bose_hubbard_2d.transforms.D4GroupTransforms
+        - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperInTransform
+          transform: 
+            _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoiseTransform
+            mean: 0.0
+            std: 0.01
         - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperOutTransform
           transform: 
             _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoiseTransform
             mean: 0.0
             std: 0.01
-        - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperInTransform
-          transform: 
-            _target_: torchvision.transforms.RandomErasing
+
+  batch_sampler:
+    train:
+      _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+      _partial_: true
+      n_duplicates: 32
+
 
 lit_model:
   model:
 
     module_list: [
       {
-        _target_: dmb.model.models.simple_resnet2d.SeResNet2d,
+        _target_: dmb.model.modules.SeResNet2d,
         in_channels: 4,
         out_channels: 9,
-        kernel_sizes: [5,3,3,3,3,3,3],
-        n_channels: [16,32,64,128,128,256,256],
+        kernel_sizes: [5,3,3,3,3,3,3,3,3],
+        n_channels: [16, 32, 64, 128, 128, 128, 256, 256, 256],
         dropout: 0.1
       },
     ]
 
-    output_modification: [
-      _target_: torch.nn.Softplus
-    ]
+    output_modification: []
 
   optimizer:
-    lr: 0.001
+    lr: 0.00075
 
   lr_scheduler:
     scheduler:

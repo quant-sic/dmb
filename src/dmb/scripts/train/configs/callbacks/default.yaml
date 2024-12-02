@@ -1,5 +1,6 @@
 defaults:
   - model_checkpoint_best
+  - model_checkpoint_best_train
   - model_checkpoint_regular
   - _self_
 
@@ -14,7 +15,7 @@ lr_monitor:
 
 plotting:
   _target_: dmb.scripts.train.callbacks.PlottingCallback
-  plot_interval: 500
+  plot_interval: 100
 
 progress_bar:
   _target_: lightning.pytorch.callbacks.TQDMProgressBar

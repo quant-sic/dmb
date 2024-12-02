@@ -23,3 +23,19 @@ batch_size: 32
 num_workers: 4
 pin_memory: True
 
+batch_sampler:
+  _convert_: all
+  train:
+    _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+    _partial_: true
+    n_duplicates: 1
+  val:
+    _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+    _partial_: true
+    n_duplicates: 1
+  test:
+    _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+    _partial_: true
+    n_duplicates: 1
+
+
