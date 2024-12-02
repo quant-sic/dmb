@@ -73,15 +73,18 @@ class WormSimulationsSplitStrategy(IdDatasetSplitStrategy):
 class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
     """A strategy for filtering samples in a Bose-Hubbard 2D dataset."""
 
-    ztU_range: tuple[float, float]
-    muU_range: tuple[float, float]
-    zVU_range: tuple[float, float]
-    L_range: tuple[int, int]
-    max_density_error: float
+    ztU_range: tuple[float, float] | None = None
+    muU_range: tuple[float, float] | None = None
+    zVU_range: tuple[float, float] | None = None
+    L_range: tuple[int, int] | None = None
+    max_density_error: float | None = None
     allow_negative_mu_null_error: bool = False
 
     def _filter_error(self, metadata: dict[str, float]) -> bool:
         """Filter samples based on the maximum density error."""
+        if not self.max_density_error:
+            return True
+
         if metadata["max_density_error"] and metadata[
                 "max_density_error"] < self.max_density_error:
             return True
@@ -91,20 +94,46 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
 
         return False
 
+    def _filter_L(self, metadata: dict[str, float]) -> bool:
+        """Filter samples based on the lattice size."""
+        if not self.L_range:
+            return True
+
+        return self.L_range[0] <= metadata["L"] <= self.L_range[1]
+
+    def _filter_ztU(self, metadata: dict[str, float]) -> bool:
+        """Filter samples based on the tunneling strength."""
+        if not self.ztU_range:
+            return True
+
+        return self.ztU_range[0] <= (4 * metadata["J"] /
+                                     metadata["U_on"]) <= self.ztU_range[1]
+
+    def _filter_muU(self, metadata: dict[str, float]) -> bool:
+        """Filter samples based on the chemical potential."""
+        if not self.muU_range:
+            return True
+
+        return self.muU_range[0] <= (metadata["mu"] /
+                                     metadata["U_on"]) <= self.muU_range[1]
+
+    def _filter_zVU(self, metadata: dict[str, float]) -> bool:
+        """Filter samples based on the nearest-neighbor interaction strength."""
+        if not self.zVU_range:
+            return True
+
+        return self.zVU_range[0] <= (4 * metadata["V_nn"] /
+                                     metadata["U_on"]) <= self.zVU_range[1]
+
     def filter(self, sample: DMBSample) -> bool:
         """Return whether a sample should be included in the dataset."""
 
         metadata = sample.metadata
-        zVU = 4 * metadata["V_nn"] / metadata["U_on"]
-        muU = metadata["mu"] / metadata["U_on"]
-        ztU = 4 * metadata["J"] / metadata["U_on"]
-        L = metadata["L"]
 
-        return bool(self.ztU_range[0] <= ztU <= self.ztU_range[1]
-                    and self.muU_range[0] <= muU <= self.muU_range[1]
-                    and self.zVU_range[0] <= zVU <= self.zVU_range[1]
-                    and self.L_range[0] <= L <= self.L_range[1]
-                    and self._filter_error(metadata))
+        return bool(
+            self._filter_ztU(metadata) and self._filter_muU(metadata)
+            and self._filter_zVU(metadata) and self._filter_L(metadata)
+            and self._filter_error(metadata))
 
 
 @define

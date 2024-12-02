@@ -19,6 +19,12 @@ log = create_logger(__name__)
 app = Typer()
 
 
+def get_dataset_sample_name(simulation_dir: Path) -> str:
+    """Get the name of a dataset sample from a simulation directory."""
+
+    return simulation_dir.name if not simulation_dir.name == "tune" else simulation_dir.parent.name + "_tune"
+
+
 @frozen
 class FilterStrategy:
     """A strategy for filtering simulation directories."""
@@ -27,6 +33,7 @@ class FilterStrategy:
     max_density_error: float | None
     recalculate_errors: bool
     reevaluate: bool
+    dataset_samples_dir_path: Path
 
     @staticmethod
     def _get_simulation_valid(sim_dir: Path, reevaluate: bool) -> bool:
@@ -34,8 +41,8 @@ class FilterStrategy:
 
         try:
             sim = WormSimulation.from_dir(sim_dir)
-        except (OSError, KeyError, ValueError):
-            log.error(f"Could not load simulation from {sim_dir}")
+        except (OSError, KeyError, ValueError) as e:
+            log.error(f"Could not load simulation from {sim_dir} with error {e}")
             return False
 
         if "clean" in sim.record and not sim.record["clean"] and not reevaluate:
@@ -85,10 +92,25 @@ class FilterStrategy:
             log.error(f"Error {e} During error filtering for {simulation}")
             return False
 
+    def _check_exists(self, sim_dir: Path) -> bool:
+        """Check if a simulation directory already exists in the dataset."""
+
+        dataset_samples_name = get_dataset_sample_name(sim_dir)
+        dataset_sample_dir = self.dataset_samples_dir_path / dataset_samples_name
+        if dataset_sample_dir.exists() and (dataset_sample_dir / "inputs.pt").exists(
+        ) and (dataset_sample_dir / "outputs.pt").exists() and (
+                dataset_sample_dir / "metadata.json").exists():
+            return True
+
+        return False
+
     def filter(self, sim_dir: Path) -> bool:
         """Filter a simulation directory."""
 
         filter_result = True
+
+        if not self.reevaluate and self._check_exists(sim_dir):
+            return False
 
         if self.clean:
             filter_result &= self._get_simulation_valid(sim_dir,
@@ -189,7 +211,7 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
     dataset_save_path: Path,
     include_tune_dirs: bool = False,
     clean: bool = True,
-    reload: bool = False,
+    reevaluate: bool = False,
     max_density_error: float | None = None,
     recalculate_errors: bool = False,
     delete_unreadable: bool = False,
@@ -214,7 +236,7 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
         dataset_save_path: Path to the directory to save the dataset.
         include_tune_dirs: Include the tune directories in the dataset.
         clean: Clean the simulation directories before loading the dataset.
-        reload: Reload the simulation data even if it has already been saved.
+        reevaluate: Reload the simulation data even if it has already been saved.
         max_density_error: Maximum density error to include in the dataset.
         recalculate_errors: Recalculate the errors for the simulations.
         delete_unreadable: Delete unreadable simulation directories.
@@ -225,7 +247,7 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
              f"dataset_save_path = {dataset_save_path}\n"
              f"include_tune_dirs = {include_tune_dirs}\n"
              f"clean = {clean}\n"
-             f"reload = {reload}\n"
+             f"reevaluate = {reevaluate}\n"
              f"max_density_error = {max_density_error}\n"
              f"recalculate_errors = {recalculate_errors}\n"
              f"delete_unreadable = {delete_unreadable}\n"
@@ -241,7 +263,7 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
             f,
         )
 
-    all_simulation_directories = sorted(simulations_dir.glob("*"))
+    all_simulation_directories = list(reversed(sorted(simulations_dir.glob("*"))))
 
     if include_tune_dirs:
         all_simulation_directories += [
@@ -250,19 +272,20 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
 
     log.info(f"Found {len(all_simulation_directories)} simulation directories.")
 
+    samples_dir = dataset_save_path / "samples"
+    samples_dir.mkdir(exist_ok=True, parents=True)
+
     filter_strategy = FilterStrategy(clean=clean,
                                      max_density_error=max_density_error,
                                      recalculate_errors=recalculate_errors,
-                                     reevaluate=reload)
-
-    samples_dir = dataset_save_path / "samples"
-    samples_dir.mkdir(exist_ok=True, parents=True)
+                                     reevaluate=reevaluate,
+                                     dataset_samples_dir_path=samples_dir)
 
     for sim_dir in tqdm(filter(filter_strategy.filter, all_simulation_directories)):
 
         inputs, outputs, metadata = load_sample(sim_dir,
                                                 list(observables),
-                                                reload=reload)
+                                                reload=reevaluate)
 
         if (inputs[0] == 0).all():
             continue

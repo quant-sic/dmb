@@ -12,7 +12,8 @@ from dmb.data.bose_hubbard_2d.nn_input import \
     get_nn_input_dimless_const_parameters
 from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential, \
     get_square_mu_potential
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset, \
+    BoseHubbard2dSampleFilterStrategy
 from dmb.model.dmb_model import PredictionMapping
 from dmb.paths import REPO_DATA_ROOT
 
@@ -44,14 +45,15 @@ def create_wedding_cake_plot(
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
             dataset_dir_path=REPO_DATA_ROOT /
-            f"bose_hubbard_2d/wedding_cake/{zVU}/{ztU}/{L}/{coefficient}/dataset/max_density_error_0.1"
-        )
+            f"bose_hubbard_2d/wedding_cake/{zVU}/{ztU}/{L}/{coefficient}/dataset",
+            sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
+                max_density_error=0.1))
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities: list[np.ndarray] = [
         (
             bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                ztU=ztU, zVU=zVU, muU=_muU, L=L)["outputs"][0]  # type: ignore
+                ztU=ztU, zVU=zVU, muU=_muU, L=L).outputs[0]  # type: ignore
             if bose_hubbard_2d_dataset.get_phase_diagram_sample(
                 ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
         for _muU in muU
@@ -77,8 +79,6 @@ def create_wedding_cake_plot(
     figures_axes: dict[str, tuple[plt.Figure, plt.Axes]] = defaultdict(
         lambda: plt.subplots(1, 1, figsize=(6, 6)))
     figures: dict[str, dict[str, plt.Figure]] = {"wedding_cake": {}}
-
-    print(len(muU), len(target_densities), len(outputs["density"]))
 
     for _muU, qmc_image, nn_image in zip(muU, target_densities, outputs["density"]):
 
@@ -146,7 +146,9 @@ def create_box_plot(
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
             dataset_dir_path=REPO_DATA_ROOT /
-            f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset/max_density_error_0.3")
+            f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset",
+            sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
+                max_density_error=0.3))
 
     if len(bose_hubbard_2d_dataset) == 0:
         return {}
@@ -155,7 +157,7 @@ def create_box_plot(
     target_densities = [
         (
             bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                ztU=ztU, zVU=zVU, muU=_muU, L=L)["outputs"][0]  # type: ignore
+                ztU=ztU, zVU=zVU, muU=_muU, L=L).outputs[0]  # type: ignore
             if bose_hubbard_2d_dataset.get_phase_diagram_sample(
                 ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
         for _muU in muU
@@ -237,14 +239,16 @@ def create_box_cuts_plot(
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
             dataset_dir_path=REPO_DATA_ROOT /
-            f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset/max_density_error_0.3")
+            f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset",
+            sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
+                max_density_error=0.3))
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities_unflipped = torch.stack(
         [
             (
                 bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                    ztU=ztU, zVU=zVU, muU=_muU, L=L)["outputs"][0]  # type: ignore
+                    ztU=ztU, zVU=zVU, muU=_muU, L=L).outputs[0]  # type: ignore
                 if bose_hubbard_2d_dataset.get_phase_diagram_sample(
                     ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else torch.ones(
                         (L, L))) for _muU in muU
@@ -342,7 +346,9 @@ def plot_phase_diagram_mu_cut(
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
             dataset_dir_path=REPO_DATA_ROOT / "bose_hubbard_2d/mu_cut" /
-            f"{zVU}/{ztU}/{L}/dataset/max_density_error_0.015")
+            f"{zVU}/{ztU}/{L}/dataset",
+            sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
+                max_density_error=0.015))
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     inputs = [
@@ -361,8 +367,8 @@ def plot_phase_diagram_mu_cut(
     try:
         muU_qmc, n_qmc = zip(*[  # type: ignore
             (bose_hubbard_2d_dataset.get_phase_diagram_position(i)[1],
-             bose_hubbard_2d_dataset_i["outputs"][0]) for i, bose_hubbard_2d_dataset_i
-            in enumerate(bose_hubbard_2d_dataset)  # type: ignore
+             bose_hubbard_2d_dataset_i.outputs[0]) for i, bose_hubbard_2d_dataset_i in
+            enumerate(bose_hubbard_2d_dataset)  # type: ignore
         ])
 
         ax.scatter(muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))],
