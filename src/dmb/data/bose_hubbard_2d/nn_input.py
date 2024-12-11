@@ -176,7 +176,8 @@ def get_nn_input_dimless_const_parameters(
     if isinstance(target_density, np.ndarray):
         target_density = torch.from_numpy(target_density)
 
-    target_density = target_density.float().to(muU.device)
+    if target_density is not None:
+        target_density = target_density.float().to(muU.device)
 
     # convert to 2D if necessary
     if len(muU.shape) == 1:

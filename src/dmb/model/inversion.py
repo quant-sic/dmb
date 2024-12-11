@@ -1,7 +1,9 @@
+"""Inversion model."""
+
 import functools
 import itertools
 from pathlib import Path
-from typing import Any, Literal, Mapping, cast
+from typing import Any, Iterator, Literal, Mapping, cast
 
 import numpy as np
 import torch
@@ -22,10 +24,17 @@ from dmb.paths import REPO_DATA_ROOT
 
 
 class InversionResult(torch.nn.Module):
+    """Inversion result."""
 
-    def __init__(
-            self, shape: tuple[int, ...],
-            input_parameters: dict[str, float | torch.Tensor | np.ndarray]) -> None:
+    def __init__(self, shape: tuple[int, ...], input_parameters: dict[str,
+                                                                      Any]) -> None:
+        """Initialize the inversion result.
+        
+        Args:
+            shape: The shape of the inversion result.
+            input_parameters: The input parameters for the inversion result.
+                Given to the `get_nn_input_dimless_const_parameters` function.
+        """
         super().__init__()
 
         self.input_parameters = input_parameters
@@ -34,17 +43,19 @@ class InversionResult(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.inversion_result)
 
     def forward(self) -> torch.Tensor:
+        """Get the inversion result."""
         nn_input = get_nn_input_dimless_const_parameters(muU=self.inversion_result,
                                                          **self.input_parameters)
         return nn_input
 
 
 class InversionFakeDataLoader:
+    """Fake data loader for inversion."""
 
     def __init__(self) -> None:
         self.output = "fake"
 
-    def __iter__(self) -> torch.Tensor:
+    def __iter__(self) -> Iterator[str]:
         return iter([self.output])
 
     def __len__(self) -> int:
@@ -52,11 +63,24 @@ class InversionFakeDataLoader:
 
 
 def output_from_npy(npy_path: Path) -> torch.Tensor:
+    """Load output from npy file."""
     return torch.tensor(np.load(REPO_DATA_ROOT / npy_path).astype(np.float32))
 
 
 @define(hash=False, eq=False)
 class InversionResultLitModel(LightningModule):
+    """Inversion result Lightning model.
+
+    Attributes:
+        output: The output of the inversion.
+        lit_dmb_model: The LitDMBModel.
+        optimizer: The optimizer.
+        lr_scheduler: The learning rate scheduler.
+        loss: The loss function.
+        metrics: The metrics.
+        inversion_result: The inversion result.
+        dmb_model: The DMBModel.
+    """
 
     output: torch.Tensor
     lit_dmb_model: LitDMBModel

@@ -40,6 +40,12 @@ class GroupElement:
 
     @classmethod
     def from_group_elements(cls, group_elements: list[GroupElement]) -> GroupElement:
+        """Compose a group element from a list of group elements.
+        
+        Args:
+            group_elements: List of group elements.
+        """
+
         return cls(name="_".join([element.name for element in group_elements]),
                    transform=cls._compose(group_elements),
                    inverse_transform=cls._compose_inverse(group_elements))

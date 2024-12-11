@@ -48,12 +48,14 @@ def get_missing_samples(
     }) == 1):
         raise ValueError("Lists must be of the same length")
 
-    # if none is a list, make them all lists
-    if not any(isinstance(x, list) for x in [L, ztU, zVU, muU]):
-        L_ = [L]
-        ztU_ = [ztU]
-        zVU_ = [zVU]
-        muU_ = [muU]
+    if any(not isinstance(x, list) for x in [L, ztU, zVU, muU]):
+        if not all(isinstance(x, (int, float)) for x in [L, ztU, zVU, muU]):
+            raise ValueError("All inputs must be either lists or scalars")
+
+        L_ = [cast(int, L)]
+        ztU_ = [cast(float, ztU)]
+        zVU_ = [cast(float, zVU)]
+        muU_ = [cast(float, muU)]
     else:
         L_ = cast(list[int], L)
         ztU_ = cast(list[float], ztU)

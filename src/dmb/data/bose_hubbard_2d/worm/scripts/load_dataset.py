@@ -22,7 +22,8 @@ app = Typer()
 def get_dataset_sample_name(simulation_dir: Path) -> str:
     """Get the name of a dataset sample from a simulation directory."""
 
-    return simulation_dir.name if not simulation_dir.name == "tune" else simulation_dir.parent.name + "_tune"
+    return simulation_dir.name if not simulation_dir.name == "tune"\
+        else simulation_dir.parent.name + "_tune"
 
 
 @frozen

@@ -1,3 +1,5 @@
+"""Implementation of a 2D equivariant Squeeze-and-Excitation ResNet."""
+
 import math
 from functools import partial
 from typing import Callable
@@ -13,7 +15,6 @@ def conv2d(
     kernel_size: int,
     bias: bool = False,
     stride: int = 1,
-    padding: int = 0,
     dilation: int = 1,
     sigma: float | None = None,
     frequencies_cutoff: float | Callable[[float], float] | None = None,
@@ -67,15 +68,18 @@ FIELD_TYPE = {
 
 
 class SqueezeExcitation(enn.EquivariantModule):
-    """
-    This block implements the Squeeze-and-Excitation block from https://arxiv.org/abs/1709.01507 (see Fig. 1).
-    Parameters ``activation``, and ``scale_activation`` correspond to ``delta`` and ``sigma`` in eq. 3.
+    """This block implements the Squeeze-and-Excitation block
+    from https://arxiv.org/abs/1709.01507 (see Fig. 1).
+    Parameters ``activation``, and ``scale_activation``
+    correspond to ``delta`` and ``sigma`` in eq. 3.
 
     Args:
         input_channels (int): Number of channels in the input image
         squeeze_channels (int): Number of squeeze channels
-        activation (Callable[..., torch.nn.Module], optional): ``delta`` activation. Default: ``torch.nn.ReLU``
-        scale_activation (Callable[..., torch.nn.Module]): ``sigma`` activation. Default: ``torch.nn.Sigmoid``
+        activation (Callable[..., torch.nn.Module], optional):
+            ``delta`` activation. Default: ``torch.nn.ReLU``
+        scale_activation (Callable[..., torch.nn.Module]):
+            ``sigma`` activation. Default: ``torch.nn.Sigmoid``
     """
 
     def __init__(
@@ -96,23 +100,23 @@ class SqueezeExcitation(enn.EquivariantModule):
             self.scale_activation = enn.PointwiseNonLinearity(
                 edge_type, scale_activation)
 
-    def _scale(self, input: enn.GeometricTensor) -> enn.GeometricTensor:
-        scale = self.avgpool(input)
+    def _scale(self, x: enn.GeometricTensor) -> enn.GeometricTensor:
+        scale = self.avgpool(x)
         scale = self.fc1(scale)
         scale = self.activation(scale)
         scale = self.fc2(scale)
         return self.scale_activation(scale)
 
-    def forward(self, input: enn.GeometricTensor) -> enn.GeometricTensor:
-        scale = self._scale(input)
-        return enn.GeometricTensor(input.tensor * scale.tensor, input.type,
-                                   input.coords)
+    def forward(self, x: enn.GeometricTensor) -> enn.GeometricTensor:
+        scale = self._scale(x)
+        return enn.GeometricTensor(x.tensor * scale.tensor, x.type, x.coords)
 
     def evaluate_output_shape(self, input_shape: torch.Size) -> torch.Size:
         return input_shape
 
 
 class BasicSeBlock(enn.EquivariantModule):
+    """Basic block for the Squeeze-and-Excitation ResNet."""
 
     def __init__(
         self,
@@ -159,11 +163,7 @@ class BasicSeBlock(enn.EquivariantModule):
 
         self.dropout = enn.PointwiseDropout(inner_type, p=dropout_rate)
 
-        self.conv2 = conv_func(inner_type,
-                               self.out_type,
-                               kernel_size=kernel_size,
-                               sigma=sigma,
-                               frequencies_cutoff=frequencies_cutoff)
+        self.conv2 = conv_func(inner_type, self.out_type, kernel_size=kernel_size)
 
         self.shortcut = None
         if stride != 1 or self.in_type != self.out_type:
@@ -190,6 +190,7 @@ class BasicSeBlock(enn.EquivariantModule):
 
 
 class EsSeResNet2d(torch.nn.Module):
+    """Equivariant steerable Squeeze-and-Excitation ResNet."""
 
     def __init__(
         self,
@@ -265,6 +266,7 @@ class EsSeResNet2d(torch.nn.Module):
                                               last_block)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the network."""
 
         # wrap the input tensor in a GeometricTensor
         x = enn.GeometricTensor(x, self.in_type)

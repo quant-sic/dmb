@@ -121,6 +121,7 @@ disable = [
   "too-many-arguments",
   "abstract-class-instantiated", # pylint does not play well with attrs define
   "consider-using-f-string",
+  "W0613", # unused argument
 ]
 
 [tool.yapf]

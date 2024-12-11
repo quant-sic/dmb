@@ -34,6 +34,7 @@ class Loss(ABC, torch.nn.Module):
 
 @define(hash=False, eq=False)
 class WeightedLoss(Loss):
+    """Weighted loss function."""
 
     constituent_losses: dict[str, Loss]
     weights: dict[str, float] | None = None
@@ -64,11 +65,14 @@ class EquivarianceLoss(Loss):
     """Equivariance loss."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the loss function."""
+
         super().__init__()
 
     def forward_single_size(
-            self, y_pred: torch.Tensor, y_true: torch.Tensor, sample_ids: list[str],
+            self, y_pred: torch.Tensor, sample_ids: list[str],
             group_elements: list[list[GroupElement]]) -> tuple[torch.Tensor, int]:
+        """Calculate the loss for a single size."""
 
         # transform back to original sample
         y_pred_original = torch.stack([
@@ -101,9 +105,9 @@ class EquivarianceLoss(Loss):
         """Calculate the loss for the predicted and true values."""
 
         losses_out, n_samples_losses = zip(*[
-            self.forward_single_size(y_pred, y_true, sample_ids, group_elements)
-            for y_pred, y_true, sample_ids, group_elements in zip(
-                model_output, batch.outputs, batch.sample_ids, batch.group_elements)
+            self.forward_single_size(y_pred, sample_ids, group_elements)
+            for y_pred, sample_ids, group_elements in zip(
+                model_output, batch.sample_ids, batch.group_elements)
         ])
 
         loss = sum(loss * n_samples_loss for loss, n_samples_loss in zip(

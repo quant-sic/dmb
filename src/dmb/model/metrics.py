@@ -30,7 +30,7 @@ class MinMSE(torchmetrics.Metric):
                  *args: Any,
                  squared: bool = True,
                  num_outputs: int = 1,
-                 **kwargs: Any) -> None:  # pylint: disable=unused-argument
+                 **kwargs: Any) -> None:
         """Initialize the Mean Squared Error (MSE) metric."""
 
         super().__init__(**kwargs)
@@ -99,11 +99,12 @@ class MSE(torchmetrics.Metric):
     sum_squared_error: torch.Tensor
     total: torch.Tensor
 
-    def __init__(self,
-                 *args: Any,
-                 squared: bool = True,
-                 num_outputs: int = 1,
-                 **kwargs: Any) -> None:  # pylint: disable=unused-argument
+    def __init__(
+            self,
+            *args: Any,  # pylint: disable=unused-argument
+            squared: bool = True,
+            num_outputs: int = 1,
+            **kwargs: Any) -> None:  # pylint: disable=unused-argument
         """Initialize the Mean Squared Error (MSE) metric."""
 
         super().__init__(**kwargs)

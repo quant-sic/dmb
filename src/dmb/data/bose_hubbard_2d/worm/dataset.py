@@ -94,14 +94,14 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
 
         return False
 
-    def _filter_L(self, metadata: dict[str, float]) -> bool:
+    def _filter_L(self, metadata: dict[str, float]) -> bool:  # pylint: disable=invalid-name
         """Filter samples based on the lattice size."""
         if not self.L_range:
             return True
 
         return self.L_range[0] <= metadata["L"] <= self.L_range[1]
 
-    def _filter_ztU(self, metadata: dict[str, float]) -> bool:
+    def _filter_ztU(self, metadata: dict[str, float]) -> bool:  # pylint: disable=invalid-name
         """Filter samples based on the tunneling strength."""
         if not self.ztU_range:
             return True
@@ -109,7 +109,7 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
         return self.ztU_range[0] <= (4 * metadata["J"] /
                                      metadata["U_on"]) <= self.ztU_range[1]
 
-    def _filter_muU(self, metadata: dict[str, float]) -> bool:
+    def _filter_muU(self, metadata: dict[str, float]) -> bool:  # pylint: disable=invalid-name
         """Filter samples based on the chemical potential."""
         if not self.muU_range:
             return True
@@ -117,7 +117,7 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
         return self.muU_range[0] <= (metadata["mu"] /
                                      metadata["U_on"]) <= self.muU_range[1]
 
-    def _filter_zVU(self, metadata: dict[str, float]) -> bool:
+    def _filter_zVU(self, metadata: dict[str, float]) -> bool:  # pylint: disable=invalid-name
         """Filter samples based on the nearest-neighbor interaction strength."""
         if not self.zVU_range:
             return True
@@ -131,8 +131,8 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
         metadata = sample.metadata
 
         return bool(
-            self._filter_ztU(metadata) and self._filter_muU(metadata)
-            and self._filter_zVU(metadata) and self._filter_L(metadata)
+            self._filter_ztU(metadata) and self._filter_muU(metadata)  # pylint: disable=invalid-name
+            and self._filter_zVU(metadata) and self._filter_L(metadata)  # pylint: disable=invalid-name
             and self._filter_error(metadata))
 
 

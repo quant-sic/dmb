@@ -1,6 +1,8 @@
+"""ResNet2d and SeResNet2d modules."""
+
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 from torchvision.ops.misc import SqueezeExcitation
 
 
@@ -70,6 +72,8 @@ class BasicBlock(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the BasicBlock module."""
+
         identity = x
 
         # the first conv
@@ -102,6 +106,7 @@ class BasicBlock(nn.Module):
 
 
 class ResNet2d(nn.Module):
+    """ResNet2d module."""
 
     def __init__(
         self,
@@ -111,6 +116,15 @@ class ResNet2d(nn.Module):
         n_channels: list[int],
         dropout: float = 0.0,
     ):
+        """Initialize the ResNet2d module.
+
+        Args:
+            in_channels: Number of input channels.
+            out_channels: Number of output channels.
+            kernel_sizes: List of kernel sizes for each block.
+            n_channels: List of number of channels for each block.
+            dropout: Dropout rate. Defaults to 0.0.
+        """
         super().__init__()
 
         self.in_channels = in_channels
@@ -133,11 +147,7 @@ class ResNet2d(nn.Module):
 
         self.basicblock_list = []
         for i_block in range(len(n_channels) - 1):
-            # is_first_block
-            if i_block == 0:
-                is_first_block = True
-            else:
-                is_first_block = False
+            is_first_block = i_block == 0
 
             in_channels = n_channels[i_block]
             out_channels = n_channels[i_block + 1]
@@ -168,14 +178,13 @@ class ResNet2d(nn.Module):
                                     self.last_block)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the ResNet2d module."""
         out: torch.Tensor = self.resnet(x)
         return out
 
 
 class SeBasicBlock(nn.Module):
-    """
-    ResNet Basic Block
-    """
+    """ResNet Basic Block"""
 
     def __init__(
         self,
@@ -193,9 +202,11 @@ class SeBasicBlock(nn.Module):
             in_channels: Number of input channels.
             out_channels: Number of output channels.
             kernel_size: Size of the convolutional kernel.
-            is_first_block: Indicates if this is the first block in the network. Defaults to False.
+            is_first_block: Indicates if this is the first block in the network.
+                Defaults to False.
             dropout: Dropout rate. Defaults to 0.0.
-            squeeze_factor: Factor by which to squeeze the input channels in the SqueezeExcitation module. Defaults to 4.
+            squeeze_factor: Factor by which to squeeze the input channels
+                in the SqueezeExcitation module. Defaults to 4.
         """
         super().__init__()
 
@@ -229,6 +240,7 @@ class SeBasicBlock(nn.Module):
         self.se = SqueezeExcitation(in_channels, in_channels // squeeze_factor)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the SeBasicBlock module."""
         identity = x
 
         # the first conv
@@ -262,6 +274,7 @@ class SeBasicBlock(nn.Module):
 
 
 class SeResNet2d(nn.Module):
+    """SeResNet2d module."""
 
     def __init__(
         self,
@@ -295,11 +308,7 @@ class SeResNet2d(nn.Module):
 
         self.basicblock_list = []
         for i_block in range(len(n_channels) - 1):
-            # is_first_block
-            if i_block == 0:
-                is_first_block = True
-            else:
-                is_first_block = False
+            is_first_block = i_block == 0
 
             in_channels = n_channels[i_block]
             out_channels = n_channels[i_block + 1]
@@ -331,5 +340,6 @@ class SeResNet2d(nn.Module):
                                     self.last_block)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the SeResNet2d module."""
         out: torch.Tensor = self.resnet(x)
         return out

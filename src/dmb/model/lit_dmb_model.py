@@ -20,6 +20,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from dmb.data.collate import MultipleSizesBatch
 from dmb.logging import create_logger
+from dmb.model.dmb_model import DMBModel
 from dmb.model.loss import Loss, LossOutput
 from dmb.paths import REPO_LOGS_ROOT
 
@@ -49,7 +50,7 @@ class WeightsCheckpoint:
 class LitDMBModel(pl.LightningModule):
     """Lightning module for DMB models."""
 
-    model: torch.nn.Module
+    model: DMBModel
     optimizer: functools.partial[Optimizer]
     lr_scheduler: dict[str, functools.partial[_LRScheduler | Any]]
     loss: Loss
