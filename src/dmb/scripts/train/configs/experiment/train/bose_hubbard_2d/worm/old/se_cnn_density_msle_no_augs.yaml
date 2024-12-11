@@ -47,7 +47,7 @@ datamodule:
   train_transforms: null
       # _target_: torchvision.transforms.transforms.Compose
       # transforms: [
-      #             _target_: dmb.data.utils.SquareSymmetryGroupTransforms,
+      #             _target_: dmb.data.utils.D4GroupTransforms,
       #             {_target_: dmb.data.utils.TupleWrapper,
       #               transform: 
       #                 {

@@ -6,22 +6,29 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "attrs>=24.2.0",
+    "escnn>=1.0.11",
     "fyeldgenerator>=0.1.7",
     "h5py>=3.12.1",
     "hydra-core>=1.3.2",
     "jinja2-cli>=0.8.2",
     "joblib>=1.4.2",
+    "lie-learn", # requires clang
     "lightning>=2.4.0",
     "matplotlib>=3.9.2",
     "numpy>=2.1.2",
+    "opencv-python>=4.10.0.84",
+    "pip>=24.3.1",
+    "py3nj>=0.2.1",
     "pydantic-settings>=2.5.2",
     "python-dotenv>=1.0.1",
     "pyyaml>=6.0.2",
     "scipy>=1.14.1",
+    "seaborn>=0.13.2",
     "syjson>=2.1.6",
     "torch>=2.4.1",
     "torchvision>=0.20.1",
     "tqdm>=4.66.5",
+    "typer>=0.13.0",
     "wandb>=0.18.3",
 ]
 
@@ -57,6 +64,9 @@ ci = [
 
 [tool.uv.sources]
 fyeldgenerator = { git = "https://github.com/cphyc/FyeldGenerator.git" }
+lie-learn = { git = "https://github.com/AMLab-Amsterdam/lie_learn" }
+escnn = { git = "https://github.com/QUVA-Lab/escnn" }
+py3nj = { git = "https://github.com/fujiisoup/py3nj.git" }
 
 
 [tool.pytest.ini_options]
@@ -74,7 +84,6 @@ addopts = [
 ]
 
 [tool.mypy]
-exclude = ["^src/dmb/model/models"]
 show_error_codes = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -89,9 +98,9 @@ good-names = [
   "logger",
   "pytestmark"
 ]
-argument-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
-variable-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
-attr-rgx = "([a-z_][a-z0-9_]{0,40}$|[L(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+argument-rgx = "([a-z_][a-z0-9_]{0,40}$|[JL(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+variable-rgx = "([a-z_][a-z0-9_]{0,40}$|[JL(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
+attr-rgx = "([a-z_][a-z0-9_]{0,40}$|[JL(ztU)(muU)(zVU)(Ntest)(Nmeasure)(Nmeasure2)(Nsave)(E_off)(C_worm)_]+[a-z0-9_]{0,40})"
 
 [tool.pylint.FORMAT]
 max-line-length = 88
@@ -112,6 +121,7 @@ disable = [
   "too-many-arguments",
   "abstract-class-instantiated", # pylint does not play well with attrs define
   "consider-using-f-string",
+  "W0613", # unused argument
 ]
 
 [tool.yapf]

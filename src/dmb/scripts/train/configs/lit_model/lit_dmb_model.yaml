@@ -5,7 +5,6 @@ defaults:
 
 loss:
   _target_: dmb.model.loss.MSELoss
-  reduction: mean
   
 optimizer:
   _target_: torch.optim.Adam
@@ -31,3 +30,5 @@ metrics:
   metrics:
     mse:
       _target_: dmb.model.metrics.MSE
+
+weights_checkpoint: null

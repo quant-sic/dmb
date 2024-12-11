@@ -1,0 +1,68 @@
+# @package _global_
+
+defaults:
+  - override /datamodule: bose_hubbard_2d
+  - override /lit_model: lit_dmb_model
+  - override /lit_model/model: dmb_model
+  - override /callbacks: default
+  - override /trainer: default
+  - _self_
+
+exp_name: "bose_hubbard_2d/worm/all_obs/es_resnet/mse/none"
+
+seed: 12345
+
+trainer:
+  max_epochs: 10000
+  accumulate_grad_batches: 8
+  precision: 16-mixed
+  deterministic: False
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 10
+
+datamodule:
+
+  batch_size: 2048
+
+  dataset:
+    transforms: 
+      train_augmentations:           
+        - _target_: dmb.data.bose_hubbard_2d.transforms.D4GroupTransforms
+
+lit_model:
+  model:
+
+    module_list: [
+      {
+        _target_: dmb.model.modules.EsSeResNet2d,
+        in_channels: 4,
+        out_channels: 9,
+        kernel_sizes: [7,5,3,3,3,1,1],
+        n_channels: [16, 32, 64, 128, 256, 128, 64],
+        dropout: 0.1,
+        frequencies_cutoff: 25.0
+      },
+    ]
+
+    output_modification: []
+
+  optimizer:
+    lr: 0.001
+
+  lr_scheduler:
+    scheduler:
+      _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+      mode: min
+      factor: 0.5
+      patience: 250
+      min_lr: 1e-5
+      cooldown: 500
+      threshold: 0.1
+      
+    monitor: train/mse
+    interval: epoch
+    frequency: 1
+
+  loss:
+    _target_: dmb.model.loss.MSELoss
+    reduction: mean

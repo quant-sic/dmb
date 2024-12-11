@@ -1,0 +1,44 @@
+# @package _global_
+
+defaults:
+  - override /lit_model: inversion_result_lit_model
+  - override /callbacks: default
+  - override /trainer: default
+  - _self_
+
+exp_name: "minerva"
+
+seed: 12345
+
+trainer:
+  max_epochs: 250
+  accumulate_grad_batches: 5
+  precision: 16-mixed
+  deterministic: False
+  check_val_every_n_epoch: 10
+  log_every_n_steps: 10
+
+lit_model:
+
+  lit_dmb_model:
+    log_dir: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/none/runs/2024-12-09_21-38-50"
+    checkpoint_path: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/none/runs/2024-12-09_21-38-50/checkpoints/epoch=699-step=3500.ckpt"
+
+  lr_scheduler:
+    scheduler:
+      _target_: torch.optim.lr_scheduler.StepLR
+      step_size: 200
+      gamma: 0.5
+
+  output:
+    _target_: dmb.model.inversion.output_from_npy
+    npy_path: "bose_hubbard_2d/minerva/minerva.npy"
+
+  inversion_result:
+    _target_: dmb.model.inversion.InversionResult
+    shape: [35,35]
+    input_parameters:
+      ztU: 0.25
+      zVU: 1.0
+      target_density: ${lit_model.output}
+

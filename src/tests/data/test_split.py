@@ -1,60 +1,14 @@
 """Test the split module."""
 
-import itertools
-import re
 from pathlib import Path
-from typing import Any, Iterable
 
-import numpy as np
 import pytest
-from attrs import define, field
 from pytest_cases import case, filters, parametrize_with_cases
 
-from dmb.data.bose_hubbard_2d.worm.split import WormSimulationsSplitStrategy
-from dmb.data.dataset import IdDataset
+from dmb.data.bose_hubbard_2d.worm.dataset import WormSimulationsSplitStrategy
 from dmb.data.split import AllIdsEqualSplitStrategy, IdDatasetSplitStrategy, \
     Split
-
-
-def validate_same_length(instance: Any, attribute: Any, value: Any) -> None:  # pylint: disable=unused-argument
-    """Validate that the ids and indices have the same length."""
-    if len(instance.ids) != len(instance.indices):
-        raise ValueError("ids and indices must have the same length")
-
-
-@define
-class FakeIdDataset(IdDataset):
-    """Fake dataset with ids and indices."""
-
-    ids: tuple[str, ...] = field(validator=validate_same_length)
-    indices: tuple[int, ...] = field(validator=validate_same_length)
-
-    def get_ids_from_indices(self, indices: Iterable[int]) -> tuple[str, ...]:
-        """Get ids from indices.
-
-        Indices are expected to be unique and in the range of `len(self.ids)`.
-        """
-        return tuple(self.ids[idx] for idx in indices)
-
-    def get_indices_from_ids(self, ids: Iterable[str]) -> tuple[int, ...]:
-        """Get indices from ids.
-
-        Ids are not expected to be unique or a proper subset of `self.ids`.
-
-        Args:
-            ids: A tuple of ids.
-
-        Returns:
-            A tuple of indices corresponding to the ids. The indices are sorted.
-        """
-        contained_ids = set(self.ids).intersection(ids)
-        return tuple(self.ids.index(id_) for id_ in sorted(contained_ids))
-
-    def __len__(self) -> int:
-        return len(self.ids)
-
-    def __getitem__(self, idx: int) -> tuple[int, str]:
-        return self.indices[idx], self.ids[idx]
+from tests.data.fake_id_dataset import FakeIdDataset
 
 
 class SplitStrategyCases:
@@ -196,16 +150,6 @@ class SplitDataCases:
             "test": 10
         })
 
-    @staticmethod
-    @case(tags=("id_dataset", "worm"))
-    def case_id_dataset_worm() -> FakeIdDataset:
-        """Return a fake id dataset."""
-        return FakeIdDataset(
-            ids=("a", "a_tune", "b_tune", "c_tune", "d", "e", "e_tune", "f", "g",
-                 "g_tune"),
-            indices=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
-        )
-
 
 class TestSplit:
     """Test the Split class."""
@@ -304,41 +248,3 @@ class TestSplit:
                 dataset=id_dataset,
                 split_strategy=split_strategy,
             )
-
-    @staticmethod
-    @parametrize_with_cases("split_strategy",
-                            cases=SplitStrategyCases,
-                            filter=filters.has_tag("worm"))
-    @parametrize_with_cases("id_dataset",
-                            cases=SplitDataCases,
-                            filter=filters.has_tag("id_dataset")
-                            & filters.has_tag("worm"))
-    def test_split_worm_id_dataset(id_dataset: FakeIdDataset,
-                                   split_strategy: IdDatasetSplitStrategy) -> None:
-        """Test worm dataset split."""
-
-        for _ in range(100):
-            split_abs_sizes = {
-                f"split_fraction_{idx}": int(np.random.randint(1, 100))
-                for idx in range(np.random.randint(1, 5))
-            }
-            split_fractions = {
-                key: value / sum(split_abs_sizes.values())
-                for key, value in split_abs_sizes.items()
-            }
-
-            split_ids = Split.generate(
-                split_fractions=split_fractions,
-                dataset=id_dataset,
-                split_strategy=split_strategy,
-            )
-
-            assert sum(len(ids) for ids in split_ids.values()) == len(id_dataset)
-            simulation_ids = {
-                key: set(re.sub("_tune", "", sample_id) for sample_id in value)
-                for key, value in split_ids.items()
-            }
-
-            # check pairwise intersection are empty
-            for key1, key2 in itertools.combinations(simulation_ids, 2):
-                assert len(simulation_ids[key1].intersection(simulation_ids[key2])) == 0

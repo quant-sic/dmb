@@ -2,7 +2,17 @@ _target_: dmb.data.bose_hubbard_2d.worm.datamodule.BoseHubbard2dDataModule
 
 dataset:
   _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dDataset
-  transforms: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
+  transforms: 
+    _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
+
+  sample_filter_strategy:
+    _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dSampleFilterStrategy
+    ztU_range: [0.05, 1.0]
+    muU_range: [-0.05, 3.0]
+    zVU_range: [0.75, 1.75]
+    L_range: [2, 20]
+    max_density_error: 0.015
+
   dataset_dir_path: ???
 
 split:
@@ -12,4 +22,20 @@ split:
 batch_size: 32
 num_workers: 4
 pin_memory: True
+
+batch_sampler:
+  _convert_: all
+  train:
+    _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+    _partial_: true
+    n_duplicates: 1
+  val:
+    _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+    _partial_: true
+    n_duplicates: 1
+  test:
+    _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+    _partial_: true
+    n_duplicates: 1
+
 

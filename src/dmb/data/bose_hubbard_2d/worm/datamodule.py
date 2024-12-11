@@ -1,13 +1,15 @@
 """LightningDataModule for BoseHubbard2dDataset."""
 
-from typing import Callable
+from functools import partial
+from typing import Callable, Literal
 
 import lightning.pytorch as pl
 from attrs import define, field
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Sampler, Subset
 
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
 from dmb.data.collate import collate_sizes
+from dmb.data.sampler import MDuplicatesPerBatchSampler
 from dmb.data.split import Split
 from dmb.data.utils import chain_fns
 from dmb.logging import create_logger
@@ -24,6 +26,12 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
     batch_size: int
     num_workers: int
     pin_memory: bool
+    batch_sampler: dict[Literal["train", "val", "test"], partial[Sampler]] = field(
+        factory=lambda: {
+            "train": partial(MDuplicatesPerBatchSampler, n_duplicates=1),
+            "val": partial(MDuplicatesPerBatchSampler, n_duplicates=1),
+            "test": partial(MDuplicatesPerBatchSampler, n_duplicates=1),
+        })
 
     stage_subsets: dict[str, Subset[BoseHubbard2dDataset]] = field(init=False)
 
@@ -53,28 +61,35 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
         log.info("Dataset transforms: %s", self.dataset.transforms)
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.stage_subsets["train"],
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=self.get_collate_fn(),
-        )
+        return DataLoader(self.stage_subsets["train"],
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory,
+                          collate_fn=self.get_collate_fn(),
+                          batch_sampler=self.batch_sampler["train"](
+                              dataset=self.stage_subsets["train"],
+                              batch_size=self.batch_size,
+                              shuffle=True,
+                          ))
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.stage_subsets["val"],
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=self.get_collate_fn(),
-        )
+        return DataLoader(self.stage_subsets["val"],
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory,
+                          collate_fn=self.get_collate_fn(),
+                          batch_sampler=self.batch_sampler["val"](
+                              dataset=self.stage_subsets["val"],
+                              batch_size=self.batch_size,
+                              shuffle=False,
+                          ))
 
     def test_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.stage_subsets["test"],
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=self.get_collate_fn(),
-        )
+        return DataLoader(self.stage_subsets["test"],
+                          batch_size=self.batch_size,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory,
+                          collate_fn=self.get_collate_fn(),
+                          batch_sampler=self.batch_sampler["test"](
+                              dataset=self.stage_subsets["test"],
+                              batch_size=self.batch_size,
+                              shuffle=False,
+                          ))

@@ -40,8 +40,8 @@ def draw_random_config(
     V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
     mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
-    power, V_trap = get_random_trapping_potential(shape=(L, L),
-                                                  desired_abs_max=abs(mu_offset) / 2)
+    power, V_trap = get_random_trapping_potential(shape=(L, L), mu_offset=mu_offset)
+
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
     V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
                                 axis=0).repeat(2, axis=0)
@@ -146,9 +146,8 @@ async def simulate(
     if "SLURM_JOB_ID" in os.environ:
         name_prefix += os.environ["SLURM_JOB_ID"] + "_"
 
-    save_dir = (
-        REPO_DATA_ROOT /
-        f"bose_hubbard_2d/{type}/simulations/{now}_sample_{name_prefix}{sample_id}")
+    save_dir = (REPO_DATA_ROOT / (f"bose_hubbard_2d/{potential_type}/simulations/"
+                                  f"{now}_sample_{name_prefix}{sample_id}"))
 
     shutil.rmtree(save_dir, ignore_errors=True)
 
@@ -174,7 +173,7 @@ if __name__ == "__main__":
                         default=1,
                         help="number of samples to run")
     parser.add_argument("--number_of_concurrent_jobs", type=int, default=1)
-    parser.add_argument("--type",
+    parser.add_argument("--potential_type",
                         type=str,
                         default="random",
                         choices=["random", "uniform"])
@@ -226,7 +225,7 @@ if __name__ == "__main__":
         async with semaphore:
             await simulate(
                 sample_id,
-                potential_type=args.type,
+                potential_type=args.potential_type,
                 L_half_min=args.L_half_min,
                 L_half_max=args.L_half_max,
                 U_on_min=args.U_on_min,

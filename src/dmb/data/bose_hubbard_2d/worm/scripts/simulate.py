@@ -11,7 +11,8 @@ import numpy as np
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset, \
+    BoseHubbard2dSampleFilterStrategy
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
 from dmb.data.dispatching import auto_create_dispatcher
@@ -29,12 +30,15 @@ def get_missing_samples(
     tolerance_ztU: float = 0.01,
     tolerance_zVU: float = 0.01,
     tolerance_muU: float = 0.01,
+    max_density_error: float = 0.015,
 ) -> tuple[tuple[int, ...], tuple[float, ...], tuple[float, ...], tuple[float, ...]]:
     """Get missing samples from the dataset."""
 
     bh_dataset = BoseHubbard2dDataset(
         dataset_dir_path=dataset_dir,
         transforms=BoseHubbard2dTransforms(),
+        sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
+            max_density_error=max_density_error, ),
     )
 
     # if lists, they must be of the same length
@@ -44,12 +48,19 @@ def get_missing_samples(
     }) == 1):
         raise ValueError("Lists must be of the same length")
 
-    # if none is a list, make them all lists
-    if not any(isinstance(x, list) for x in [L, ztU, zVU, muU]):
-        L_ = [L]
-        ztU_ = [ztU]
-        zVU_ = [zVU]
-        muU_ = [muU]
+    if any(not isinstance(x, list) for x in [L, ztU, zVU, muU]):
+        if not all(isinstance(x, (int, float)) for x in [L, ztU, zVU, muU]):
+            raise ValueError("All inputs must be either lists or scalars")
+
+        L_ = [cast(int, L)]
+        ztU_ = [cast(float, ztU)]
+        zVU_ = [cast(float, zVU)]
+        muU_ = [cast(float, muU)]
+    else:
+        L_ = cast(list[int], L)
+        ztU_ = cast(list[float], ztU)
+        zVU_ = cast(list[float], zVU)
+        muU_ = cast(list[float], muU)
 
     missing_tuples = []
     for L_i, ztU_i, zVU_i, muU_i in zip(*[
@@ -90,8 +101,8 @@ def draw_random_config(
     V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
     mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
-    power, V_trap = get_random_trapping_potential(shape=(L, L),
-                                                  desired_abs_max=abs(mu_offset) / 2)
+    power, V_trap = get_random_trapping_potential(shape=(L, L), mu_offset=mu_offset)
+
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
     V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
                                 axis=0).repeat(2, axis=0)

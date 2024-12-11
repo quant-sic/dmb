@@ -45,7 +45,7 @@ datamodule:
   train_transforms: 
       _target_: torchvision.transforms.transforms.Compose
       transforms: [
-                  _target_: dmb.data.utils.SquareSymmetryGroupTransform
+                  _target_: dmb.data.utils.D4GroupTransform
                   _target_: torchvision.transforms.RandomErasing
                   ]
 
