@@ -78,7 +78,8 @@ class LitDMBModel(pl.LightningModule):
         Returns:
             The loaded model.
         """
-        with open(REPO_LOGS_ROOT/log_dir / ".hydra/config.yaml", encoding="utf-8") as file:
+        with open(REPO_LOGS_ROOT / log_dir / ".hydra/config.yaml",
+                  encoding="utf-8") as file:
             config = DictConfig(yaml.load(file, Loader=yaml.FullLoader))
 
         # keep "lit_model" key, but remove "_target_" key, such that config is
@@ -91,7 +92,7 @@ class LitDMBModel(pl.LightningModule):
             }
         }
         model: LitDMBModel = cls.load_from_checkpoint(
-            checkpoint_path=REPO_LOGS_ROOT/checkpoint_path,
+            checkpoint_path=REPO_LOGS_ROOT / checkpoint_path,
             **hydra.utils.instantiate(config_without_target)["lit_model"],
         )
         return model

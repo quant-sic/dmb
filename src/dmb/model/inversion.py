@@ -1,7 +1,9 @@
 import functools
 import itertools
+from pathlib import Path
 from typing import Any, Literal, Mapping, cast
 
+import numpy as np
 import torch
 import torchmetrics
 from attrs import define, field
@@ -9,20 +11,21 @@ from lightning import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
-import numpy as np
+
+from dmb.data.bose_hubbard_2d.nn_input import \
+    get_nn_input_dimless_const_parameters
 from dmb.data.collate import MultipleSizesBatch
 from dmb.model.dmb_model import DMBModel
-from dmb.model.loss import Loss, LossOutput
-from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
 from dmb.model.lit_dmb_model import LitDMBModel
-from pathlib import Path
+from dmb.model.loss import Loss, LossOutput
 from dmb.paths import REPO_DATA_ROOT
-import matplotlib.pyplot as plt
+
 
 class InversionResult(torch.nn.Module):
 
-    def __init__(self, shape:tuple[int,...],input_parameters:dict[str,float|torch.Tensor|np.ndarray]
-    ) -> None:
+    def __init__(
+            self, shape: tuple[int, ...],
+            input_parameters: dict[str, float | torch.Tensor | np.ndarray]) -> None:
         super().__init__()
 
         self.input_parameters = input_parameters
@@ -31,12 +34,13 @@ class InversionResult(torch.nn.Module):
         torch.nn.init.xavier_uniform_(self.inversion_result)
 
     def forward(self) -> torch.Tensor:
-        nn_input = get_nn_input_dimless_const_parameters(
-            muU=self.inversion_result,
-            **self.input_parameters)
+        nn_input = get_nn_input_dimless_const_parameters(muU=self.inversion_result,
+                                                         **self.input_parameters)
         return nn_input
 
+
 class InversionFakeDataLoader:
+
     def __init__(self) -> None:
         self.output = "fake"
 
@@ -46,8 +50,10 @@ class InversionFakeDataLoader:
     def __len__(self) -> int:
         return 1
 
+
 def output_from_npy(npy_path: Path) -> torch.Tensor:
-    return torch.tensor(np.load(REPO_DATA_ROOT/npy_path).astype(np.float32))
+    return torch.tensor(np.load(REPO_DATA_ROOT / npy_path).astype(np.float32))
+
 
 @define(hash=False, eq=False)
 class InversionResultLitModel(LightningModule):
@@ -61,7 +67,6 @@ class InversionResultLitModel(LightningModule):
     inversion_result: InversionResult
 
     dmb_model: DMBModel = field(init=False)
-
 
     def __attrs_pre_init__(self) -> None:
         super().__init__()
@@ -80,13 +85,14 @@ class InversionResultLitModel(LightningModule):
         self.dmb_model.eval()
 
     def forward(self) -> torch.Tensor:
-        dmb_model_out: torch.Tensor = self.dmb_model(self.inversion_result().unsqueeze(0))
+        dmb_model_out: torch.Tensor = self.dmb_model(
+            self.inversion_result().unsqueeze(0))
         return dmb_model_out
 
     def _calculate_loss(self) -> tuple[torch.Tensor, LossOutput]:
         model_out = self()
         density_feature_dim = self.dmb_model.observables.index("density")
-        model_out = model_out[...,density_feature_dim,:,:]
+        model_out = model_out[..., density_feature_dim, :, :]
 
         batch = MultipleSizesBatch(
             inputs=[],

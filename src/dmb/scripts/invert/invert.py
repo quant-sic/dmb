@@ -1,11 +1,14 @@
 """Suggested train scripts format."""
 
+from pathlib import Path
+
 import hydra
 import lightning.pytorch as pl
-from lightning.pytorch import LightningDataModule, LightningModule, Trainer
+import numpy as np
+from lightning.pytorch import LightningModule, Trainer
 from omegaconf import DictConfig
-from dmb.model.inversion import InversionFakeDataLoader
 
+from dmb.model.inversion import InversionFakeDataLoader
 from dmb.paths import REPO_ROOT
 
 
@@ -25,13 +28,15 @@ def invert(cfg: DictConfig) -> None:
                                                logger=logger,
                                                callbacks=callbacks)
 
-
-
     lit_model: LightningModule = hydra.utils.instantiate(cfg.lit_model)
 
     trainer.fit(lit_model, train_dataloaders=InversionFakeDataLoader())
 
-    trainer.save_checkpoint("model.ckpt")
+    trainer.save_checkpoint(Path(trainer.default_root_dir) / "model.ckpt")
+
+    # save as npy
+    np.save(Path(trainer.default_root_dir) / "inverted.npy", lit_model.inversion_result)
+
 
 if __name__ == "__main__":
     invert()

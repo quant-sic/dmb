@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+import numpy as np
 import torch
 import torchmetrics
 from torchmetrics.functional.regression.mse import \
     _mean_squared_error_compute, _mean_squared_error_update
-import numpy as np
+
 from dmb.logging import create_logger
 
 log = create_logger(__name__)
+
 
 class MinMSE(torchmetrics.Metric):
     """Computes the minimum Mean Squared Error (MSE) metric over the batch dimension."""
@@ -60,8 +62,8 @@ class MinMSE(torchmetrics.Metric):
         mse_samples = ((preds - target)**2).sum(dim=tuple(range(1, preds.ndim)))
         min_mse_sample_idx = mse_samples.argmin()
 
-        sum_squared_error, num_obs = mse_samples[min_mse_sample_idx], np.prod(preds.shape[1:])
-        
+        sum_squared_error, num_obs = mse_samples[min_mse_sample_idx], np.prod(
+            preds.shape[1:])
 
         self.sum_squared_error = self.sum_squared_error.clone() + sum_squared_error
         self.total = self.total.clone() + num_obs
