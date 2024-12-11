@@ -45,7 +45,7 @@ def regular_feature_type(gspace: gspaces.GSpace,
     if fixparams:
         planes *= int(math.sqrt(N))
 
-    planes = planes / N
+    planes = int(planes / N)
 
     return enn.FieldType(gspace, [gspace.regular_repr] * planes)
 
