@@ -21,25 +21,24 @@ trainer:
 lit_model:
 
   lit_dmb_model:
-    log_dir: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/none/runs/2024-12-01_23-35-01"
-    checkpoint_path: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/none/runs/2024-12-01_23-35-01/checkpoints/best/epoch=329-step=2640.ckpt"
-
-  optimizer:
-    lr: 0.00025
+    log_dir: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/none/runs/2024-12-09_21-38-50"
+    checkpoint_path: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/none/runs/2024-12-09_21-38-50/checkpoints/epoch=699-step=3500.ckpt"
 
   lr_scheduler:
     scheduler:
-      _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
-      mode: min
-      factor: 0.5
-      patience: 25
-      min_lr: 1e-5
-      cooldown: 500
-      threshold: 0.1
-      
-    monitor: train/mse
-    interval: epoch
-    frequency: 1
+      _target_: torch.optim.lr_scheduler.StepLR
+      step_size: 200
+      gamma: 0.5
 
-  loss:
-    _target_: dmb.model.loss.MSELoss
+  output:
+    _target_: dmb.model.inversion.output_from_npy
+    npy_path: "bose_hubbard_2d/minerva/minerva.npy"
+
+  inversion_result:
+    _target_: dmb.model.inversion.InversionResult
+    shape: [35,35]
+    input_parameters:
+      ztU: 0.25
+      zVU: 1.0
+      target_density: ${lit_model.output}
+

@@ -168,12 +168,14 @@ tasks:
       SPLIT_NAME: "{{ .SPLIT_NAME | default .SPLIT_NAME_FROM_TIME }}"
       DATASET_DIR_PATH: "{{ .DATA_DIR_ROOT }}/bose_hubbard_2d/random/dataset"
 
+      EXPERIMENT: '{{ .EXPERIMENT | default "create_split/bose_hubbard_2d/random" }}'
+
     cmds:
       - task: create_split
         vars:
           FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_NAME }}.json"
           DATASET_DIR_PATH: "{{ .DATASET_DIR_PATH }}"
-          EXPERIMENT: create_split/bose_hubbard_2d/random
+          EXPERIMENT: "{{ .EXPERIMENT }}"
 
   train:
     desc: Train a model
@@ -189,6 +191,18 @@ tasks:
       SPLIT_FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_FILE }}"
 
       _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
+
+    cmds:
+      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+
+  invert:
+    desc: Invert a density
+    deps:
+      - setup
+    vars:
+      JOB_NAME: invert
+
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/invert/invert.py experiment=minerva"
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch

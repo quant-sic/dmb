@@ -38,6 +38,9 @@ datamodule:
             mean: 0.0
             std: 0.01
 
+    sample_filter_strategy:
+      max_density_error: 0.025
+
   batch_sampler:
     train:
       _target_: dmb.data.sampler.MDuplicatesPerBatchSampler

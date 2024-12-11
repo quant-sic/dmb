@@ -10,14 +10,9 @@ lr_monitor:
   logging_interval: null
   log_momentum: False
 
-plotting:
-  _target_: dmb.scripts.train.callbacks.PlottingCallback
-  plot_interval: 100
-
 progress_bar:
   _target_: lightning.pytorch.callbacks.TQDMProgressBar
   refresh_rate: 50
-  
-# swa:
-#   _target_: lightning.pytorch.callbacks.StochasticWeightAveraging
-#   swa_lrs: 1e-2
+
+plotting:
+  _target_: dmb.scripts.invert.callbacks.PlottingCallback

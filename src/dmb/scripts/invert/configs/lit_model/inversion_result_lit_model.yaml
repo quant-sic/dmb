@@ -3,27 +3,23 @@ _target_: dmb.model.inversion.InversionResultLitModel
 defaults:
   - lit_dmb_model: from_logged_checkpoint
 
+
+
 loss:
   _target_: dmb.model.loss.MSELoss
   
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 0.001
-  weight_decay: 0.0
+  lr: 0.1
 
 lr_scheduler:
   scheduler:
-    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _target_: torch.optim.lr_scheduler.StepLR
     _partial_: true
-    mode: min
-    factor: 0.1
-    patience: 10
-
-  monitor: train/mse
-  interval: epoch
-  frequency: 1
-
+    step_size: 100
+    gamma: 0.1
+    
 metrics:
   _target_: torchmetrics.MetricCollection
   _convert_: all # torchmetrics expects a dictionary of metrics

@@ -11,7 +11,7 @@ import numpy as np
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
+from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset, BoseHubbard2dSampleFilterStrategy
 from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
     WormSimulation, WormSimulationRunner
 from dmb.data.dispatching import auto_create_dispatcher
@@ -29,12 +29,16 @@ def get_missing_samples(
     tolerance_ztU: float = 0.01,
     tolerance_zVU: float = 0.01,
     tolerance_muU: float = 0.01,
+    max_density_error: float = 0.015,
 ) -> tuple[tuple[int, ...], tuple[float, ...], tuple[float, ...], tuple[float, ...]]:
     """Get missing samples from the dataset."""
 
     bh_dataset = BoseHubbard2dDataset(
         dataset_dir_path=dataset_dir,
         transforms=BoseHubbard2dTransforms(),
+        sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
+            max_density_error=max_density_error,
+        ),
     )
 
     # if lists, they must be of the same length
@@ -50,6 +54,12 @@ def get_missing_samples(
         ztU_ = [ztU]
         zVU_ = [zVU]
         muU_ = [muU]
+    else:
+        L_ = cast(list[int], L)
+        ztU_ = cast(list[float], ztU)
+        zVU_ = cast(list[float], zVU)
+        muU_ = cast(list[float], muU)
+
 
     missing_tuples = []
     for L_i, ztU_i, zVU_i, muU_i in zip(*[

@@ -1,0 +1,29 @@
+# @package _global_
+
+defaults:
+  - override /split: from_dataset
+  - override /paths: default
+  - _self_
+
+split:
+  _target_: dmb.data.split.Split.from_dataset
+
+  dataset:
+    _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dDataset
+    
+    dataset_dir_path: ???
+
+    transforms: 
+      _target_: dmb.data.bose_hubbard_2d.transforms.BoseHubbard2dTransforms
+
+    sample_filter_strategy:
+      max_density_error: 0.025
+      
+  split_fractions: 
+    train: 0.95
+    val: 0.025
+    test: 0.025
+
+
+
+exp_name: bose_hubbard_2d/random

@@ -46,11 +46,11 @@ def get_ckeckerboard_projection(target_density: torch.Tensor) -> torch.Tensor:
     else:
         raise ValueError("Input mu has to be either 1D or 2D")
 
-    cb_1 = torch.ones_like(target_density)
+    cb_1 = torch.ones_like(target_density, device=target_density.device)
     cb_1[::2, ::2] = 0
     cb_1[1::2, 1::2] = 0
 
-    cb_2 = torch.ones_like(target_density)
+    cb_2 = torch.ones_like(target_density, device=target_density.device)
     cb_2[1::2, ::2] = 0
     cb_2[::2, 1::2] = 0
 
@@ -174,7 +174,9 @@ def get_nn_input_dimless_const_parameters(
         muU = torch.from_numpy(muU).float()
 
     if isinstance(target_density, np.ndarray):
-        target_density = torch.from_numpy(target_density).float()
+        target_density = torch.from_numpy(target_density)
+
+    target_density = target_density.float().to(muU.device)
 
     # convert to 2D if necessary
     if len(muU.shape) == 1:
@@ -192,10 +194,10 @@ def get_nn_input_dimless_const_parameters(
                 "If cb_projection is True, target_density has to be provided.")
         cb_proj = get_ckeckerboard_projection(target_density=target_density)
     else:
-        cb_proj = torch.ones_like(muU)
+        cb_proj = torch.ones_like(muU, device=muU.device)
 
     # conversion
-    U_on = torch.full(size=muU.shape, fill_value=4 / ztU)
+    U_on = torch.full(size=muU.shape, fill_value=4 / ztU, device=muU.device)
     V_nn = zVU / 4 * U_on
     mu = muU * U_on
 

@@ -14,6 +14,10 @@ from dmb.data.collate import MultipleSizesBatch
 from dmb.model.dmb_model import DMBModel
 from dmb.model.loss import Loss, LossOutput
 from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
+from dmb.model.lit_dmb_model import LitDMBModel
+from pathlib import Path
+from dmb.paths import REPO_DATA_ROOT
+import matplotlib.pyplot as plt
 
 class InversionResult(torch.nn.Module):
 
@@ -41,6 +45,9 @@ class InversionFakeDataLoader:
 
     def __len__(self) -> int:
         return 1
+
+def output_from_npy(npy_path: Path) -> torch.Tensor:
+    return torch.tensor(np.load(REPO_DATA_ROOT/npy_path).astype(np.float32))
 
 @define(hash=False, eq=False)
 class InversionResultLitModel(LightningModule):
@@ -86,12 +93,12 @@ class InversionResultLitModel(LightningModule):
             outputs=[self.output.unsqueeze(0).expand_as(model_out)],
             sample_ids=[],
             group_elements=[],
-            size=1)
+            size=1).to(model_out.device)
 
         return model_out, self.loss(model_out, batch)
 
     def _evaluate_metrics(self, model_out: torch.Tensor) -> None:
-        self.metrics.update(preds=model_out, target=self.output)
+        self.metrics.update(preds=model_out, target=self.output.to(model_out.device))
 
     def training_step(self, *args: Any, **kwargs: dict) -> torch.Tensor:
         model_out, loss_out = self._calculate_loss()

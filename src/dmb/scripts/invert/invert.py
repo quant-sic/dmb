@@ -4,6 +4,7 @@ import hydra
 import lightning.pytorch as pl
 from lightning.pytorch import LightningDataModule, LightningModule, Trainer
 from omegaconf import DictConfig
+from dmb.model.inversion import InversionFakeDataLoader
 
 from dmb.paths import REPO_ROOT
 
@@ -23,10 +24,14 @@ def invert(cfg: DictConfig) -> None:
     trainer: Trainer = hydra.utils.instantiate(cfg.trainer,
                                                logger=logger,
                                                callbacks=callbacks)
+
+
+
     lit_model: LightningModule = hydra.utils.instantiate(cfg.lit_model)
 
-    trainer.fit(model=lit_model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+    trainer.fit(lit_model, train_dataloaders=InversionFakeDataLoader())
 
+    trainer.save_checkpoint("model.ckpt")
 
 if __name__ == "__main__":
     invert()
