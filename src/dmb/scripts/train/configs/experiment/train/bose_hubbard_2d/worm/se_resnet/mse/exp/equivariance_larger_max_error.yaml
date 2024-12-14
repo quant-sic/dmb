@@ -1,0 +1,98 @@
+# @package _global_
+
+defaults:
+  - override /datamodule: bose_hubbard_2d
+  - override /lit_model: lit_dmb_model
+  - override /lit_model/model: dmb_model
+  - override /callbacks: default
+  - override /trainer: default
+  - _self_
+
+exp_name: "bose_hubbard_2d/worm/all_obs/se_resnet/mse/exp"
+
+seed: 12345
+
+trainer:
+  max_epochs: 10000
+  accumulate_grad_batches: 32
+  check_val_every_n_epoch: 10
+  log_every_n_steps: 10
+
+callbacks:
+  plotting:
+    plot_interval: 20
+
+datamodule:
+
+  batch_size: 2048
+
+  dataset:
+    transforms: 
+      train_augmentations:           
+        - _target_: dmb.data.bose_hubbard_2d.transforms.D4GroupTransforms
+        - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperOutTransform
+          transform: 
+            _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoiseTransform
+            mean: 0.0
+            std: 0.01
+
+    sample_filter_strategy:
+      max_density_error: 0.025
+
+  batch_sampler:
+    train:
+      _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+      _partial_: true
+      n_duplicates: 16
+
+
+lit_model:
+  model:
+
+    module_list: [
+      {
+        _target_: dmb.model.modules.SeResNet2d,
+        in_channels: 4,
+        out_channels: 9,
+        kernel_sizes: [5,3,3,3,3,3,3,3,3],
+        n_channels: [16, 32, 64, 128, 128, 128, 256, 256, 256],
+        dropout: 0.1
+      },
+    ]
+
+
+    output_modification: [
+      _target_: dmb.model.constraints.Exponential
+    ]
+
+  optimizer:
+    lr: 0.0001
+
+  lr_scheduler:
+    scheduler:
+      _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+      mode: min
+      factor: 0.5
+      patience: 10
+      min_lr: 5e-6
+      cooldown: 500
+      threshold: 0.1
+      
+    monitor: train/mse
+    interval: epoch
+    frequency: 1
+
+  loss:
+    _target_: dmb.model.loss.WeightedLoss
+    constituent_losses:
+      mse:
+        _target_: dmb.model.loss.MSELoss
+      equivariance:
+        _target_: dmb.model.loss.EquivarianceLoss
+    weights:
+      mse: 1.0
+      equivariance: 10.0
+
+  weights_checkpoint: 
+    _target_: dmb.model.lit_dmb_model.WeightsCheckpoint
+    path: train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/none/runs/2024-12-02_22-25-53/checkpoints/best/epoch=2569-step=10280.ckpt
