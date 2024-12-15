@@ -35,7 +35,7 @@ tasks:
       EXTRAS: '{{ .EXTRAS | default "--extra cu124" }}'
       GROUPS: '{{ .GROUPS | default "--group ci --group dev" }}'
     cmds:
-      - uv sync {{ .EXTRAS }}
+      - uv sync {{ .GROUPS }} {{ .EXTRAS }}
 
   format:
     desc: Format the code
