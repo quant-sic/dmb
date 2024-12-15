@@ -50,8 +50,8 @@ class InversionResult(torch.nn.Module):
     @property
     def mu(self) -> torch.Tensor:
         """Get the chemical potential."""
-        U = 4/self.input_parameters["ztU"]
-        return self.data*U
+        U = 4 / self.input_parameters["ztU"]
+        return self.data * U
 
 
 class InversionFakeDataLoader:

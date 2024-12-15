@@ -90,8 +90,7 @@ class EquivarianceErrorLoss(Loss):
 
             #variance
             losses.append(
-                torch.var(
-                    y_pred_original[sample_indices], dim=0, correction=1))
+                torch.var(y_pred_original[sample_indices], dim=0, correction=1))
 
         loss = torch.mean(torch.stack(losses))
 
