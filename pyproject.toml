@@ -76,9 +76,9 @@ torch = [
     {index = "torch-cu124",extra = "cu124", marker = "platform_machine == 'x86_64'"},
 ]
 fyeldgenerator = { git = "https://github.com/cphyc/FyeldGenerator.git" }
-# lie-learn = { git = "https://github.com/AMLab-Amsterdam/lie_learn" }
+lie-learn = { git = "https://github.com/AMLab-Amsterdam/lie_learn" }
 escnn = { git = "https://github.com/QUVA-Lab/escnn" }
-# py3nj = { git = "https://github.com/fujiisoup/py3nj.git" }
+py3nj = { git = "https://github.com/fujiisoup/py3nj.git" }
 
 [[tool.uv.index]]
 name = "torch-cpu"
