@@ -38,6 +38,8 @@ base = [
     "tqdm>=4.66.5",
     "typer>=0.13.0",
     "wandb>=0.18.3",
+    "lie-learn",
+    "py3nj",
 ]
 dev = [
     "ipykernel>=6.29.5",
@@ -78,7 +80,7 @@ torch = [
 fyeldgenerator = { git = "https://github.com/cphyc/FyeldGenerator.git" }
 lie-learn = { git = "https://github.com/AMLab-Amsterdam/lie_learn" }
 escnn = { git = "https://github.com/QUVA-Lab/escnn" }
-py3nj = { git = "https://github.com/fujiisoup/py3nj.git" }
+py3nj = { git = "https://github.com/fujiisoup/py3nj.git", tag = "0.2.2" }
 
 [[tool.uv.index]]
 name = "torch-cpu"
