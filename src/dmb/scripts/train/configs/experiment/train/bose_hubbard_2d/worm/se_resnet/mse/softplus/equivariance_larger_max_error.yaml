@@ -8,15 +8,13 @@ defaults:
   - override /trainer: default
   - _self_
 
-exp_name: "bose_hubbard_2d/worm/all_obs/se_resnet/mse/none"
+exp_name: "bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus"
 
 seed: 12345
 
 trainer:
   max_epochs: 10000
   accumulate_grad_batches: 32
-  precision: 16-mixed
-  deterministic: False
   check_val_every_n_epoch: 10
   log_every_n_steps: 10
 
@@ -32,11 +30,9 @@ datamodule:
     transforms: 
       train_augmentations:           
         - _target_: dmb.data.bose_hubbard_2d.transforms.D4GroupTransforms
-        - _target_: dmb.data.bose_hubbard_2d.transforms.TupleWrapperOutTransform
-          transform: 
-            _target_: dmb.data.bose_hubbard_2d.transforms.GaussianNoiseTransform
-            mean: 0.0
-            std: 0.01
+
+    sample_filter_strategy:
+      max_density_error: 0.025
 
   batch_sampler:
     train:
@@ -59,7 +55,10 @@ lit_model:
       },
     ]
 
-    output_modification: []
+
+    output_modification: [
+      _target_: torch.nn.Softplus
+    ]
 
   optimizer:
     lr: 0.0001
@@ -87,7 +86,7 @@ lit_model:
         _target_: dmb.model.loss.EquivarianceErrorLoss
     weights:
       mse: 1.0
-      equivariance: 5.0
+      equivariance: 10.0
 
   weights_checkpoint: 
     _target_: dmb.model.lit_dmb_model.WeightsCheckpoint
