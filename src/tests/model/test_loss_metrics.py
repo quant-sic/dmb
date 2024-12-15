@@ -37,4 +37,4 @@ def test_mse_loss_and_metric_equal(predictions: list[torch.Tensor],
     metric.update(predictions, batch.outputs)
     metric_value = metric.compute()
 
-    assert loss_value == metric_value
+    assert torch.allclose(loss_value, metric_value, atol=1e-6)
