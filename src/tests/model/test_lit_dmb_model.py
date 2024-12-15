@@ -128,18 +128,6 @@ class TrainerCases:
                        log_every_n_steps=1,
                        default_root_dir=tmp_path)
 
-    def case_trainer_no_fast_dev(self, tmp_path: Path) -> Trainer:
-        """Return a trainer without fast_dev_run."""
-        return Trainer(fast_dev_run=False,
-                       accelerator="auto",
-                       max_epochs=3,
-                       accumulate_grad_batches=2,
-                       deterministic=False,
-                       check_val_every_n_epoch=1,
-                       log_every_n_steps=1,
-                       default_root_dir=tmp_path,
-                       callbacks=[PlottingCallback(plot_interval=2)])
-
 
 class TestLitDMBModel:
     """Tests for LitDMBModel class."""

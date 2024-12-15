@@ -79,8 +79,8 @@ tasks:
     vars:
 
       SLURM_ARRAY_SIZE: "{{ .SLURM_ARRAY_SIZE | default 1 }}"
-      QMC_TASK_ARGS: {{ .QMC_TASK_ARGS | default "" }}
-      QMC_TASK_OPTIONS: {{ .QMC_TASK_OPTIONS | default "" }}
+      QMC_TASK_ARGS: '{{ .QMC_TASK_ARGS | default "" }}'
+      QMC_TASK_OPTIONS: '{{ .QMC_TASK_OPTIONS | default "" }}'
 
       _COMMAND:
         sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS }} {{ .QMC_TASK_OPTIONS }}

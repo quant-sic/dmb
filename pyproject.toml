@@ -25,6 +25,7 @@ dependencies = [
     "scipy>=1.14.1",
     "seaborn>=0.13.2",
     "syjson>=2.1.6",
+    "tensorboard>=2.18.0",
     "torch>=2.4.1",
     "torchvision>=0.20.1",
     "tqdm>=4.66.5",

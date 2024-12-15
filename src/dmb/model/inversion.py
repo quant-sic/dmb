@@ -11,6 +11,8 @@ import torchmetrics
 from attrs import define, field
 from lightning import LightningModule
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
+from torch.distributions.constraint_registry import transform_to
+from torch.distributions.constraints import interval
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 
@@ -26,8 +28,12 @@ from dmb.paths import REPO_DATA_ROOT
 class InversionResult(torch.nn.Module):
     """Inversion result."""
 
-    def __init__(self, shape: tuple[int, ...], input_parameters: dict[str,
-                                                                      Any]) -> None:
+    def __init__(
+        self,
+        shape: tuple[int, ...],
+        input_parameters: dict[str, Any],
+        muU_interval: tuple[float, float] = (-1.5, 5.0)
+    ) -> None:
         """Initialize the inversion result.
         
         Args:
@@ -38,20 +44,28 @@ class InversionResult(torch.nn.Module):
         super().__init__()
 
         self.input_parameters = input_parameters
-        self.data = torch.nn.Parameter(torch.empty(*shape), requires_grad=True)
-        torch.nn.init.xavier_uniform_(self.data)
+        self.muU_unconstrained = torch.nn.Parameter(torch.empty(*shape),
+                                                    requires_grad=True)
+        torch.nn.init.xavier_uniform_(self.muU_unconstrained)
 
-    def forward(self) -> torch.Tensor:
-        """Get the inversion result."""
-        nn_input = get_nn_input_dimless_const_parameters(muU=self.data,
-                                                         **self.input_parameters)
-        return nn_input
+        self.muU_interval = muU_interval
+
+    @property
+    def muU(self) -> torch.Tensor:
+        """Get constrained muU."""
+        return transform_to(interval(*self.muU_interval))(self.muU_unconstrained)
 
     @property
     def mu(self) -> torch.Tensor:
         """Get the chemical potential."""
         U = 4 / self.input_parameters["ztU"]
-        return self.data * U
+        return self.muU * U
+
+    def forward(self) -> torch.Tensor:
+        """Get the inversion result."""
+        nn_input = get_nn_input_dimless_const_parameters(muU=self.muU,
+                                                         **self.input_parameters)
+        return nn_input
 
 
 class InversionFakeDataLoader:
