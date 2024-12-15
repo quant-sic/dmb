@@ -27,12 +27,13 @@ tasks:
     cmds:
       - uv venv {{ .VIRTUAL_ENV }}
 
-  install-dependencies:
+  install:
     desc: "Install dependencies"
     deps:
       - task: env-setup
     vars:
-      EXTRAS: '{{ .EXTRAS | default "--extra dev --extra ci" }}'
+      EXTRAS: '{{ .EXTRAS | default "--extra cu124" }}'
+      GROUPS: '{{ .GROUPS | default "--group ci --group dev" }}'
     cmds:
       - uv sync {{ .EXTRAS }}
 
