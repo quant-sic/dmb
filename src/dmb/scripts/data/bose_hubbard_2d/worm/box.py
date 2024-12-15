@@ -4,8 +4,8 @@ import asyncio
 import numpy as np
 
 from dmb.data.bose_hubbard_2d.potential import get_square_mu_potential
-from dmb.data.bose_hubbard_2d.worm.simulate import \
-    get_missing_samples, simulate
+from dmb.data.bose_hubbard_2d.worm.simulate import get_missing_samples, \
+    simulate
 from dmb.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":
@@ -75,16 +75,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     target_dir = (REPO_DATA_ROOT /
-                  f"simulation/bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}")
+                  f"bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}/simulations")
     dataset_dir = (REPO_DATA_ROOT /
-                   f"datasets/bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}")
+                   f"bose_hubbard_2d/box/{args.zVU}/{args.ztU}/{args.L}/dataset")
     target_dir.mkdir(parents=True, exist_ok=True)
 
     L_out, ztU_out, zVU_out, muU_out = get_missing_samples(
         dataset_dir=dataset_dir,
-        L=args.L,
-        ztU=args.ztU,
-        zVU=args.zVU,
+        L=[args.L] * args.muU_delta_num_steps,
+        ztU=[args.ztU] * args.muU_delta_num_steps,
+        zVU=[args.zVU] * args.muU_delta_num_steps,
         muU=list(
             np.linspace(args.muU_delta_min, args.muU_delta_max,
                         args.muU_delta_num_steps)),

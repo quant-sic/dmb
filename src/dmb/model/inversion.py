@@ -38,15 +38,20 @@ class InversionResult(torch.nn.Module):
         super().__init__()
 
         self.input_parameters = input_parameters
-        self.inversion_result = torch.nn.Parameter(torch.empty(*shape),
-                                                   requires_grad=True)
-        torch.nn.init.xavier_uniform_(self.inversion_result)
+        self.data = torch.nn.Parameter(torch.empty(*shape), requires_grad=True)
+        torch.nn.init.xavier_uniform_(self.data)
 
     def forward(self) -> torch.Tensor:
         """Get the inversion result."""
-        nn_input = get_nn_input_dimless_const_parameters(muU=self.inversion_result,
+        nn_input = get_nn_input_dimless_const_parameters(muU=self.data,
                                                          **self.input_parameters)
         return nn_input
+
+    @property
+    def mu(self) -> torch.Tensor:
+        """Get the chemical potential."""
+        U = 4/self.input_parameters["ztU"]
+        return self.data*U
 
 
 class InversionFakeDataLoader:

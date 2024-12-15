@@ -82,7 +82,7 @@ tasks:
       MAX_DENSITY_ERROR: "{{ .MAX_DENSITY_ERROR | default 0.015 }}"
 
       _COMMAND:
-        sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/data/bose_hubbard_2d/worm/scripts/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS | default "" }} --number_of_concurrent_jobs {{ .NUMBER_OF_CONCURRENT_JOBS }} --max_density_error {{ .MAX_DENSITY_ERROR }}"
+        sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS | default "" }} --number_of_concurrent_jobs {{ .NUMBER_OF_CONCURRENT_JOBS }} --max_density_error {{ .MAX_DENSITY_ERROR }}"
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .QMC_JOBS_STARTER_TEMPLATE }} -D qmc_task={{ .QMC_TASK }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D slurm_array_size={{ .SLURM_ARRAY_SIZE }} -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} -D worm_mpi_executable='{{ .WORM_MPI_EXECUTABLE }}' | sbatch
@@ -96,7 +96,7 @@ tasks:
       - task: run_qmc
         vars:
           QMC_TASK: random
-          QMC_SCRIPT_FILE: create_random.py
+          QMC_SCRIPT_FILE: random_potential.py
           QMC_TASK_ARGS: "--potential_type random --number_of_samples {{ .NUMBER_OF_SAMPLES }}" #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
           NUMBER_OF_CONCURRENT_JOBS: "{{ .NUMBER_OF_CONCURRENT_JOBS }}"
           SLURM_ARRAY_SIZE: 1
@@ -107,10 +107,10 @@ tasks:
       - task: run_qmc
         vars:
           QMC_TASK: box
-          QMC_SCRIPT_FILE: sandbox/box.py
+          QMC_SCRIPT_FILE: box.py
           QMC_TASK_ARGS: "--tau_max_threshold 25"
           MAX_DENSITY_ERROR: 0.03
-          NUMBER_OF_CONCURRENT_JOBS: 25
+          NUMBER_OF_CONCURRENT_JOBS: 5
 
   run_qmc_wedding_cake:
     desc: Run QMC on the wedding cake potential
@@ -118,7 +118,7 @@ tasks:
       - task: run_qmc
         vars:
           QMC_TASK: wedding_cake
-          QMC_SCRIPT_FILE: sandbox/wedding_cake.py
+          QMC_SCRIPT_FILE: wedding_cake.py
           NUMBER_OF_CONCURRENT_JOBS: 10
 
   run_qmc_mu_cut:
@@ -127,26 +127,33 @@ tasks:
       - task: run_qmc
         vars:
           QMC_TASK: mu_cut
-          QMC_SCRIPT_FILE: sandbox/mu_cut.py
+          QMC_SCRIPT_FILE: mu_cut.py
           QMC_TASK_ARGS: "--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.25"
           NUMBER_OF_CONCURRENT_JOBS: 25
 
       - task: run_qmc
         vars:
           QMC_TASK: mu_cut
-          QMC_SCRIPT_FILE: sandbox/mu_cut.py
+          QMC_SCRIPT_FILE: mu_cut.py
           QMC_TASK_ARGS: "--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.1"
           NUMBER_OF_CONCURRENT_JOBS: 25
 
-  run_qmc_phase_diagram:
-    desc: Run QMC on the phase diagram
+  run_qmc_from_potential:
+    desc: Run QMC from a potential
+    vars:
+      NUMBER_OF_CONCURRENT_JOBS: 1
+      QMC_TASK: from_potential
+      POTENTIAL_FILE_PATH: "{{ .POTENTIAL_FILE_PATH }}"
+      QMC_SCRIPT_FILE: from_potential.py
+      MAX_DENSITY_ERROR: 0.03
+      SLURM_ARRAY_SIZE: 1
+
+      _COMMAND:
+        sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/{{ .QMC_SCRIPT_FILE }} {{ .POTENTIAL_FILE_PATH }} minerva_test  --number-of-concurrent-jobs {{ .NUMBER_OF_CONCURRENT_JOBS }} --max-density-error {{ .MAX_DENSITY_ERROR }}"
+    
     cmds:
-      - task: run_qmc
-        vars:
-          QMC_TASK: phase_diagram
-          QMC_SCRIPT_FILE: phase_diagram/create.py
-          QMC_TASK_ARGS: "--L 16 --min_distance_between_samples_U_inv 0.1 --min_distance_between_samples_mu 0.1 --muU_min 0.0 --muU_max 3.0"
-          NUMBER_OF_CONCURRENT_JOBS: 20
+      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .QMC_JOBS_STARTER_TEMPLATE }} -D qmc_task={{ .QMC_TASK }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D slurm_array_size={{ .SLURM_ARRAY_SIZE }} -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} -D worm_mpi_executable='{{ .WORM_MPI_EXECUTABLE }}' | sbatch
+
 
   create_split:
     desc: Create a split

@@ -6,8 +6,8 @@ import numpy as np
 from dotenv import load_dotenv
 
 from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential
-from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
-    get_missing_samples, simulate
+from dmb.data.bose_hubbard_2d.worm.simulate import get_missing_samples, \
+    simulate
 from dmb.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":
@@ -69,19 +69,19 @@ if __name__ == "__main__":
 
     target_dir = (
         REPO_DATA_ROOT /
-        f"simulation/bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
+        f"bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}/simulations"
     )
     dataset_dir = (
         REPO_DATA_ROOT /
-        f"datasets/bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
+        f"bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}/dataset"
     )
     target_dir.mkdir(parents=True, exist_ok=True)
 
     L_out, ztU_out, zVU_out, muU_out = get_missing_samples(
         dataset_dir=dataset_dir,
-        L=args.L,
-        ztU=args.ztU,
-        zVU=args.zVU,
+        L=[args.L] * args.muU_num_steps,
+        ztU=[args.ztU] * args.muU_num_steps,
+        zVU=[args.zVU] * args.muU_num_steps,
         muU=list(np.linspace(args.muU_min, args.muU_max, args.muU_num_steps)),
         tolerance_ztU=0,
         tolerance_zVU=0,
@@ -90,8 +90,9 @@ if __name__ == "__main__":
 
     semaphore = asyncio.Semaphore(args.number_of_concurrent_jobs)
 
+    U_on = 4 / args.ztU
+
     async def run_sample(sample_id: int) -> None:
-        U_on = 4 / args.ztU
         async with semaphore:
             await simulate(
                 parent_dir=target_dir,

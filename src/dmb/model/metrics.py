@@ -14,7 +14,6 @@ from dmb.logging import create_logger
 
 log = create_logger(__name__)
 
-
 class MinMSE(torchmetrics.Metric):
     """Computes the minimum Mean Squared Error (MSE) metric over the batch dimension."""
 

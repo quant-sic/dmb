@@ -61,7 +61,7 @@ class WeightedLoss(Loss):
         return LossOutput(loss=total_loss, loggables=constituent_losses_values)
 
 
-class EquivarianceLoss(Loss):
+class EquivarianceErrorLoss(Loss):
     """Equivariance loss."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -88,13 +88,10 @@ class EquivarianceLoss(Loss):
                 idx for idx, id in enumerate(sample_ids) if id == sample_id
             ]
 
-            # get average
-            y_pred_original_sample = torch.mean(y_pred_original[sample_indices], dim=0)
-
-            # mse between average and y_pred_original
+            #variance
             losses.append(
-                torch.mean(
-                    (y_pred_original[sample_indices] - y_pred_original_sample)**2))
+                torch.var(
+                    y_pred_original[sample_indices], dim=0, correction=1))
 
         loss = torch.mean(torch.stack(losses))
 

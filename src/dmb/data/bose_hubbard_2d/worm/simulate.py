@@ -1,15 +1,12 @@
 """Script to run worm simulations for the 2D Bose-Hubbard model."""
 
 import datetime
-import itertools
 import os
 import shutil
 from pathlib import Path
-from typing import cast
 
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset, \
     BoseHubbard2dSampleFilterStrategy
@@ -23,10 +20,10 @@ log = create_logger(__name__)
 
 def get_missing_samples(
     dataset_dir: Path,
-    L: int | list[int],
-    ztU: float | list[float],
-    zVU: float | list[float],
-    muU: float | list[float],
+    L: list[int],
+    ztU: list[float],
+    zVU: list[float],
+    muU: list[float],
     tolerance_ztU: float = 0.01,
     tolerance_zVU: float = 0.01,
     tolerance_muU: float = 0.01,
@@ -34,39 +31,18 @@ def get_missing_samples(
 ) -> tuple[tuple[int, ...], tuple[float, ...], tuple[float, ...], tuple[float, ...]]:
     """Get missing samples from the dataset."""
 
+    # check lists are same length
+    if not len(L) == len(ztU) == len(zVU) == len(muU):
+        raise ValueError("L, ztU, zVU, muU lists must have same length")
+
     bh_dataset = BoseHubbard2dDataset(
         dataset_dir_path=dataset_dir,
         transforms=BoseHubbard2dTransforms(),
         sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
-            max_density_error=max_density_error, ),
-    )
-
-    # if lists, they must be of the same length
-    if (not len({
-            len(cast(list, x))
-            for x in filter(lambda y: isinstance(y, list), [L, ztU, zVU, muU])
-    }) == 1):
-        raise ValueError("Lists must be of the same length")
-
-    if any(not isinstance(x, list) for x in [L, ztU, zVU, muU]):
-        if not all(isinstance(x, (int, float)) for x in [L, ztU, zVU, muU]):
-            raise ValueError("All inputs must be either lists or scalars")
-
-        L_ = [cast(int, L)]
-        ztU_ = [cast(float, ztU)]
-        zVU_ = [cast(float, zVU)]
-        muU_ = [cast(float, muU)]
-    else:
-        L_ = cast(list[int], L)
-        ztU_ = cast(list[float], ztU)
-        zVU_ = cast(list[float], zVU)
-        muU_ = cast(list[float], muU)
+            max_density_error=max_density_error))
 
     missing_tuples = []
-    for L_i, ztU_i, zVU_i, muU_i in zip(*[
-            x if isinstance(x, list) else itertools.cycle((x, ))
-            for x in [L_, ztU_, zVU_, muU_]
-    ]):
+    for L_i, ztU_i, zVU_i, muU_i in zip(L, ztU, zVU, muU):
         if not bh_dataset.has_phase_diagram_sample(
                 L=L_i,
                 ztU=ztU_i,

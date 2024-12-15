@@ -13,7 +13,7 @@ class PlottingCallback(Callback):
             raise ValueError("log_dir is not set in Trainer")
 
         fig, ax = plt.subplots(1, 3)
-        ax[0].imshow(pl_module.inversion_result.inversion_result.cpu().detach().numpy())
+        ax[0].imshow(pl_module.inversion_result.data.cpu().detach().numpy())
         ax[1].imshow(
             pl_module.dmb_model.forward(
                 pl_module.inversion_result().unsqueeze(0)).cpu().detach().numpy()[0, 0])

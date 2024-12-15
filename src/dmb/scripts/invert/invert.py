@@ -5,6 +5,7 @@ from pathlib import Path
 import hydra
 import lightning.pytorch as pl
 import numpy as np
+import torch
 from lightning.pytorch import LightningModule, Trainer
 from omegaconf import DictConfig
 
@@ -34,8 +35,9 @@ def invert(cfg: DictConfig) -> None:
 
     trainer.save_checkpoint(Path(trainer.default_root_dir) / "model.ckpt")
 
-    # save as npy
-    np.save(Path(trainer.default_root_dir) / "inverted.npy", lit_model.inversion_result)
+    # save as .pt
+    torch.save(lit_model.inversion_result.mu,
+               Path(trainer.default_root_dir) / "inverted.pt")
 
 
 if __name__ == "__main__":
