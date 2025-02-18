@@ -54,6 +54,6 @@ runs:
       run: mkdir -p ${{ github.workspace }}/.cache
       shell: bash
 
-    - name: Minimize uv cache
-      run: uv cache prune --ci
-      shell: bash
+    # - name: Minimize uv cache
+    #   run: uv cache prune -
+    #   shell: bash
