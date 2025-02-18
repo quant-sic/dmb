@@ -18,22 +18,8 @@ vars:
 
 
 tasks:
-  env-setup:
-    desc: "Setup the environment."
-    silent: true
-    run: once
-    sources:
-      - pyproject.toml
-      - .python-version
-    generates:
-      - "{{ .VIRTUAL_ENV }}/**/*"
-    cmds:
-      - uv venv {{ .VIRTUAL_ENV }}
-
   install:
     desc: "Install dependencies"
-    deps:
-      - task: env-setup
     vars:
       EXTRAS: '{{ .EXTRAS | default "--extra cu124" }}'
       GROUPS: '{{ .GROUPS | default "--group ci --group dev" }}'
