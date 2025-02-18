@@ -1,4 +1,5 @@
 """Data transforms."""
+
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
@@ -18,8 +19,8 @@ class GroupElement:
 
     @staticmethod
     def _compose(
-            elements: list[GroupElement]) -> Callable[[torch.Tensor], torch.Tensor]:
-
+        elements: list[GroupElement],
+    ) -> Callable[[torch.Tensor], torch.Tensor]:
         def inner(x: torch.Tensor) -> torch.Tensor:
             for element in reversed(elements):
                 x = element.transform(x)
@@ -29,8 +30,8 @@ class GroupElement:
 
     @staticmethod
     def _compose_inverse(
-            elements: list[GroupElement]) -> Callable[[torch.Tensor], torch.Tensor]:
-
+        elements: list[GroupElement],
+    ) -> Callable[[torch.Tensor], torch.Tensor]:
         def inner(x: torch.Tensor) -> torch.Tensor:
             for element in elements:
                 x = element.inverse_transform(x)
@@ -41,14 +42,16 @@ class GroupElement:
     @classmethod
     def from_group_elements(cls, group_elements: list[GroupElement]) -> GroupElement:
         """Compose a group element from a list of group elements.
-        
+
         Args:
             group_elements: List of group elements.
         """
 
-        return cls(name="_".join([element.name for element in group_elements]),
-                   transform=cls._compose(group_elements),
-                   inverse_transform=cls._compose_inverse(group_elements))
+        return cls(
+            name="_".join([element.name for element in group_elements]),
+            transform=cls._compose(group_elements),
+            inverse_transform=cls._compose_inverse(group_elements),
+        )
 
 
 @frozen

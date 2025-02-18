@@ -1,4 +1,5 @@
 """Lightning module for DMB models."""
+
 from __future__ import annotations
 
 import functools
@@ -30,20 +31,25 @@ log = create_logger(__name__)
 @frozen
 class WeightsCheckpoint:
     """Weights checkpoint path configuration.
-    
+
     Attributes:
         path: The path to the checkpoint file.
         state_dict: The state_dict of the model.
     """
+
     path: Path
     state_dict: dict[str, Any] = field(init=False)
 
     def __attrs_post_init__(self) -> None:
         object.__setattr__(
-            self, "state_dict",
-            torch.load(REPO_LOGS_ROOT / self.path,
-                       weights_only=True,
-                       map_location=torch.device('cpu'))["state_dict"])
+            self,
+            "state_dict",
+            torch.load(
+                REPO_LOGS_ROOT / self.path,
+                weights_only=True,
+                map_location=torch.device("cpu"),
+            )["state_dict"],
+        )
 
 
 @define(hash=False, eq=False)
@@ -67,8 +73,9 @@ class LitDMBModel(pl.LightningModule):
             self.load_state_dict(self.weights_checkpoint.state_dict, strict=True)
 
     @classmethod
-    def load_from_logged_checkpoint(cls, log_dir: Path,
-                                    checkpoint_path: Path) -> LitDMBModel:
+    def load_from_logged_checkpoint(
+        cls, log_dir: Path, checkpoint_path: Path
+    ) -> LitDMBModel:
         """Load a model from a checkpoint.
 
         Args:
@@ -79,8 +86,9 @@ class LitDMBModel(pl.LightningModule):
         Returns:
             The loaded model.
         """
-        with open(REPO_LOGS_ROOT / log_dir / ".hydra/config.yaml",
-                  encoding="utf-8") as file:
+        with open(
+            REPO_LOGS_ROOT / log_dir / ".hydra/config.yaml", encoding="utf-8"
+        ) as file:
             config = DictConfig(yaml.load(file, Loader=yaml.FullLoader))
 
         # keep "lit_model" key, but remove "_target_" key, such that config is
@@ -102,16 +110,17 @@ class LitDMBModel(pl.LightningModule):
         out: torch.Tensor = self.model(x)
         return out
 
-    def _calculate_loss(self,
-                        batch: MultipleSizesBatch) -> tuple[torch.Tensor, LossOutput]:
-
+    def _calculate_loss(
+        self, batch: MultipleSizesBatch
+    ) -> tuple[torch.Tensor, LossOutput]:
         model_out = self(batch.inputs)
         loss_output = self.loss(model_out, batch)
 
         return model_out, loss_output
 
-    def _evaluate_metrics(self, batch: MultipleSizesBatch,
-                          model_out: torch.Tensor) -> None:
+    def _evaluate_metrics(
+        self, batch: MultipleSizesBatch, model_out: torch.Tensor
+    ) -> None:
         self.metrics.update(preds=model_out, target=batch.outputs)
 
     def training_step(
@@ -125,10 +134,11 @@ class LitDMBModel(pl.LightningModule):
         self.log_metrics(
             stage="train",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {
-                    "loss": loss_output.loss,
-                    **loss_output.loggables
-                }.items())),
+                itertools.chain(
+                    self.metrics.items(),
+                    {"loss": loss_output.loss, **loss_output.loggables}.items(),
+                )
+            ),
             on_step=True,
             on_epoch=True,
             batch_size=batch.size,
@@ -144,10 +154,11 @@ class LitDMBModel(pl.LightningModule):
         self.log_metrics(
             stage="val",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {
-                    "loss": loss_output.loss,
-                    **loss_output.loggables
-                }.items())),
+                itertools.chain(
+                    self.metrics.items(),
+                    {"loss": loss_output.loss, **loss_output.loggables}.items(),
+                )
+            ),
             on_step=False,
             on_epoch=True,
             batch_size=batch.size,
@@ -161,10 +172,11 @@ class LitDMBModel(pl.LightningModule):
         self.log_metrics(
             stage="test",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {
-                    "loss": loss_output.loss,
-                    **loss_output.loggables
-                }.items())),
+                itertools.chain(
+                    self.metrics.items(),
+                    {"loss": loss_output.loss, **loss_output.loggables}.items(),
+                )
+            ),
             on_step=False,
             on_epoch=True,
             batch_size=batch.size,
@@ -172,14 +184,16 @@ class LitDMBModel(pl.LightningModule):
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configure the optimizer and scheduler."""
-        optimizer: torch.optim.Optimizer = self.optimizer(params=filter(
-            lambda p: p.requires_grad, self.model.parameters()), )
+        optimizer: torch.optim.Optimizer = self.optimizer(
+            params=filter(lambda p: p.requires_grad, self.model.parameters()),
+        )
 
         configuration: dict[str, Any] = {"optimizer": optimizer}
 
         if self.lr_scheduler is not None:
             scheduler: _LRScheduler = self.lr_scheduler["scheduler"](
-                optimizer=optimizer)
+                optimizer=optimizer
+            )
             configuration["lr_scheduler"] = {
                 **self.lr_scheduler,
                 "scheduler": scheduler,
@@ -197,9 +211,9 @@ class LitDMBModel(pl.LightningModule):
     ) -> None:
         """Log metrics."""
         for metric_name, metric in metric_collection.items():
-
-            computed_metric = (metric.compute() if isinstance(
-                metric, torchmetrics.Metric) else metric)
+            computed_metric = (
+                metric.compute() if isinstance(metric, torchmetrics.Metric) else metric
+            )
 
             if isinstance(computed_metric, dict):
                 loggable = {

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from dmb.data.bose_hubbard_2d.nn_input import \
-    get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.plotting import PLOT_STYLE, TEXT_WIDTH
 from dmb.model.dmb_model import PredictionMapping
 
 
@@ -43,18 +43,22 @@ def phase_diagram_uniform_inputs_iter(
     fake_target_density[::2, ::2] = 1.0
 
     for i in range(n_samples * n_samples):
-        yield MUU[i], ZTU[i], get_nn_input_dimless_const_parameters(
-            muU=np.full((16, 16), fill_value=MUU[i]),
-            ztU=ZTU[i],
-            zVU=zVU,
-            cb_projection=True,
-            target_density=fake_target_density,
+        yield (
+            MUU[i],
+            ZTU[i],
+            get_nn_input_dimless_const_parameters(
+                muU=np.full((16, 16), fill_value=MUU[i]),
+                ztU=ZTU[i],
+                zVU=zVU,
+                cb_projection=True,
+                target_density=fake_target_density,
+            ),
         )
 
 
 def phase_diagram_uniform_inputs(
-        n_samples: int,
-        zVU: float = 1.0) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    n_samples: int, zVU: float = 1.0
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Generate inputs for the phase diagram with uniform sampling in muU and ztU.
 
     Args:
@@ -65,7 +69,8 @@ def phase_diagram_uniform_inputs(
         Tuple of muU, ztU, and inputs.
     """
     _MUU, _ZTU, _inputs = zip(
-        *list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU)))
+        *list(phase_diagram_uniform_inputs_iter(n_samples, zVU=zVU))
+    )
 
     MUU = torch.from_numpy(np.array(_MUU)).float()
     ZTU = torch.from_numpy(np.array(_ZTU)).float()
@@ -228,34 +233,46 @@ def plot_phase_diagram(
 
     for obs, output_obs in outputs.items():
         for name, reduction in reductions.items():
-            figures_out[obs][name] = plt.figure()
+            with plt.rc_context(PLOT_STYLE):
+                figures_out[obs][name] = plt.figure(
+                    figsize=(TEXT_WIDTH * 0.33, TEXT_WIDTH * 0.33),
+                    constrained_layout=True,
+                )
 
-            plt.pcolormesh(
-                ZTU.view(n_samples, n_samples).cpu().numpy(),
-                MUU.view(n_samples, n_samples).cpu().numpy(),
-                reduction(output_obs).reshape(n_samples, n_samples),
-            )
+                plt.pcolormesh(
+                    ZTU.view(n_samples, n_samples).cpu().numpy(),
+                    MUU.view(n_samples, n_samples).cpu().numpy(),
+                    reduction(output_obs).reshape(n_samples, n_samples),
+                    cmap="viridis",
+                    linewidth=0,
+                    rasterized=True,
+                )
 
-            if zVU == 1.0:
-                add_phase_boundaries(plt.gca())
-                plt.ylim([0, 3])
-                plt.xlim([0.1, 0.5])
+                cbar = plt.colorbar(
+                    location="right", orientation="vertical", pad=0.02, aspect=30
+                )
 
-                if name == "max-min" and obs == "density":
-                    plt.clim([0, 1])  # type: ignore
+                if zVU == 1.0:
+                    add_phase_boundaries(plt.gca())
+                    plt.ylim([0, 3])
+                    plt.xlim([0.1, 0.4])
+                    plt.xticks([0.1, 0.2, 0.3])
+                    plt.yticks([1, 2, 3])
 
-            elif zVU == 1.5:
-                plt.ylim([0, 3])
-                plt.xlim([0.1, 0.8])
+                    if name == "max-min" and obs == "density":
+                        plt.clim([0, 1])  # type: ignore
+                        cbar.set_ticks([0, 0.5, 1])
 
-                if name == "max-min" and obs == "density":
-                    plt.clim([0, 3])  # type: ignore
+                elif zVU == 1.5:
+                    plt.ylim([0, 3])
+                    plt.xlim([0.1, 0.8])
 
-            plt.xlabel(r"$4J/U$")
-            plt.ylabel(r"$\mu/{U}$")
-            plt.colorbar()
-            plt.tight_layout()
+                    if name == "max-min" and obs == "density":
+                        plt.clim([0, 3])  # type: ignore
 
-            plt.close()
+                plt.xlabel(r"$4J/U$")
+                plt.ylabel(r"$\mu/{U}$")
+
+                plt.close()
 
     return figures_out

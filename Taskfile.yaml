@@ -7,6 +7,9 @@ env:
   VIRTUAL_ENV: "{{ .REPO_ROOT }}/.venv"
   UV_CACHE_DIR: "{{ .REPO_ROOT }}/.cache/uv"
 
+  PATH:
+    sh: echo {{ .VIRTUAL_ENV }}/bin:$PATH
+
 vars:
   PLATFORM:
     sh: uname -s | tr '[:upper:]' '[:lower:]'
@@ -15,49 +18,35 @@ vars:
 
 
 tasks:
-  env-setup:
-    desc: "Setup the environment."
-    silent: true
-    run: once
-    sources:
-      - pyproject.toml
-      - .python-version
-    generates:
-      - "{{ .VIRTUAL_ENV }}/**/*"
-    cmds:
-      - uv venv {{ .VIRTUAL_ENV }}
-
-  install-dependencies:
+  install:
     desc: "Install dependencies"
-    deps:
-      - task: env-setup
     vars:
-      EXTRAS: '{{ .EXTRAS | default "--extra dev --extra ci" }}'
+      EXTRAS: '{{ .EXTRAS | default "--extra cu124" }}'
+      GROUPS: '{{ .GROUPS | default "--group ci --group dev" }}'
     cmds:
-      - uv sync {{ .EXTRAS }}
+      - uv sync {{ .GROUPS }} {{ .EXTRAS }}
 
   format:
     desc: Format the code
     cmds:
-      - uv run yapf -i --recursive {{ .PYTHON_CODE_DIRS }}
-      - uv run isort {{ .PYTHON_CODE_DIRS }}
+      - ruff format {{ .PYTHON_CODE_DIRS }}
+      - isort {{ .PYTHON_CODE_DIRS }}
 
   lint:
     desc: Lint the code
     cmds:
-      - uv run isort --check-only {{ .PYTHON_CODE_DIRS }}
-      - uv run ruff check
-      - uv run mypy {{ .PYTHON_CODE_DIRS }}
-      - uv run pylint -v {{ .PYTHON_CODE_DIRS }}
+      - isort --check-only {{ .PYTHON_CODE_DIRS }}
+      - ruff check {{ .PYTHON_CODE_DIRS }}
+      - mypy {{ .PYTHON_CODE_DIRS }}
 
   test:
     desc: Run tests
     vars:
       MARK: '{{ .MARK | default "" }}'
     cmds:
-      - uv run pytest -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
+      - pytest -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
 
   licenses:
     desc: List licenses of dependencies
     cmds:
-      - uv run pip-licenses --from=mixed --order=license --summary
+      - pip-licenses --from=mixed --order=license --summary

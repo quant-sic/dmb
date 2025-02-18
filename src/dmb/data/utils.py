@@ -13,7 +13,7 @@ def chain_fns(functions: Iterable[Callable]) -> Callable:
 
     Args:
         fns: Iterable of functions to chain together.
-    
+
     Returns:
         Callable: A function that chains the input functions together.
     """

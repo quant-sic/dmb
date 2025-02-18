@@ -34,10 +34,10 @@ def conv2d(
     )
 
 
-def regular_feature_type(gspace: gspaces.GSpace,
-                         planes: int,
-                         fixparams: bool = True) -> enn.FieldType:
-    """ build a regular feature map with the specified number of channels"""
+def regular_feature_type(
+    gspace: gspaces.GSpace, planes: int, fixparams: bool = True
+) -> enn.FieldType:
+    """build a regular feature map with the specified number of channels"""
     assert gspace.fibergroup.order() > 0
 
     N = gspace.fibergroup.order()
@@ -50,10 +50,10 @@ def regular_feature_type(gspace: gspaces.GSpace,
     return enn.FieldType(gspace, [gspace.regular_repr] * planes)
 
 
-def trivial_feature_type(gspace: gspaces.GSpace,
-                         planes: int,
-                         fixparams: bool = True) -> enn.FieldType:
-    """ build a trivial feature map with the specified number of channels"""
+def trivial_feature_type(
+    gspace: gspaces.GSpace, planes: int, fixparams: bool = True
+) -> enn.FieldType:
+    """build a trivial feature map with the specified number of channels"""
 
     if fixparams:
         planes *= int(math.sqrt(gspace.fibergroup.order()))
@@ -98,7 +98,8 @@ class SqueezeExcitation(enn.EquivariantModule):
 
         if not isinstance(scale_activation, enn.EquivariantModule):
             self.scale_activation = enn.PointwiseNonLinearity(
-                edge_type, scale_activation)
+                edge_type, scale_activation
+            )
 
     def _scale(self, x: enn.GeometricTensor) -> enn.GeometricTensor:
         scale = self.avgpool(x)
@@ -167,10 +168,9 @@ class BasicSeBlock(enn.EquivariantModule):
 
         self.shortcut = None
         if stride != 1 or self.in_type != self.out_type:
-            self.shortcut = conv_func(self.in_type,
-                                      self.out_type,
-                                      kernel_size=1,
-                                      stride=stride)
+            self.shortcut = conv_func(
+                self.in_type, self.out_type, kernel_size=1, stride=stride
+            )
 
     def forward(self, x: enn.GeometricTensor) -> enn.GeometricTensor:
         x_n = self.relu1(self.se(self.bn1(x)))
@@ -207,8 +207,9 @@ class EsSeResNet2d(torch.nn.Module):
 
         self.gspace = gspaces.flipRot2dOnR2(4)  # D4 group
 
-        self.in_type = enn.FieldType(self.gspace,
-                                     [self.gspace.trivial_repr] * in_channels)
+        self.in_type = enn.FieldType(
+            self.gspace, [self.gspace.trivial_repr] * in_channels
+        )
 
         out_type = FIELD_TYPE["regular"](self.gspace, n_channels[0], fixparams=True)
 
@@ -218,26 +219,28 @@ class EsSeResNet2d(torch.nn.Module):
             frequencies_cutoff=frequencies_cutoff,
         )
 
-        first_block = enn.SequentialModule(*[
-            conv_func(self.in_type, out_type, kernel_size=kernel_sizes[0], bias=False),
-        ])
+        first_block = enn.SequentialModule(
+            *[
+                conv_func(
+                    self.in_type, out_type, kernel_size=kernel_sizes[0], bias=False
+                ),
+            ]
+        )
 
         subsequent_blocks = []
         for i_block in range(len(n_channels) - 1):
-
-            in_type = FIELD_TYPE["regular"](self.gspace,
-                                            n_channels[i_block],
-                                            fixparams=True)
-            se_inner_type = FIELD_TYPE["regular"](self.gspace,
-                                                  n_channels[i_block] //
-                                                  se_squeeze_factor,
-                                                  fixparams=True)
-            inner_type = FIELD_TYPE["regular"](self.gspace,
-                                               n_channels[i_block],
-                                               fixparams=True)
-            out_type = FIELD_TYPE["regular"](self.gspace,
-                                             n_channels[i_block + 1],
-                                             fixparams=True)
+            in_type = FIELD_TYPE["regular"](
+                self.gspace, n_channels[i_block], fixparams=True
+            )
+            se_inner_type = FIELD_TYPE["regular"](
+                self.gspace, n_channels[i_block] // se_squeeze_factor, fixparams=True
+            )
+            inner_type = FIELD_TYPE["regular"](
+                self.gspace, n_channels[i_block], fixparams=True
+            )
+            out_type = FIELD_TYPE["regular"](
+                self.gspace, n_channels[i_block + 1], fixparams=True
+            )
 
             tmp_block = BasicSeBlock(
                 in_type=in_type,
@@ -253,17 +256,21 @@ class EsSeResNet2d(torch.nn.Module):
 
             subsequent_blocks.append(tmp_block)
 
-        final_type = enn.FieldType(self.gspace,
-                                   [self.gspace.trivial_repr] * out_channels)
-        last_block = enn.SequentialModule(*[
-            enn.InnerBatchNorm(out_type),
-            enn.ReLU(out_type),
-            enn.PointwiseDropout(out_type, p=dropout),
-            conv_func(out_type, final_type, kernel_size=3, bias=False),
-        ])
+        final_type = enn.FieldType(
+            self.gspace, [self.gspace.trivial_repr] * out_channels
+        )
+        last_block = enn.SequentialModule(
+            *[
+                enn.InnerBatchNorm(out_type),
+                enn.ReLU(out_type),
+                enn.PointwiseDropout(out_type, p=dropout),
+                conv_func(out_type, final_type, kernel_size=3, bias=False),
+            ]
+        )
 
-        self.es_resnet = enn.SequentialModule(first_block, *subsequent_blocks,
-                                              last_block)
+        self.es_resnet = enn.SequentialModule(
+            first_block, *subsequent_blocks, last_block
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the network."""

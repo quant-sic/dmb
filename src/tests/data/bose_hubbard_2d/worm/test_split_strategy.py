@@ -30,11 +30,13 @@ class TestWormSimulationsSplitStrategy:
     """Test the Split class."""
 
     @staticmethod
-    @parametrize_with_cases("split_strategy",
-                            cases=[case_worm_simulations_split_strategy])
+    @parametrize_with_cases(
+        "split_strategy", cases=[case_worm_simulations_split_strategy]
+    )
     @parametrize_with_cases("id_dataset", cases=[case_id_dataset_worm])
-    def test_split_worm_id_dataset(id_dataset: FakeIdDataset,
-                                   split_strategy: IdDatasetSplitStrategy) -> None:
+    def test_split_worm_id_dataset(
+        id_dataset: FakeIdDataset, split_strategy: IdDatasetSplitStrategy
+    ) -> None:
         """Test worm dataset split."""
 
         for _ in range(100):

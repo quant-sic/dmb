@@ -9,12 +9,14 @@ from torch.utils.data import Dataset, Sampler
 class MDuplicatesPerBatchSampler(Sampler):
     """Sampler that samples `n_duplicates` times from the dataset per batch."""
 
-    def __init__(self,
-                 dataset: Dataset,
-                 n_duplicates: int = 1,
-                 batch_size: int = 1,
-                 shuffle: bool = False,
-                 drop_last: bool = False):
+    def __init__(
+        self,
+        dataset: Dataset,
+        n_duplicates: int = 1,
+        batch_size: int = 1,
+        shuffle: bool = False,
+        drop_last: bool = False,
+    ):
         """Initialize the sampler.
 
         Args:
@@ -35,7 +37,6 @@ class MDuplicatesPerBatchSampler(Sampler):
         self.drop_last = drop_last
 
     def __iter__(self) -> Iterator[list[int]]:
-
         dataset_indices = list(range(len(self.dataset)))
 
         if self.shuffle:

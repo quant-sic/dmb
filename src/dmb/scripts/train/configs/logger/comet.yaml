@@ -1,0 +1,6 @@
+comet:
+  _target_: lightning.pytorch.loggers.CometLogger
+  save_dir: ${paths.output_dir}
+  api_key: ${oc.env:COMET_API_KEY}
+  project_name: dmb
+  experiment_name: ${exp_name}_${now:%Y-%m-%d}_${now:%H-%M-%S}

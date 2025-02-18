@@ -6,8 +6,7 @@ import numpy as np
 from dotenv import load_dotenv
 
 from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential
-from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
-    get_missing_samples, simulate
+from dmb.data.bose_hubbard_2d.worm.scripts.simulate import get_missing_samples, simulate
 from dmb.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":
@@ -68,12 +67,12 @@ if __name__ == "__main__":
     os.environ["WORM_JOB_NAME"] = "wedding_cake"
 
     target_dir = (
-        REPO_DATA_ROOT /
-        f"simulation/bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
+        REPO_DATA_ROOT
+        / f"simulation/bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
     )
     dataset_dir = (
-        REPO_DATA_ROOT /
-        f"datasets/bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
+        REPO_DATA_ROOT
+        / f"datasets/bose_hubbard_2d/wedding_cake/{args.zVU}/{args.ztU}/{args.L}/{args.coefficient}"
     )
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -96,13 +95,15 @@ if __name__ == "__main__":
             await simulate(
                 parent_dir=target_dir,
                 simulation_name="wedding_cake_{}_{:.3f}_{}".format(
-                    args.zVU, muU_out[sample_id], sample_id),
+                    args.zVU, muU_out[sample_id], sample_id
+                ),
                 L=args.L,
                 mu=get_quadratic_mu_potential(
                     (args.coefficient, args.coefficient),
                     args.L,
                     offset=muU_out[sample_id],
-                ) * U_on,
+                )
+                * U_on,
                 t_hop_array=np.ones((2, args.L, args.L)),
                 U_on_array=np.ones((args.L, args.L)) * U_on,
                 V_nn_array=np.ones((2, args.L, args.L)) * args.zVU * U_on / 4,
@@ -114,5 +115,6 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     loop.run_until_complete(
-        asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))]))
+        asyncio.gather(*[run_sample(sample_id) for sample_id in range(len(muU_out))])
+    )
     loop.close()

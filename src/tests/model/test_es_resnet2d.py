@@ -15,25 +15,31 @@ def case_D4_group_actions() -> dict[str, Callable[[torch.Tensor], torch.Tensor]]
         "flip_x": lambda x: torch.flip(x, [-2]),
         "flip_y": lambda x: torch.flip(x, [-1]),
         "reflection_x_y": lambda x: torch.transpose(x, -2, -1),
-        "reflection_x_neg_y":
-        lambda x: torch.flip(torch.transpose(x, -2, -1), [-2, -1]),
+        "reflection_x_neg_y": lambda x: torch.flip(
+            torch.transpose(x, -2, -1), [-2, -1]
+        ),
     }
 
 
 class TestEsSeResNet2d:
-
     @fixture(name="model", scope="class")
     def model(self) -> EsSeResNet2d:
-        return EsSeResNet2d(in_channels=4,
-                            out_channels=7,
-                            kernel_sizes=[5, 3, 3],
-                            n_channels=[16, 16, 16],
-                            dropout=0.0,
-                            se_squeeze_factor=4)
+        return EsSeResNet2d(
+            in_channels=4,
+            out_channels=7,
+            kernel_sizes=[5, 3, 3],
+            n_channels=[16, 16, 16],
+            dropout=0.0,
+            se_squeeze_factor=4,
+        )
 
     @parametrize(argnames="name,action", argvalues=case_D4_group_actions().items())
-    def test_action(self, model: EsSeResNet2d, name: str,
-                    action: Callable[[torch.Tensor], torch.Tensor]) -> None:
+    def test_action(
+        self,
+        model: EsSeResNet2d,
+        name: str,
+        action: Callable[[torch.Tensor], torch.Tensor],
+    ) -> None:
         x = torch.randn(9, 4, 32, 32)
         x_transformed = action(x).clone()
 

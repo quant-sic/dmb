@@ -15,4 +15,4 @@ progress_bar:
   refresh_rate: 50
 
 plotting:
-  _target_: dmb.scripts.invert.callbacks.PlottingCallback
+  _target_: dmb.scripts.invert.callbacks.StoreResultsCallback

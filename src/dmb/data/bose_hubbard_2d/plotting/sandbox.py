@@ -1,6 +1,7 @@
 from collections import defaultdict
 from logging import getLogger
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -8,12 +9,16 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colorbar import Colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dmb.data.bose_hubbard_2d.nn_input import \
-    get_nn_input_dimless_const_parameters
-from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential, \
-    get_square_mu_potential
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset, \
-    BoseHubbard2dSampleFilterStrategy
+from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.plotting import PLOT_STYLE, TEXT_WIDTH
+from dmb.data.bose_hubbard_2d.potential import (
+    get_quadratic_mu_potential,
+    get_square_mu_potential,
+)
+from dmb.data.bose_hubbard_2d.worm.dataset import (
+    BoseHubbard2dDataset,
+    BoseHubbard2dSampleFilterStrategy,
+)
 from dmb.model.dmb_model import PredictionMapping
 from dmb.paths import REPO_DATA_ROOT
 
@@ -44,18 +49,25 @@ def create_wedding_cake_plot(
 
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
-            dataset_dir_path=REPO_DATA_ROOT /
-            f"bose_hubbard_2d/wedding_cake/{zVU}/{ztU}/{L}/{coefficient}/dataset",
+            dataset_dir_path=REPO_DATA_ROOT
+            / f"bose_hubbard_2d/wedding_cake/{zVU}/{ztU}/{L}/{coefficient}/dataset",
             sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
-                max_density_error=0.1))
+                max_density_error=0.1
+            ),
+        )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities: list[np.ndarray] = [
         (
             bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                ztU=ztU, zVU=zVU, muU=_muU, L=L).outputs[0]  # type: ignore
+                ztU=ztU, zVU=zVU, muU=_muU, L=L
+            ).outputs[0]  # type: ignore
             if bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
+                ztU=ztU, zVU=zVU, muU=_muU, L=L
+            )
+            is not None
+            else np.ones((L, L))
+        )
         for _muU in muU
     ]
 
@@ -64,69 +76,64 @@ def create_wedding_cake_plot(
             muU=get_quadratic_mu_potential(
                 (coefficient, coefficient),
                 L,
-                offset=_muU,
+                offset=float(_muU),
             ),
             ztU=ztU,
             zVU=zVU,
             cb_projection=True,
             target_density=target_density,
-        ) for _muU, target_density in zip(muU, target_densities)
+        )
+        for _muU, target_density in zip(muU, target_densities)
     ]
 
-    outputs = (mapping(inputs) if mapping is not None else {
-        "density": np.zeros_like(target_densities)
-    })
+    outputs = (
+        mapping(inputs)
+        if mapping is not None
+        else {"density": np.zeros_like(target_densities)}
+    )
     figures_axes: dict[str, tuple[plt.Figure, plt.Axes]] = defaultdict(
-        lambda: plt.subplots(1, 1, figsize=(6, 6)))
+        lambda: plt.subplots(1, 1, figsize=(5, 5))
+    )
     figures: dict[str, dict[str, plt.Figure]] = {"wedding_cake": {}}
 
     for _muU, qmc_image, nn_image in zip(muU, target_densities, outputs["density"]):
+        with mpl.rc_context(PLOT_STYLE):
+            fig, ax = figures_axes[f"{_muU}"]
+            ax.set_aspect("equal")
 
-        fig, ax = figures_axes[f"{_muU}"]
-        ax.set_aspect("equal")
+            X, Y = np.meshgrid(np.arange(L), np.arange(L))
 
-        X, Y = np.meshgrid(np.arange(L), np.arange(L))
+            combined = np.concatenate(
+                (
+                    qmc_image[: int(L / 2) + 1],
+                    nn_image[int(L / 2) + 1 :],
+                )
+            )
 
-        combined = np.concatenate((
-            qmc_image[:int(L / 2) + 1],
-            nn_image[int(L / 2) + 1:],
-        ))
-        combined[int(L / 2), :int(L / 2) + 1] = nn_image[int(L / 2), :int(L / 2) + 1]
+            ax.pcolormesh(
+                X,
+                Y,
+                combined,
+                clim=(0, 2),
+                cmap="viridis",
+                linewidth=0,
+                rasterized=True,
+            )
 
-        cm = ax.pcolormesh(X,
-                           Y,
-                           combined,
-                           clim=(0, 2),
-                           cmap="viridis",
-                           linewidth=0,
-                           rasterized=True)
+            plt.hlines(
+                y=int(L / 2) + 0.5,
+                xmin=-0.5,
+                xmax=L - 0.5,
+                color="white",
+                lw=2,
+            )
 
-        plt.hlines(
-            y=int(L / 2) - 0.5,
-            xmin=-0.5,
-            xmax=int(L / 2) + 0.5,
-            color="white",
-        )
-        plt.vlines(
-            x=int(L / 2) + 0.5,
-            ymin=int(L / 2) - 0.5,
-            ymax=int(L / 2) + 0.5,
-            color="white",
-        )
-        plt.hlines(
-            y=int(L / 2) + 0.5,
-            xmin=int(L / 2) + 0.5,
-            xmax=L - 0.5,
-            color="white",
-        )
+            plt.axis("off")
 
-        plt.axis("off")
-        colorbar(cm)
+            plt.tight_layout()
+            plt.close()
 
-        plt.tight_layout()
-        plt.close()
-
-        figures["wedding_cake"]["{:.3}".format(_muU)] = fig
+            figures["wedding_cake"]["{:.3}".format(_muU)] = fig
 
     return figures
 
@@ -145,10 +152,12 @@ def create_box_plot(
     """Create box plot for a given model and parameters."""
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
-            dataset_dir_path=REPO_DATA_ROOT /
-            f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset",
+            dataset_dir_path=REPO_DATA_ROOT
+            / f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset",
             sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
-                max_density_error=0.3))
+                max_density_error=0.3
+            ),
+        )
 
     if len(bose_hubbard_2d_dataset) == 0:
         return {}
@@ -157,16 +166,21 @@ def create_box_plot(
     target_densities = [
         (
             bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                ztU=ztU, zVU=zVU, muU=_muU, L=L).outputs[0]  # type: ignore
+                ztU=ztU, zVU=zVU, muU=_muU, L=L
+            ).outputs[0]  # type: ignore
             if bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else np.ones((L, L)))
+                ztU=ztU, zVU=zVU, muU=_muU, L=L
+            )
+            is not None
+            else np.ones((L, L))
+        )
         for _muU in muU
     ]
     inputs = [
         get_nn_input_dimless_const_parameters(
             muU=get_square_mu_potential(
                 base_mu=0.0,
-                delta_mu=_muU,
+                delta_mu=float(_muU),
                 square_size=square_size,
                 lattice_size=L,
             ),
@@ -174,52 +188,65 @@ def create_box_plot(
             zVU=zVU,
             cb_projection=True,
             target_density=target_density,
-        ) for _muU, target_density in zip(muU, target_densities)
+        )
+        for _muU, target_density in zip(muU, target_densities)
     ]
 
     outputs = mapping(inputs)
 
     figures_axes: dict[str, tuple[plt.Figure, plt.Axes]] = defaultdict(
-        lambda: plt.subplots(1, 1, figsize=(6, 6)))
+        lambda: plt.subplots(1, 1, figsize=(TEXT_WIDTH * 0.3, TEXT_WIDTH * 0.25))
+    )
 
     figures: dict[str, dict[str, plt.Figure]] = {"box": {}}
 
     for _muU, qmc_image, nn_image in zip(muU, target_densities, outputs["density"]):
+        with mpl.rc_context(PLOT_STYLE):
+            fig, ax = figures_axes[f"{_muU}"]
+            ax.set_aspect("equal")
 
-        fig, ax = figures_axes[f"{_muU}"]
-        ax.set_aspect("equal")
+            X, Y = np.meshgrid(np.arange(L), np.arange(L))
 
-        X, Y = np.meshgrid(np.arange(L), np.arange(L))
+            combined = np.concatenate(
+                (
+                    qmc_image[: int(L / 2) + 1],
+                    nn_image[int(L / 2) + 1 :],
+                )
+            )
+            combined[int(L / 2), : int(L / 2) + 1] = nn_image[
+                int(L / 2), : int(L / 2) + 1
+            ]
 
-        combined = np.concatenate((
-            qmc_image[:int(L / 2) + 1],
-            nn_image[int(L / 2) + 1:],
-        ))
-        combined[int(L / 2), :int(L / 2) + 1] = nn_image[int(L / 2), :int(L / 2) + 1]
+            ax.pcolormesh(
+                X,
+                Y,
+                combined,
+                clim=(0, 2),
+                cmap="viridis",
+                linewidth=0,
+                rasterized=True,
+            )
 
-        cm = ax.pcolormesh(X,
-                           Y,
-                           combined,
-                           clim=(0, 2),
-                           cmap="viridis",
-                           linewidth=0,
-                           rasterized=True)
+            plt.hlines(
+                y=int(L / 2) + 0.5,
+                xmin=X[0, 0],
+                xmax=X[int(L / 2), -1],
+                color="white",
+                lw=2,
+            )
 
-        plt.hlines(
-            y=int(L / 2) + 0.5,
-            xmin=X[0, 0],
-            xmax=X[int(L / 2), -1],
-            color="white",
-            lw=2,
-        )
+            # plt.axis("off")
+            # colorbar(cm)
 
-        plt.axis("off")
-        colorbar(cm)
+            if L == 41:
+                # add x,y ticks at 20,40
+                ax.set_xticks([20, 40])
+                ax.set_yticks([20, 40])
 
-        plt.tight_layout()
-        plt.close()
+            plt.tight_layout()
+            plt.close()
 
-        figures["box"]["{:.3}".format(_muU)] = fig
+            figures["box"]["{:.3}".format(_muU)] = fig
 
     return figures
 
@@ -238,20 +265,27 @@ def create_box_cuts_plot(
     """Create box cuts plot for a given model and parameters."""
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
-            dataset_dir_path=REPO_DATA_ROOT /
-            f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset",
+            dataset_dir_path=REPO_DATA_ROOT
+            / f"bose_hubbard_2d/box/{zVU}/{ztU}/{L}/dataset",
             sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
-                max_density_error=0.3))
+                max_density_error=0.3
+            ),
+        )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities_unflipped = torch.stack(
         [
             (
                 bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                    ztU=ztU, zVU=zVU, muU=_muU, L=L).outputs[0]  # type: ignore
+                    ztU=ztU, zVU=zVU, muU=_muU, L=L
+                ).outputs[0]  # type: ignore
                 if bose_hubbard_2d_dataset.get_phase_diagram_sample(
-                    ztU=ztU, zVU=zVU, muU=_muU, L=L) is not None else torch.ones(
-                        (L, L))) for _muU in muU
+                    ztU=ztU, zVU=zVU, muU=_muU, L=L
+                )
+                is not None
+                else torch.ones((L, L))
+            )
+            for _muU in muU
         ],
         dim=0,
     )
@@ -280,7 +314,7 @@ def create_box_cuts_plot(
         get_nn_input_dimless_const_parameters(
             muU=get_square_mu_potential(
                 base_mu=0.0,
-                delta_mu=_muU,
+                delta_mu=float(_muU),
                 square_size=square_size,
                 lattice_size=L,
             ),
@@ -288,45 +322,50 @@ def create_box_cuts_plot(
             zVU=zVU,
             cb_projection=True,
             target_density=target_density,
-        ) for _muU, target_density in zip(muU, _target_densities)
+        )
+        for _muU, target_density in zip(muU, _target_densities)
     ]
     outputs = mapping(inputs)
 
     nn_cuts: np.ndarray = outputs["density"][:, cut_position]
     qmc_cuts: torch.Tensor = _target_densities[:, cut_position]
 
-    MU, X = np.meshgrid(muU, np.arange(L))
+    MU, X = np.meshgrid(muU[2:], np.arange(L))
 
-    qmc_image = np.stack(qmc_cuts.cpu().numpy(), axis=0).T  # type: ignore
-    nn_image = np.stack(nn_cuts, axis=0).T  # type: ignore
+    qmc_image = np.stack(qmc_cuts.cpu().numpy()[2:], axis=0).T  # type: ignore
+    nn_image = np.stack(nn_cuts[2:], axis=0).T  # type: ignore
 
-    combined = np.concatenate((
-        qmc_image[:int(L / 2) + 1],
-        nn_image[int(L / 2) + 1:],
-    ))
+    combined = np.concatenate(
+        (
+            qmc_image[: int(L / 2) + 1],
+            nn_image[int(L / 2) + 1 :],
+        )
+    )
     # combined[int(L / 2), : int(L / 2) + 1] = nn_image[int(L / 2), : int(L / 2) + 1]
 
-    fig, ax = plt.subplots(1, 1, figsize=(17.9219 * 0.3, 17.9219 * 0.25))
+    with mpl.rc_context(PLOT_STYLE):
+        fig, ax = plt.subplots(1, 1, figsize=(TEXT_WIDTH * 0.3, TEXT_WIDTH * 0.25))
 
-    mappable = ax.pcolormesh(MU, X, combined, linewidth=0, rasterized=True)
+        mappable = ax.pcolormesh(MU, X, combined, linewidth=0, rasterized=True)
 
-    plt.hlines(
-        y=int(L / 2) + 0.5,
-        xmin=X[0, 0],
-        xmax=X[int(L / 2), -1],
-        color="white",
-        lw=2,
-    )
-    plt.xlabel(r"$\Delta V$")
-    plt.ylabel(r"Site $j$")
-    plt.colorbar(mappable)
+        plt.hlines(
+            y=int(L / 2) + 0.5,
+            xmin=X[0, 0],
+            xmax=X[int(L / 2), -1],
+            color="white",
+            lw=2,
+        )
+        plt.xlabel(r"$\Delta V$")
+        plt.ylabel(r"Site $j$")
+        cbar = plt.colorbar(mappable)
+        cbar.set_ticks([0, 1, 2])
 
-    plt.xlim(MU[0, 0], MU[0, -1])
-    plt.ylim(X[0, 0], X[-1, 0])
-    # plt.xticks([1, 2, 3])
+        plt.xlim(MU[0, 0], MU[0, -1])
+        plt.ylim(X[0, 0], X[-1, 0])
+        plt.xticks([1, 2, 3])
 
-    plt.tight_layout()
-    plt.close()
+        plt.tight_layout()
+        plt.close()
 
     return {"box_cuts": fig}
 
@@ -345,10 +384,13 @@ def plot_phase_diagram_mu_cut(
 
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
-            dataset_dir_path=REPO_DATA_ROOT / "bose_hubbard_2d/mu_cut" /
-            f"{zVU}/{ztU}/{L}/dataset",
+            dataset_dir_path=REPO_DATA_ROOT
+            / "bose_hubbard_2d/mu_cut"
+            / f"{zVU}/{ztU}/{L}/dataset",
             sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
-                max_density_error=0.015))
+                max_density_error=0.015
+            ),
+        )
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     inputs = [
@@ -358,47 +400,68 @@ def plot_phase_diagram_mu_cut(
             zVU=zVU,
             cb_projection=True,
             target_density=np.ones((L, L)),
-        ) for _muU in muU
+        )
+        for _muU in muU
     ]
     outputs: dict[str, np.ndarray] = mapping(inputs)
 
-    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+    with mpl.rc_context(PLOT_STYLE):
+        fig, ax = plt.subplots(1, 1, figsize=(TEXT_WIDTH * 0.25, TEXT_WIDTH * 0.2))
 
-    try:
-        muU_qmc, n_qmc = zip(*[  # type: ignore
-            (bose_hubbard_2d_dataset.get_phase_diagram_position(i)[1],
-             bose_hubbard_2d_dataset_i.outputs[0]) for i, bose_hubbard_2d_dataset_i in
-            enumerate(bose_hubbard_2d_dataset)  # type: ignore
-        ])
+        try:
+            muU_qmc, n_qmc = zip(
+                *[  # type: ignore
+                    (
+                        bose_hubbard_2d_dataset.get_phase_diagram_position(i)[1],
+                        bose_hubbard_2d_dataset_i.outputs[0],
+                    )
+                    for i, bose_hubbard_2d_dataset_i in enumerate(
+                        bose_hubbard_2d_dataset  # type: ignore
+                    )
+                ]
+            )
 
-        ax.scatter(muU_qmc, [n_qmc[i].max() for i in range(len(n_qmc))],
-                   c="black",
-                   label="QMC")
-        ax.scatter(muU_qmc, [n_qmc[i].min() for i in range(len(n_qmc))],
-                   c="black",
-                   label="QMC")
-    except ValueError:
-        pass
+            ax.scatter(
+                muU_qmc,
+                [n_qmc[i].max() for i in range(len(n_qmc))],
+                s=20,
+                c="gold",
+                label=r"$QMC_{max}$",
+            )
+            ax.scatter(
+                muU_qmc,
+                [n_qmc[i].min() for i in range(len(n_qmc))],
+                s=20,
+                c="darkorange",
+                label=r"$QMC_{min}$",
+            )
+        except ValueError:
+            pass
 
-    # max
-    ax.scatter(
-        muU,
-        outputs["density"].max(axis=(-1, -2)),
-        c="red",
-        label="NN",
-    )
+        # max
+        ax.scatter(
+            muU,
+            outputs["density"].max(axis=(-1, -2)),
+            s=20,
+            c="darkblue",
+            label=r"$NN_{max}$",
+        )
 
-    ax.scatter(
-        muU,
-        outputs["density"].min(axis=(-1, -2)),
-        c="red",
-        label="NN",
-    )
+        ax.scatter(
+            muU,
+            outputs["density"].min(axis=(-1, -2)),
+            s=20,
+            c="cornflowerblue",
+            label=r"$NN_{min}$",
+        )
 
-    plt.legend()
-    plt.xlabel(r"$\mu/U$")
-    plt.ylabel(r"$n$")
-    plt.tight_layout()
-    plt.close()
+        plt.xticks([0, 1, 2])
+        plt.yticks([1, 2])
+
+        # plt.legend()
+        plt.xlabel(r"$\mu/U$")
+        plt.ylabel(r"$n$")
+        plt.tight_layout()
+        plt.close()
 
     return {"mu_cut": fig}

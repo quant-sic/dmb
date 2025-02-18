@@ -2,22 +2,35 @@ from pathlib import Path
 
 import lightning.pytorch as pl
 import matplotlib.pyplot as plt
+import torch
 from lightning.pytorch.callbacks import Callback
 
 
-class PlottingCallback(Callback):
-
+class StoreResultsCallback(Callback):
     def on_fit_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-
         if not trainer.log_dir:
             raise ValueError("log_dir is not set in Trainer")
 
+        inverted = pl_module.inversion_result.muU.cpu().detach()
+        target = pl_module.output.cpu().detach()
+        remapped = (
+            pl_module.dmb_model.forward(pl_module.inversion_result().unsqueeze(0))
+            .cpu()
+            .detach()[0, 0]
+        )
+
+        # save as .pt
+        results_dir = Path(trainer.log_dir) / "results"
+        results_dir.mkdir(parents=True, exist_ok=True)
+        torch.save(inverted, results_dir / "inverted.pt")
+        torch.save(target, results_dir / "target.pt")
+        torch.save(remapped, results_dir / "remapped.pt")
+
         fig, ax = plt.subplots(1, 3)
-        ax[0].imshow(pl_module.inversion_result.inversion_result.cpu().detach().numpy())
-        ax[1].imshow(
-            pl_module.dmb_model.forward(
-                pl_module.inversion_result().unsqueeze(0)).cpu().detach().numpy()[0, 0])
-        ax[2].imshow(pl_module.output.cpu().detach().numpy())
+
+        ax[0].imshow(inverted)
+        ax[1].imshow(remapped)
+        ax[2].imshow(target)
 
         ax[0].set_title("Inverted")
         ax[1].set_title("Model(Inverted)")

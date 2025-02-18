@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
-    WormSimulation, WormSimulationRunner
+from dmb.data.bose_hubbard_2d.worm.simulation import (
+    WormInputParameters,
+    WormSimulation,
+    WormSimulationRunner,
+)
 from dmb.data.dispatching import auto_create_dispatcher
 from dmb.logging import create_logger
 

@@ -1,4 +1,5 @@
 """Collate functionality for data loading."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -50,20 +51,28 @@ def collate_sizes(samples: list[DMBData]) -> MultipleSizesBatch:
         sample_indices = np.argwhere(sizes == size).flatten()
         size_batch_in, size_batch_out = map(
             lambda array: torch.from_numpy(np.stack(array)).float(),
-            zip(*[(samples[sample_idx].inputs, samples[sample_idx].outputs)
-                  for sample_idx in sample_indices]),
+            zip(
+                *[
+                    (samples[sample_idx].inputs, samples[sample_idx].outputs)
+                    for sample_idx in sample_indices
+                ]
+            ),
         )
 
         size_batches_sample_ids.append(
-            [samples[sample_idx].sample_id for sample_idx in sample_indices])
+            [samples[sample_idx].sample_id for sample_idx in sample_indices]
+        )
         size_batches_group_elements.append(
-            [samples[sample_idx].group_elements for sample_idx in sample_indices])
+            [samples[sample_idx].group_elements for sample_idx in sample_indices]
+        )
 
         size_batches_in.append(size_batch_in)
         size_batches_out.append(size_batch_out)
 
-    return MultipleSizesBatch(inputs=size_batches_in,
-                              outputs=size_batches_out,
-                              sample_ids=size_batches_sample_ids,
-                              group_elements=size_batches_group_elements,
-                              size=len(samples))
+    return MultipleSizesBatch(
+        inputs=size_batches_in,
+        outputs=size_batches_out,
+        sample_ids=size_batches_sample_ids,
+        group_elements=size_batches_group_elements,
+        size=len(samples),
+    )

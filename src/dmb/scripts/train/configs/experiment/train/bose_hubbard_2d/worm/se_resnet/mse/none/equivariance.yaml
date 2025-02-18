@@ -84,7 +84,7 @@ lit_model:
       mse:
         _target_: dmb.model.loss.MSELoss
       equivariance:
-        _target_: dmb.model.loss.EquivarianceLoss
+        _target_: dmb.model.loss.EquivarianceErrorLoss
     weights:
       mse: 1.0
       equivariance: 5.0

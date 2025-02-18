@@ -68,13 +68,14 @@ class WormInputParameters:
             attribute_value = self.__getattribute__(attribute.name)
             if isinstance(attribute_value, np.ndarray):
                 if not np.array_equal(
-                        self.__getattribute__(attribute.name),
-                        other.__getattribute__(attribute.name),
+                    self.__getattribute__(attribute.name),
+                    other.__getattribute__(attribute.name),
                 ):
                     return False
 
             elif self.__getattribute__(attribute.name) != other.__getattribute__(
-                    attribute.name):
+                attribute.name
+            ):
                 return False
 
         return True
@@ -103,12 +104,11 @@ class WormInputParameters:
     def from_dir(cls, save_dir_path: Path) -> WormInputParameters:
         """Create input parameters from a save directory."""
         attributes: dict[str, type | None] = {
-            attribute.name: attribute.type
-            for attribute in cls.__attrs_attrs__
+            attribute.name: attribute.type for attribute in cls.__attrs_attrs__
         }
 
         # Read ini file
-        with open(save_dir_path / "parameters.ini", "r", encoding='utf-8') as f:
+        with open(save_dir_path / "parameters.ini", "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         # Fill dictionary for ini parameters
@@ -125,7 +125,8 @@ class WormInputParameters:
                     elif key not in ("mu", "t_hop", "U_on", "V_nn"):
                         if attributes[key] is None:
                             raise ValueError(
-                                f"Inconsistent attribute {key} in {cls.__name__}")
+                                f"Inconsistent attribute {key} in {cls.__name__}"
+                            )
 
                         value = eval(attributes[key])(value)  # type: ignore # pylint: disable=eval-used
 
@@ -177,8 +178,10 @@ class WormInputParameters:
             f.write(f"checkpoint = {self.get_checkpoint_path(save_dir)}\n")
 
             for attribute in self.__attrs_attrs__:
-                if not (attribute.name in ("mu", "t_hop", "U_on", "V_nn")
-                        and eval(attribute.type) is np.ndarray):  # type: ignore # pylint: disable=eval-used
+                if not (
+                    attribute.name in ("mu", "t_hop", "U_on", "V_nn")
+                    and eval(attribute.type) is np.ndarray  # type: ignore
+                ):
                     f.write(f"{attribute.name} = {getattr(self,attribute.name)}\n")
 
     def save(self, save_dir: Path) -> None:

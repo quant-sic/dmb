@@ -9,8 +9,11 @@ import torch
 from attrs import define, field, frozen
 from torch.utils.data import Dataset
 
-from dmb.data.transforms import DMBData, DMBDatasetTransform, \
-    IdentityDMBDatasetTransform
+from dmb.data.transforms import (
+    DMBData,
+    DMBDatasetTransform,
+    IdentityDMBDatasetTransform,
+)
 
 
 class IdDataset(Dataset, ABC):
@@ -33,7 +36,7 @@ class IdDataset(Dataset, ABC):
 @frozen
 class DMBSample:
     """A sample in a DMB dataset.
-    
+
     - The directory name is the sample ID.
     - The directory contains the following files:
         - 'inputs.pt': The input tensor.
@@ -47,23 +50,27 @@ class DMBSample:
     @property
     def inputs(self) -> torch.Tensor:
         """Return the inputs tensor."""
-        inputs: torch.Tensor = torch.load(self.sample_dir_path / "inputs.pt",
-                                          map_location=torch.device("cpu"),
-                                          weights_only=True)
+        inputs: torch.Tensor = torch.load(
+            self.sample_dir_path / "inputs.pt",
+            map_location=torch.device("cpu"),
+            weights_only=True,
+        )
         return inputs
 
     @property
     def outputs(self) -> torch.Tensor:
         """Return the outputs tensor."""
-        outputs: torch.Tensor = torch.load(self.sample_dir_path / "outputs.pt",
-                                           map_location=torch.device("cpu"),
-                                           weights_only=True)
+        outputs: torch.Tensor = torch.load(
+            self.sample_dir_path / "outputs.pt",
+            map_location=torch.device("cpu"),
+            weights_only=True,
+        )
         return outputs
 
     @property
     def metadata(self) -> dict[str, Any]:
         """Return the metadata dictionary."""
-        with open(self.sample_dir_path / "metadata.json", encoding='utf-8') as file:
+        with open(self.sample_dir_path / "metadata.json", encoding="utf-8") as file:
             metadata: dict = json.load(file)
 
         return metadata
@@ -101,7 +108,8 @@ class DMBDataset(IdDataset):
 
     transforms: DMBDatasetTransform = field(factory=IdentityDMBDatasetTransform)
     sample_filter_strategy: SampleFilterStrategy = field(
-        factory=UseAllSamplesFilterStrategy)
+        factory=UseAllSamplesFilterStrategy
+    )
 
     sample_ids: list[str] = field(init=False)
     samples: list[DMBSample] = field(init=False)
@@ -113,9 +121,18 @@ class DMBDataset(IdDataset):
         self.samples = list(
             filter(
                 self.sample_filter_strategy.filter,
-                (DMBSample(id=sample_id, sample_dir_path=samples_dir_path / sample_id)
-                 for sample_id in (path.name for path in samples_dir_path.iterdir()
-                                   if path.is_dir()))))
+                (
+                    DMBSample(
+                        id=sample_id, sample_dir_path=samples_dir_path / sample_id
+                    )
+                    for sample_id in (
+                        path.name
+                        for path in samples_dir_path.iterdir()
+                        if path.is_dir()
+                    )
+                ),
+            )
+        )
 
         self.sample_ids = [sample.id for sample in self.samples]
 
@@ -123,10 +140,11 @@ class DMBDataset(IdDataset):
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> DMBData:
-
-        dmb_data = DMBData(inputs=self.samples[idx].inputs,
-                           outputs=self.samples[idx].outputs,
-                           sample_id=self.samples[idx].id)
+        dmb_data = DMBData(
+            inputs=self.samples[idx].inputs,
+            outputs=self.samples[idx].outputs,
+            sample_id=self.samples[idx].id,
+        )
 
         return self.transforms(dmb_data)
 

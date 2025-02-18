@@ -13,10 +13,10 @@ class DMBModel(nn.Module):
     """DMB model class."""
 
     def __init__(
-            self,
-            observables: list[str],
-            module_list: Iterable[nn.Module],
-            output_modification: Iterable[nn.Module] = (),
+        self,
+        observables: list[str],
+        module_list: Iterable[nn.Module],
+        output_modification: Iterable[nn.Module] = (),
     ) -> None:
         """Initialize DMB model.
 
@@ -40,8 +40,8 @@ class DMBModel(nn.Module):
         return x
 
     def forward(
-            self,
-            x: torch.Tensor | list[torch.Tensor]) -> torch.Tensor | list[torch.Tensor]:
+        self, x: torch.Tensor | list[torch.Tensor]
+    ) -> torch.Tensor | list[torch.Tensor]:
         """Compute forward pass."""
         if isinstance(x, (tuple, list)):
             out: list[torch.Tensor] | torch.Tensor = [
@@ -71,7 +71,7 @@ class PredictionMapping:
         self.batch_size = batch_size
 
     def __call__(
-            self, inputs: list[torch.Tensor] | Dataset | torch.Tensor
+        self, inputs: list[torch.Tensor] | Dataset | torch.Tensor
     ) -> dict[str, np.ndarray]:
         """Predict with DMB model."""
 

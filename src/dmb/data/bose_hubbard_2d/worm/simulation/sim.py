@@ -110,8 +110,9 @@ class WormSimulationInterface(metaclass=abc.ABCMeta):
         """Return True if the simulation is valid."""
 
     @abc.abstractmethod
-    def plot_observables(self,
-                         observable_names: dict[str, list[str]] | None = None) -> None:
+    def plot_observables(
+        self, observable_names: dict[str, list[str]] | None = None
+    ) -> None:
         """Plot the observables of the worm simulation."""
 
     @abc.abstractmethod
@@ -159,7 +160,6 @@ class WormSimulation(WormSimulationInterface):
     record: SyJson = field(init=False)
 
     def __attrs_post_init__(self) -> None:
-
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.record = SyJson(path=self.save_dir / "record.json")
 
@@ -169,8 +169,9 @@ class WormSimulation(WormSimulationInterface):
         self.file_logger = create_logger(
             app_name=(
                 f"worm_simulation_{self.save_dir.name}"
-                if self.save_dir.name != "tune" else
-                f"worm_simulation_{self.save_dir.parent.name}_{self.save_dir.name}"),
+                if self.save_dir.name != "tune"
+                else f"worm_simulation_{self.save_dir.parent.name}_{self.save_dir.name}"
+            ),
             level=logging.INFO,
             file=self.save_dir / "log.txt",
         )
@@ -284,8 +285,10 @@ class WormSimulation(WormSimulationInterface):
                 Defaults to None.
         """
         if self.executable is None or self.dispatcher is None:
-            raise ValueError("To execute the worm simulation, the executable "
-                             "and dispatcher must be set.")
+            raise ValueError(
+                "To execute the worm simulation, the executable "
+                "and dispatcher must be set."
+            )
 
         self.file_logger.info(f"""Running simulation with:
             sweeps: {self.input_parameters.sweeps},
@@ -302,8 +305,9 @@ class WormSimulation(WormSimulationInterface):
                 "mpirun",
                 "--use-hwthread-cpus",
                 str(self.executable),
-                str(input_file_path
-                    or self.input_parameters.get_ini_path(self.save_dir)),
+                str(
+                    input_file_path or self.input_parameters.get_ini_path(self.save_dir)
+                ),
             ],
             job_name=os.environ.get("WORM_JOB_NAME", "worm"),
             work_directory=self.save_dir,
@@ -315,7 +319,8 @@ class WormSimulation(WormSimulationInterface):
 
     async def execute_worm_continue(self) -> ReturnCode:
         return await self.execute_worm(
-            input_file_path=self.input_parameters.get_checkpoint_path(self.save_dir))
+            input_file_path=self.input_parameters.get_checkpoint_path(self.save_dir)
+        )
 
     @property
     def output(self) -> WormOutput:
@@ -339,8 +344,9 @@ class WormSimulation(WormSimulationInterface):
 
     @property
     def uncorrected_max_density_error(self) -> float | None:
-        naive_error = self.observables.get_error_analysis("primary",
-                                                          "density")["naive_error"]
+        naive_error = self.observables.get_error_analysis("primary", "density")[
+            "naive_error"
+        ]
         if naive_error is not None and not np.isnan(naive_error).all():
             return float(np.nanmax(naive_error))
 
@@ -358,8 +364,9 @@ class WormSimulation(WormSimulationInterface):
     def valid(self) -> bool:
         return self.max_density_error is not None
 
-    def plot_observables(self,
-                         observable_names: dict[str, list[str]] | None = None) -> None:
+    def plot_observables(
+        self, observable_names: dict[str, list[str]] | None = None
+    ) -> None:
         """
         Plot the results of the worm calculation.
         """
@@ -370,14 +377,14 @@ class WormSimulation(WormSimulationInterface):
 
         for _, obs_names in observable_names.items():
             for obs in obs_names:
-
                 fig, ax = plt.subplots(1, 3, figsize=(12, 4))
                 plt.subplots_adjust(wspace=0.5)
 
                 error_analysis = self.observables.get_error_analysis("primary", obs)
 
-                if (expectation_value :=
-                        error_analysis["expectation_value"]) is not None:
+                if (
+                    expectation_value := error_analysis["expectation_value"]
+                ) is not None:
                     if expectation_value.ndim == 2:
                         value_plot = ax[0].imshow(expectation_value)
 
@@ -392,7 +399,8 @@ class WormSimulation(WormSimulationInterface):
                         fig.colorbar(error_plot, ax=ax[1])
 
                 chem_pot_plot = ax[2].imshow(
-                    inputs.reshape(self.input_parameters.Lx, self.input_parameters.Ly))
+                    inputs.reshape(self.input_parameters.Lx, self.input_parameters.Ly)
+                )
                 ax[2].set_title("Chemical Potential")
                 fig.colorbar(chem_pot_plot, ax=ax[2])
 
@@ -411,8 +419,10 @@ class WormSimulation(WormSimulationInterface):
 
     def plot_inputs(self) -> None:
         self.input_parameters.plot_input_parameters(
-            plots_dir=self.get_plot_dir_path(self.save_dir))
+            plots_dir=self.get_plot_dir_path(self.save_dir)
+        )
 
     def plot_phase_diagram_inputs(self) -> None:
         self.input_parameters.plot_phase_diagram_input_parameters(
-            plots_dir=self.get_plot_dir_path(self.save_dir))
+            plots_dir=self.get_plot_dir_path(self.save_dir)
+        )

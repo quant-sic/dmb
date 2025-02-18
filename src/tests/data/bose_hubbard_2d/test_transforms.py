@@ -8,12 +8,20 @@ from pytest_cases import case
 from pytest_cases import filters as ft
 from pytest_cases import fixture, parametrize, parametrize_with_cases
 
-from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms, \
-    D4Group, D4GroupTransforms, GaussianNoiseTransform, \
-    TupleWrapperInTransform, TupleWrapperOutTransform
+from dmb.data.bose_hubbard_2d.transforms import (
+    BoseHubbard2dTransforms,
+    D4Group,
+    D4GroupTransforms,
+    GaussianNoiseTransform,
+    TupleWrapperInTransform,
+    TupleWrapperOutTransform,
+)
 from dmb.data.dataset import DMBData
-from dmb.data.transforms import DMBDatasetTransform, DMBTransform, \
-    InputOutputDMBTransform
+from dmb.data.transforms import (
+    DMBDatasetTransform,
+    DMBTransform,
+    InputOutputDMBTransform,
+)
 
 
 class DMBDataCases:
@@ -119,8 +127,9 @@ class TestD4GroupTransforms(InputOutputDMBTransformTests):
 
     @staticmethod
     @parametrize_with_cases("data", cases=DMBDataCases, glob="*equal_input_output*")
-    def test_equal_input_output(transform: InputOutputDMBTransform,
-                                data: DMBData) -> None:
+    def test_equal_input_output(
+        transform: InputOutputDMBTransform, data: DMBData
+    ) -> None:
         """Test that after applying the transform, the input and output are equal."""
         x, y = [], []
 
@@ -146,8 +155,9 @@ class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
             (1.0, 0.1),
         ],
     )
-    def case_tuple_wrapper_in_transform(mean: float,
-                                        std: float) -> TupleWrapperInTransform:
+    def case_tuple_wrapper_in_transform(
+        mean: float, std: float
+    ) -> TupleWrapperInTransform:
         """Return a transform that adds Gaussian noise to the input."""
         return TupleWrapperInTransform(GaussianNoiseTransform(mean=mean, std=std))
 
@@ -161,8 +171,9 @@ class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
             (1.0, 0.1),
         ],
     )
-    def case_tuple_wrapper_out_transform(mean: float,
-                                         std: float) -> TupleWrapperOutTransform:
+    def case_tuple_wrapper_out_transform(
+        mean: float, std: float
+    ) -> TupleWrapperOutTransform:
         """Return a transform that adds Gaussian noise to the output."""
         return TupleWrapperOutTransform(GaussianNoiseTransform(mean=mean, std=std))
 
@@ -198,7 +209,7 @@ class TestGaussianNoiseTransform(InputOutputDMBTransformTests):
             assert torch.allclose(data_out.inputs, data.inputs)
             assert not torch.allclose(data_out.outputs, data.outputs)
         # highly unlikely to be equal (minimal chance due to limited
-        #float precision), assumes std > 0
+        # float precision), assumes std > 0
 
 
 class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
@@ -208,13 +219,15 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
     def case_input_altering_base_augmentation() -> BoseHubbard2dTransforms:
         """Return a transform that alters the input in the base augmentations."""
         return BoseHubbard2dTransforms(
-            base_augmentations=[TupleWrapperInTransform(FakeDMBTransform())], )
+            base_augmentations=[TupleWrapperInTransform(FakeDMBTransform())],
+        )
 
     @staticmethod
     def case_input_altering_train_augmentation() -> BoseHubbard2dTransforms:
         """Return a transform that alters the input in the train augmentations."""
         return BoseHubbard2dTransforms(
-            train_augmentations=[TupleWrapperInTransform(FakeDMBTransform())], )
+            train_augmentations=[TupleWrapperInTransform(FakeDMBTransform())],
+        )
 
     @staticmethod
     def case_input_altering_base_and_train_augmentation() -> BoseHubbard2dTransforms:
@@ -235,7 +248,8 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
         ],
     )
     def fixture_transform(
-        transform_variant: BoseHubbard2dTransforms, ) -> DMBDatasetTransform:
+        transform_variant: BoseHubbard2dTransforms,
+    ) -> DMBDatasetTransform:
         """Return the transform variant."""
         return transform_variant
 
@@ -261,27 +275,42 @@ class TestBoseHubbard2dTransforms(InputOutputDMBTransformTests):
     ) -> None:
         """Test if the output is altered as expected based on the mode."""
 
-        if (current_cases["transform_variant"].id == "input_altering_base_augmentation"
-                and mode == "base"):
+        if (
+            current_cases["transform_variant"].id == "input_altering_base_augmentation"
+            and mode == "base"
+        ):
             expected_change = 1
-        elif (current_cases["transform_variant"].id
-              == "input_altering_train_augmentation" and mode == "base"):
+        elif (
+            current_cases["transform_variant"].id == "input_altering_train_augmentation"
+            and mode == "base"
+        ):
             expected_change = 0
-        elif (current_cases["transform_variant"].id
-              == "input_altering_base_and_train_augmentation" and mode == "base"):
+        elif (
+            current_cases["transform_variant"].id
+            == "input_altering_base_and_train_augmentation"
+            and mode == "base"
+        ):
             expected_change = 1
-        elif (current_cases["transform_variant"].id
-              == "input_altering_base_augmentation" and mode == "train"):
+        elif (
+            current_cases["transform_variant"].id == "input_altering_base_augmentation"
+            and mode == "train"
+        ):
             expected_change = 1
-        elif (current_cases["transform_variant"].id
-              == "input_altering_train_augmentation" and mode == "train"):
+        elif (
+            current_cases["transform_variant"].id == "input_altering_train_augmentation"
+            and mode == "train"
+        ):
             expected_change = 1
-        elif (current_cases["transform_variant"].id
-              == "input_altering_base_and_train_augmentation" and mode == "train"):
+        elif (
+            current_cases["transform_variant"].id
+            == "input_altering_base_and_train_augmentation"
+            and mode == "train"
+        ):
             expected_change = 2
         else:
-            raise ValueError("Unexpected case: " +
-                             current_cases["transform_variant"].id)
+            raise ValueError(
+                "Unexpected case: " + current_cases["transform_variant"].id
+            )
 
         transform_variant.mode = mode
         data_out = transform_variant(data)
@@ -299,19 +328,21 @@ class TestD4Group:
         return D4Group()
 
     @staticmethod
-    @parametrize_with_cases("data",
-                            cases=DMBDataCases,
-                            filter=ft.has_tag('all_values_different'))
+    @parametrize_with_cases(
+        "data", cases=DMBDataCases, filter=ft.has_tag("all_values_different")
+    )
     def test_all_different(data: DMBData, d4_group: D4Group) -> None:
         """Test that all D4 group elements transform the input differently."""
 
         original = data.inputs
 
-        assert torch.allclose(original,
-                              d4_group.elements["identity"].transform(original))
+        assert torch.allclose(
+            original, d4_group.elements["identity"].transform(original)
+        )
 
         transformed = [
-            element.transform(original) for element in d4_group.elements.values()
+            element.transform(original)
+            for element in d4_group.elements.values()
             if element.name != "identity"
         ]
 
@@ -319,9 +350,9 @@ class TestD4Group:
             assert not torch.allclose(v1, v2)
 
     @staticmethod
-    @parametrize_with_cases("data",
-                            cases=DMBDataCases,
-                            filter=ft.has_tag('all_values_different'))
+    @parametrize_with_cases(
+        "data", cases=DMBDataCases, filter=ft.has_tag("all_values_different")
+    )
     def test_inverse(data: DMBData, d4_group: D4Group) -> None:
         """Test that the D4 group transformation inverse transforms are correct."""
 
@@ -329,4 +360,5 @@ class TestD4Group:
 
         for element in d4_group.elements.values():
             assert torch.allclose(
-                original, element.inverse_transform(element.transform(original)))
+                original, element.inverse_transform(element.transform(original))
+            )

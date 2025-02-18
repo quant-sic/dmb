@@ -5,6 +5,7 @@ env:
     sh: git rev-parse --show-toplevel
 
   DATA_DIR_ROOT: "{{ .REPO_ROOT }}/data"
+  LOGS_DIR_ROOT: "{{ .REPO_ROOT }}/logs"
   VIRTUAL_ENV: "{{ .REPO_ROOT }}/.venv"
 
 vars:
@@ -43,7 +44,7 @@ tasks:
       - task: load_dataset
         vars:
           DATA_DIR: "bose_hubbard_2d/box/1.0/0.1/41"
-          INCLUDE_TUNE_DIRS: "--include-tune-dirs"
+          INCLUDE_TUNE_DIRS: "--include-tune-dirs --reevaluate"
 
   load_dataset_wedding_cake:
     desc: Load the wedding cake dataset
@@ -77,12 +78,13 @@ tasks:
       - setup
 
     vars:
-      NUMBER_OF_CONCURRENT_JOBS: "{{ .NUMBER_OF_CONCURRENT_JOBS | default 25 }}"
+
       SLURM_ARRAY_SIZE: "{{ .SLURM_ARRAY_SIZE | default 1 }}"
-      MAX_DENSITY_ERROR: "{{ .MAX_DENSITY_ERROR | default 0.015 }}"
+      QMC_TASK_ARGS: '{{ .QMC_TASK_ARGS | default "" }}'
+      QMC_TASK_OPTIONS: '{{ .QMC_TASK_OPTIONS | default "" }}'
 
       _COMMAND:
-        sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/data/bose_hubbard_2d/worm/scripts/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS | default "" }} --number_of_concurrent_jobs {{ .NUMBER_OF_CONCURRENT_JOBS }} --max_density_error {{ .MAX_DENSITY_ERROR }}"
+        sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS }} {{ .QMC_TASK_OPTIONS }}"
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .QMC_JOBS_STARTER_TEMPLATE }} -D qmc_task={{ .QMC_TASK }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D slurm_array_size={{ .SLURM_ARRAY_SIZE }} -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} -D worm_mpi_executable='{{ .WORM_MPI_EXECUTABLE }}' | sbatch
@@ -92,61 +94,73 @@ tasks:
     vars:
       NUMBER_OF_SAMPLES: 2500
       NUMBER_OF_CONCURRENT_JOBS: 50
+      SLURM_ARRAY_SIZE: 1
+      MAX_DENSITY_ERROR: 0.015
     cmds:
       - task: run_qmc
         vars:
           QMC_TASK: random
-          QMC_SCRIPT_FILE: create_random.py
-          QMC_TASK_ARGS: "--potential_type random --number_of_samples {{ .NUMBER_OF_SAMPLES }}" #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
-          NUMBER_OF_CONCURRENT_JOBS: "{{ .NUMBER_OF_CONCURRENT_JOBS }}"
-          SLURM_ARRAY_SIZE: 1
+          QMC_SCRIPT_FILE: random_potential.py
+          QMC_TASK_OPTIONS: "--potential-type random --number-of-samples {{ .NUMBER_OF_SAMPLES }} --number-of-concurrent-jobs {{ .NUMBER_OF_CONCURRENT_JOBS }} --max-density-error {{ .MAX_DENSITY_ERROR }}"
+          #--U_on_max 0.4 --V_nn_z_min 0.85 --V_nn_z_max 1.15 --mu_offset_min 1.5
+          SLURM_ARRAY_SIZE: "{{ .SLURM_ARRAY_SIZE }}"
 
   run_qmc_box:
     desc: Run QMC on the box potential
+    vars:
+      NUMBER_OF_CONCURRENT_JOBS: 5
+      MAX_DENSITY_ERROR: 0.3
     cmds:
       - task: run_qmc
         vars:
           QMC_TASK: box
-          QMC_SCRIPT_FILE: sandbox/box.py
-          QMC_TASK_ARGS: "--tau_max_threshold 25"
-          MAX_DENSITY_ERROR: 0.03
-          NUMBER_OF_CONCURRENT_JOBS: 25
+          QMC_SCRIPT_FILE: box.py
+          QMC_TASK_OPTIONS: "--tau-max-threshold 25 --max-density-error {{ .MAX_DENSITY_ERROR }} --number-of-concurrent-jobs {{ .NUMBER_OF_CONCURRENT_JOBS }}"
 
   run_qmc_wedding_cake:
     desc: Run QMC on the wedding cake potential
+    vars:
+      NUMBER_OF_CONCURRENT_JOBS: 10
     cmds:
       - task: run_qmc
         vars:
           QMC_TASK: wedding_cake
-          QMC_SCRIPT_FILE: sandbox/wedding_cake.py
-          NUMBER_OF_CONCURRENT_JOBS: 10
+          QMC_SCRIPT_FILE: wedding_cake.py
+          QMC_TASK_OPTIONS: "--number-of-concurrent-jobs {{ .NUMBER_OF_CONCURRENT_JOBS }}"
 
   run_qmc_mu_cut:
     desc: Run QMC on the mu cut potential
+    vars:
+      NUMBER_OF_CONCURRENT_JOBS: 25
     cmds:
       - task: run_qmc
         vars:
           QMC_TASK: mu_cut
-          QMC_SCRIPT_FILE: sandbox/mu_cut.py
-          QMC_TASK_ARGS: "--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.25"
-          NUMBER_OF_CONCURRENT_JOBS: 25
+          QMC_SCRIPT_FILE: mu_cut.py
+          QMC_TASK_OPTIONS: "--L 16 --muU-num-steps 50 --muU-min 0.0 --muU-max 3.0 --zVU 1.0 --ztU 0.25 --number-of-concurrent-jobs {{ .NUMBER_OF_CONCURRENT_JOBS }}"
 
       - task: run_qmc
         vars:
           QMC_TASK: mu_cut
-          QMC_SCRIPT_FILE: sandbox/mu_cut.py
-          QMC_TASK_ARGS: "--L 16 --muU_num_steps 50 --muU_min 0.0 --muU_max 3.0 --zVU 1.0 --ztU 0.1"
-          NUMBER_OF_CONCURRENT_JOBS: 25
+          QMC_TASK_OPTIONS: mu_cut.py
+          QMC_TASK_ARGS: "--L 16 --muU-num-steps 50 --muU-min 0.0 --muU-max 3.0 --zVU 1.0 --ztU 0.1 --number-of-concurrent-jobs {{ .NUMBER_OF_CONCURRENT_JOBS }}"
 
-  run_qmc_phase_diagram:
-    desc: Run QMC on the phase diagram
+  run_qmc_from_potential:
+    desc: Run QMC from a potential
+    vars:
+      NUMBER_OF_CONCURRENT_JOBS: 1
+      POTENTIAL_FILE_PATH: "{{ .POTENTIAL_FILE_PATH }}"
+      MAX_DENSITY_ERROR: 0.03
+      SLURM_ARRAY_SIZE: 1
+    
     cmds:
       - task: run_qmc
         vars:
-          QMC_TASK: phase_diagram
-          QMC_SCRIPT_FILE: phase_diagram/create.py
-          QMC_TASK_ARGS: "--L 16 --min_distance_between_samples_U_inv 0.1 --min_distance_between_samples_mu 0.1 --muU_min 0.0 --muU_max 3.0"
-          NUMBER_OF_CONCURRENT_JOBS: 20
+          QMC_TASK: from_potential
+          QMC_SCRIPT_FILE: from_potential.py
+          QMC_TASK_ARGS: "{{ .POTENTIAL_FILE_PATH }} minerva_test"
+          QMC_TASK_OPTIONS: "--number-of-concurrent-jobs {{ .NUMBER_OF_CONCURRENT_JOBS }} --max-density-error {{ .MAX_DENSITY_ERROR }}"
+          SLURM_ARRAY_SIZE: "{{ .SLURM_ARRAY_SIZE }}"
 
   create_split:
     desc: Create a split
@@ -196,13 +210,40 @@ tasks:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
 
   invert:
+
     desc: Invert a density
     deps:
       - setup
     vars:
       JOB_NAME: invert
 
-      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/invert/invert.py experiment=minerva"
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/invert/invert.py experiment=minerva_half_checkerboard"
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+
+  generate_model_plots:
+    desc: Generate plots
+    deps:
+      - setup
+    vars:
+      JOB_NAME: generate_plots
+
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/generate_plots.py plot-all"
+
+      LOG_DIR: "{{ .LOGS_DIR_ROOT }}/train/bose_hubbard_2d/worm/se_resnet/mse/softplus/runs/2025-01-03_13-19-37"
+
+    cmds:
+      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+
+  generate_run_time_plot:
+    desc: Generate a run time plot
+    deps:
+      - setup
+    vars:
+      JOB_NAME: generate_run_time_plot
+
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/analyze_qmc_runtimes.py --max-num-simulations=10000"
+
+    cmds:
+      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch

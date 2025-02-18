@@ -12,6 +12,7 @@ from dmb.logging import create_logger
 
 class ReturnCode(Enum):
     """Return codes for job submission."""
+
     SUCCESS = 0
     FAILURE = 1
 
@@ -25,7 +26,7 @@ async def call_sbatch_and_wait(
     logging_instance: Logger = logger,
 ) -> ReturnCode:
     """Submit a Slurm job and wait for it to finish.
-    
+
     Args:
         script_path: Path to the script to submit.
         timeout: Timeout in seconds.
@@ -63,7 +64,8 @@ async def call_sbatch_and_wait(
 
             if process.returncode != 0:
                 logging_instance.debug(
-                    f"Error executing squeue: {process.stderr.decode('utf-8')}")
+                    f"Error executing squeue: {process.stderr.decode('utf-8')}"
+                )
                 return ReturnCode.FAILURE
 
             if job_state not in ("RUNNING", "PENDING"):
@@ -86,7 +88,8 @@ async def call_sbatch_and_wait(
 
 
 def check_if_slurm_is_installed_and_running(
-    logging_instance: Logger = logger, ) -> bool:
+    logging_instance: Logger = logger,
+) -> bool:
     """Check if Slurm is installed and running on the system.
 
     Args:
