@@ -32,7 +32,7 @@ def from_potential(
     simulations_dir.mkdir(parents=True, exist_ok=True)
 
     potential = (
-        torch.load(potential_file_path, map_location="cpu", weights_only=True)
+        torch.load(potential_file_path, map_location="cpu", weights_only=False)
         .cpu()
         .detach()
         .numpy()

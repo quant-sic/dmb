@@ -1,6 +1,7 @@
 from functools import cache
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import torch
 import typer
 
@@ -188,13 +189,34 @@ def plot_inversion(
         help="Path to the qmc simulation directory",
     ),
 ) -> None:
-    target = torch.load(inversion_log_dir / "results/target.pt")
-    inverted = torch.load(inversion_log_dir / "results/inverted.pt")
-    remapped = torch.load(inversion_log_dir / "results/remapped.pt")
+    target = torch.load(inversion_log_dir / "results/target.pt", weights_only=False)
+    inverted = torch.load(inversion_log_dir / "results/inverted.pt", weights_only=False)
+    remapped = torch.load(inversion_log_dir / "results/remapped.pt", weights_only=False)
 
-    qmc_simulation_result = WormSimulation.from_dir(qmc_simulation_dir)
+    qmc_simulation_result = WormSimulation.from_dir(
+        qmc_simulation_dir
+    ).observables.get_error_analysis("primary", "density")["expectation_value"]
 
-    print(qmc_simulation_result)
+    figures_dir = REPO_DATA_ROOT / "figures/inversion" / inversion_log_dir.parent.name
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    for name, plottable in (
+        ("target", target),
+        ("inverted", inverted),
+        ("remapped", remapped),
+        ("qmc_simulation_result", qmc_simulation_result),
+    ):
+        plottable = plottable.squeeze()
+        fig = plt.figure(figsize=(5, 5))
+        plt.imshow(plottable)
+        plt.axis("off")
+
+        plt.clim(-1.5, 5.0)
+
+        plt.tight_layout()
+        plt.savefig(
+            figures_dir / f"{name}.pdf", transparent=True, bbox_inches="tight", dpi=600
+        )
 
 
 if __name__ == "__main__":

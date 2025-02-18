@@ -11,13 +11,12 @@ class StoreResultsCallback(Callback):
         if not trainer.log_dir:
             raise ValueError("log_dir is not set in Trainer")
 
-        inverted = pl_module.inversion_result.muU.cpu().detach().numpy()
-        target = pl_module.output.cpu().detach().numpy()
+        inverted = pl_module.inversion_result.muU.cpu().detach()
+        target = pl_module.output.cpu().detach()
         remapped = (
             pl_module.dmb_model.forward(pl_module.inversion_result().unsqueeze(0))
             .cpu()
-            .detach()
-            .numpy()[0, 0]
+            .detach()[0, 0]
         )
 
         # save as .pt
