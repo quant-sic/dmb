@@ -10,13 +10,7 @@ import numpy as np
 from attrs import define, field, frozen
 
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
-from dmb.data.dataset import (
-    DMBData,
-    DMBDataset,
-    DMBSample,
-    IdDataset,
-    SampleFilterStrategy,
-)
+from dmb.data.dataset import DMBDataset, DMBSample, IdDataset, SampleFilterStrategy
 from dmb.data.split import IdDatasetSplitStrategy
 from dmb.logging import create_logger
 
@@ -224,7 +218,7 @@ class BoseHubbard2dDataset(DMBDataset):
         muU_tol: float = 0.01,
         zVU_tol: float = 0.01,
         criterion: Literal["smallest_error"] = "smallest_error",
-    ) -> DMBData | None:
+    ) -> DMBSample | None:
         """Get a phase diagram sample from the dataset."""
 
         samples = []

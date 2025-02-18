@@ -4,6 +4,7 @@ import logging
 from copy import deepcopy
 from functools import cached_property
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pytest
@@ -157,9 +158,9 @@ class TestWormSimulationRunner:
     def fixture_max_density_errors(
         request: pytest.FixtureRequest, num_steps: int
     ) -> list[float]:
-        default_max_density_errors: list[float] = np.linspace(
-            0.1, 0.5, num_steps + 1
-        ).tolist()
+        default_max_density_errors: list[float] = cast(
+            list[float], np.linspace(0.1, 0.5, num_steps + 1).tolist()
+        )
         return getattr(request, "param", default_max_density_errors)
 
     @staticmethod
@@ -167,8 +168,8 @@ class TestWormSimulationRunner:
     def fixture_max_tau_ints(
         request: pytest.FixtureRequest, num_steps: int
     ) -> list[int]:
-        default_max_tau_ints: list[int] = (
-            np.linspace(10, 50, num_steps + 1).astype(int).tolist()
+        default_max_tau_ints: list[int] = cast(
+            list[int], np.linspace(10, 50, num_steps + 1).astype(int).tolist()
         )
         return getattr(request, "param", default_max_tau_ints)
 
@@ -349,14 +350,16 @@ class TestWormSimulationRunner:
 
         assert fake_worm_simulation.input_parameters.Nmeasure2 == Nmeasure2
 
-        last_execute_worm_call_index = max(
-            np.argwhere(
-                [
-                    False if (idx > 0 and valid) else True
-                    for idx, valid in enumerate(validities)
-                ]
-            )
-        ).item()
+        last_execute_worm_call_index = int(
+            np.max(
+                np.argwhere(
+                    [
+                        False if (idx > 0 and valid) else True
+                        for idx, valid in enumerate(validities)
+                    ]
+                )
+            ).item()
+        )
 
         num_sweeps = get_run_iteratively_num_sweeps_values(
             Nmeasure2=Nmeasure2,
@@ -399,8 +402,8 @@ class TestWormSimulationRunner:
             ]
         )
 
-        first_max_density_error_reached_idx = (
-            min(error_reached).item() if len(error_reached) > 0 else num_steps
+        first_max_density_error_reached_idx = int(
+            (np.min(error_reached).item() if len(error_reached) > 0 else num_steps)
         )
 
         assert (
@@ -518,7 +521,9 @@ class TestWormSimulationRunner:
             [tau_max < 10 for tau_max in max_tau_ints]
         )
         if len(max_tau_int_reached_indices) > 0:
-            first_max_tau_int_reached_idx = min(max_tau_int_reached_indices).item()
+            first_max_tau_int_reached_idx = int(
+                np.min(max_tau_int_reached_indices).item()
+            )
             assert (
                 fake_worm_simulation.tune_simulation.record["steps"][-1]["Nmeasure2"]
                 <= max_nmeasure2

@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import numpy as np
 from tqdm import tqdm
@@ -43,11 +43,12 @@ def get_tune_nmeasure2_values(
     max_exponent = int(
         np.emath.logn(step_size_multiplication_factor, max_nmeasure2 / min_nmeasure2)
     )  # floor
-    Nmeasure2_values: list[int] = (
+    Nmeasure2_values: list[int] = cast(
+        list[int],
         (min_nmeasure2 * step_size_multiplication_factor ** np.arange(max_exponent + 1))
         .round()
         .astype(int)
-        .tolist()
+        .tolist(),
     )
 
     return Nmeasure2_values

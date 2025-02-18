@@ -53,13 +53,16 @@ class InversionResult(torch.nn.Module):
     @property
     def muU(self) -> torch.Tensor:
         """Get constrained muU."""
-        return transform_to(interval(*self.muU_interval))(self.muU_unconstrained)
+        constrained_muU: torch.Tensor = transform_to(interval(*self.muU_interval))(
+            self.muU_unconstrained
+        )
+        return constrained_muU
 
     @property
     def mu(self) -> torch.Tensor:
         """Get the chemical potential."""
-        U = 4 / self.input_parameters["ztU"]
-        return self.muU * U
+        mu: torch.Tensor = 4 * self.muU / self.input_parameters["ztU"]
+        return mu
 
     def forward(self) -> torch.Tensor:
         """Get the inversion result."""

@@ -76,7 +76,7 @@ def create_wedding_cake_plot(
             muU=get_quadratic_mu_potential(
                 (coefficient, coefficient),
                 L,
-                offset=_muU,
+                offset=float(_muU),
             ),
             ztU=ztU,
             zVU=zVU,
@@ -180,7 +180,7 @@ def create_box_plot(
         get_nn_input_dimless_const_parameters(
             muU=get_square_mu_potential(
                 base_mu=0.0,
-                delta_mu=_muU,
+                delta_mu=float(_muU),
                 square_size=square_size,
                 lattice_size=L,
             ),
@@ -314,7 +314,7 @@ def create_box_cuts_plot(
         get_nn_input_dimless_const_parameters(
             muU=get_square_mu_potential(
                 base_mu=0.0,
-                delta_mu=_muU,
+                delta_mu=float(_muU),
                 square_size=square_size,
                 lattice_size=L,
             ),
@@ -416,8 +416,8 @@ def plot_phase_diagram_mu_cut(
                         bose_hubbard_2d_dataset_i.outputs[0],
                     )
                     for i, bose_hubbard_2d_dataset_i in enumerate(
-                        bose_hubbard_2d_dataset
-                    )  # type: ignore
+                        bose_hubbard_2d_dataset  # type: ignore
+                    )
                 ]
             )
 

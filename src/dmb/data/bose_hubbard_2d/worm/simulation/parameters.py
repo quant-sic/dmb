@@ -180,8 +180,8 @@ class WormInputParameters:
             for attribute in self.__attrs_attrs__:
                 if not (
                     attribute.name in ("mu", "t_hop", "U_on", "V_nn")
-                    and eval(attribute.type) is np.ndarray
-                ):  # type: ignore # pylint: disable=eval-used
+                    and eval(attribute.type) is np.ndarray  # type: ignore
+                ):
                     f.write(f"{attribute.name} = {getattr(self,attribute.name)}\n")
 
     def save(self, save_dir: Path) -> None:

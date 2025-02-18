@@ -174,9 +174,9 @@ def load_sample(
                     shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
                     fill_value=obs,
                 )
-                if obs.ndim == 0
+                if (obs and obs.ndim == 0)
                 else obs
-            )  # type: ignore
+            )
             for obs in expectation_values
         ]
         # stack observables

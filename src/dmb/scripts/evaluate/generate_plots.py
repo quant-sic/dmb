@@ -2,6 +2,7 @@ from functools import cache
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import typer
 
@@ -21,7 +22,7 @@ app = typer.Typer()
 
 
 @cache
-def load_model(log_dir: Path, checkpoint: Path | None = None):
+def load_model(log_dir: Path, checkpoint: Path | None = None) -> LitDMBModel:
     if checkpoint is None:
         # get latest step in log_dir/checkpoints/best
         checkpoint = sorted(
@@ -201,6 +202,11 @@ def plot_inversion(
         qmc_simulation_dir
     ).observables.get_error_analysis("primary", "density")["expectation_value"]
 
+    if not isinstance(qmc_simulation_result, np.ndarray):
+        raise ValueError(
+            f"Expected qmc_simulation_result to be np.ndarray, got {type(qmc_simulation_result)}"
+        )
+
     figures_dir = REPO_DATA_ROOT / "figures/inversion" / inversion_log_dir.parent.name
     figures_dir.mkdir(parents=True, exist_ok=True)
 
@@ -210,7 +216,6 @@ def plot_inversion(
         ("remapped", remapped),
         ("qmc_simulation_result", qmc_simulation_result),
     ):
-        plottable = plottable.squeeze()
         plt.figure(figsize=(5, 5))
         plt.imshow(plottable)
         plt.axis("off")
