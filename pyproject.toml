@@ -66,13 +66,13 @@ ci = [
 
 [project.optional-dependencies]
 cpu = [
-    "torch==2.5.0 ; platform_machine != 'x86_64'",
-    "torch==2.5.0+cpu ; platform_machine == 'x86_64'",
-    "torchvision>=0.20.0",
+    "torch==2.4.1 ; platform_machine != 'x86_64'",
+    "torch==2.4.1+cpu ; platform_machine == 'x86_64'",
+    "torchvision>=0.19.1",
 ]
 cu124 = [
-    "torch==2.5.0+cu124; platform_machine == 'x86_64'",
-    "torchvision>=0.20.0",
+    "torch==2.4.1+cu124; platform_machine == 'x86_64'",
+    "torchvision>=0.19.1",
 ]
 
 [tool.uv.sources]
