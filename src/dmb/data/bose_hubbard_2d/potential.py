@@ -9,7 +9,7 @@ from scipy import stats
 
 def periodic_grf(shape: tuple[int, int], power: float) -> np.ndarray:
     """Generate a periodic Gaussian random field with power-law power spectrum
-        in Fourier space."""
+    in Fourier space."""
 
     def pk(k: np.ndarray) -> np.ndarray:
         return np.power(k, -power)
@@ -26,10 +26,11 @@ def periodic_grf(shape: tuple[int, int], power: float) -> np.ndarray:
 
 
 def get_random_trapping_potential(
-        shape: tuple[int, int],
-        mu_offset: float,
-        scale_range: tuple[float, float] = (0.3, 2),
-        power: Optional[float] = None) -> tuple[float, np.ndarray]:
+    shape: tuple[int, int],
+    mu_offset: float,
+    scale_range: tuple[float, float] = (0.3, 2),
+    power: Optional[float] = None,
+) -> tuple[float, np.ndarray]:
     """Generate a random trapping potential.
 
     Args:
@@ -51,16 +52,19 @@ def get_random_trapping_potential(
     return float(power), potential_rescaled
 
 
-def get_square_mu_potential(base_mu: float, delta_mu: float, square_size: int,
-                            lattice_size: int) -> np.ndarray:
+def get_square_mu_potential(
+    base_mu: float, delta_mu: float, square_size: int, lattice_size: int
+) -> np.ndarray:
     """Generate a 2D square mu array with a square of higher mu in the center."""
 
     mu = np.full(shape=(lattice_size, lattice_size), fill_value=base_mu)
     mu[
-        int(float(lattice_size) / 2 - float(square_size) /
-            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
-        int(float(lattice_size) / 2 - float(square_size) /
-            2):int(np.ceil(float(lattice_size) / 2 + float(square_size) / 2)),
+        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
+            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
+        ),
+        int(float(lattice_size) / 2 - float(square_size) / 2) : int(
+            np.ceil(float(lattice_size) / 2 + float(square_size) / 2)
+        ),
     ] = base_mu + delta_mu
 
     return mu
@@ -87,8 +91,10 @@ def get_quadratic_mu_potential(
         center = (float(lattice_size) / 2, float(lattice_size) / 2)
 
     xx, yy = np.meshgrid(np.arange(lattice_size), np.arange(lattice_size))
-    mu = (offset + coeffitients[0] * (xx - center[0])**2 /
-          ((float(lattice_size) * 0.5)**2) + coeffitients[1] * (yy - center[1])**2 /
-          ((float(lattice_size) * 0.5)**2))
+    mu = (
+        offset
+        + coeffitients[0] * (xx - center[0]) ** 2 / ((float(lattice_size) * 0.5) ** 2)
+        + coeffitients[1] * (yy - center[1]) ** 2 / ((float(lattice_size) * 0.5) ** 2)
+    )
 
     return mu

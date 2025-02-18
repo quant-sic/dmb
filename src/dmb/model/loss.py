@@ -27,8 +27,9 @@ class Loss(ABC, torch.nn.Module):
     """Base class for loss functions."""
 
     @abstractmethod
-    def forward(self, model_output: list[torch.Tensor],
-                batch: MultipleSizesBatch) -> LossOutput:
+    def forward(
+        self, model_output: list[torch.Tensor], batch: MultipleSizesBatch
+    ) -> LossOutput:
         """Calculate the loss for the predicted and true values."""
 
 
@@ -46,8 +47,9 @@ class WeightedLoss(Loss):
         if self.weights is None:
             self.weights = {name: 1.0 for name in self.losses.keys()}
 
-    def forward(self, model_output: list[torch.Tensor],
-                batch: MultipleSizesBatch) -> LossOutput:
+    def forward(
+        self, model_output: list[torch.Tensor], batch: MultipleSizesBatch
+    ) -> LossOutput:
         """Calculate the loss for the predicted and true values."""
 
         constituent_losses_values = {
@@ -56,7 +58,8 @@ class WeightedLoss(Loss):
         }
         total_loss = sum(
             cast(dict[str, float], self.weights)[name] * loss_value
-            for name, loss_value in constituent_losses_values.items())
+            for name, loss_value in constituent_losses_values.items()
+        )
 
         return LossOutput(loss=total_loss, loggables=constituent_losses_values)
 
@@ -70,16 +73,22 @@ class EquivarianceErrorLoss(Loss):
         super().__init__()
 
     def forward_single_size(
-            self, y_pred: torch.Tensor, sample_ids: list[str],
-            group_elements: list[list[GroupElement]]) -> tuple[torch.Tensor, int]:
+        self,
+        y_pred: torch.Tensor,
+        sample_ids: list[str],
+        group_elements: list[list[GroupElement]],
+    ) -> tuple[torch.Tensor, int]:
         """Calculate the loss for a single size."""
 
         # transform back to original sample
-        y_pred_original = torch.stack([
-            GroupElement.from_group_elements(group_elements).inverse_transform(
-                y_pred_sample)
-            for y_pred_sample, group_elements in zip(y_pred, group_elements)
-        ])
+        y_pred_original = torch.stack(
+            [
+                GroupElement.from_group_elements(group_elements).inverse_transform(
+                    y_pred_sample
+                )
+                for y_pred_sample, group_elements in zip(y_pred, group_elements)
+            ]
+        )
         losses = []
 
         # get indices of sample groups with same id
@@ -88,26 +97,33 @@ class EquivarianceErrorLoss(Loss):
                 idx for idx, id in enumerate(sample_ids) if id == sample_id
             ]
 
-            #variance
+            # variance
             losses.append(
-                torch.var(y_pred_original[sample_indices], dim=0, correction=1))
+                torch.var(y_pred_original[sample_indices], dim=0, correction=1)
+            )
 
         loss = torch.mean(torch.stack(losses))
 
         return loss, len(set(sample_ids))
 
-    def forward(self, model_output: list[torch.Tensor],
-                batch: MultipleSizesBatch) -> LossOutput:
+    def forward(
+        self, model_output: list[torch.Tensor], batch: MultipleSizesBatch
+    ) -> LossOutput:
         """Calculate the loss for the predicted and true values."""
 
-        losses_out, n_samples_losses = zip(*[
-            self.forward_single_size(y_pred, sample_ids, group_elements)
-            for y_pred, sample_ids, group_elements in zip(
-                model_output, batch.sample_ids, batch.group_elements)
-        ])
+        losses_out, n_samples_losses = zip(
+            *[
+                self.forward_single_size(y_pred, sample_ids, group_elements)
+                for y_pred, sample_ids, group_elements in zip(
+                    model_output, batch.sample_ids, batch.group_elements
+                )
+            ]
+        )
 
-        loss = sum(loss * n_samples_loss for loss, n_samples_loss in zip(
-            losses_out, n_samples_losses)) / sum(n_samples_losses)
+        loss = sum(
+            loss * n_samples_loss
+            for loss, n_samples_loss in zip(losses_out, n_samples_losses)
+        ) / sum(n_samples_losses)
 
         return LossOutput(loss=loss)
 
@@ -131,11 +147,12 @@ class MSELoss(torch.nn.Module):
 
         self.reduction = reduction
 
-    def forward_single_size(self, y_pred: torch.Tensor,
-                            y_true: torch.Tensor) -> tuple[torch.Tensor, int]:
+    def forward_single_size(
+        self, y_pred: torch.Tensor, y_true: torch.Tensor
+    ) -> tuple[torch.Tensor, int]:
         """Calculate the loss for a single size."""
 
-        loss_out = torch.mean((y_true - y_pred.view(*y_true.shape))**2)
+        loss_out = torch.mean((y_true - y_pred.view(*y_true.shape)) ** 2)
         n_elements = y_true.numel()
 
         return loss_out, n_elements
@@ -147,16 +164,20 @@ class MSELoss(torch.nn.Module):
     ) -> LossOutput:
         """Calculate the loss for the predicted and true values."""
 
-        losses, size_n_elements = zip(*[
-            self.forward_single_size(y_pred, y_true)
-            for y_pred, y_true in zip(model_output, batch.outputs)
-        ])
+        losses, size_n_elements = zip(
+            *[
+                self.forward_single_size(y_pred, y_true)
+                for y_pred, y_true in zip(model_output, batch.outputs)
+            ]
+        )
 
         if self.reduction == "size_mean":
             loss: torch.Tensor = cast(torch.Tensor, sum(losses)) / len(losses)
         elif self.reduction == "mean":
-            loss = sum(_loss * _n_elements for _loss, _n_elements in zip(
-                losses, size_n_elements)) / sum(size_n_elements)
+            loss = sum(
+                _loss * _n_elements
+                for _loss, _n_elements in zip(losses, size_n_elements)
+            ) / sum(size_n_elements)
         else:
             raise ValueError(f"Reduction {self.reduction} not supported.")
 
@@ -176,8 +197,9 @@ class MSLELoss(torch.nn.Module):
 
         self.reduction = reduction
 
-    def forward_single_size(self, y_pred: torch.Tensor,
-                            y_true: torch.Tensor) -> tuple[torch.Tensor, int]:
+    def forward_single_size(
+        self, y_pred: torch.Tensor, y_true: torch.Tensor
+    ) -> tuple[torch.Tensor, int]:
         """
         Args:
             y_pred (torch.Tensor): Predicted values.
@@ -186,7 +208,7 @@ class MSLELoss(torch.nn.Module):
         Returns:
             torch.Tensor: Loss value.
         """
-        loss = torch.log((y_true + 1) / (y_pred + 1))**2
+        loss = torch.log((y_true + 1) / (y_pred + 1)) ** 2
         valid_mask = loss.isfinite()
 
         loss_out: torch.Tensor = sum(loss[valid_mask]) / torch.sum(valid_mask)
@@ -201,17 +223,21 @@ class MSLELoss(torch.nn.Module):
     ) -> LossOutput:
         """Calculate the loss for the predicted and true values."""
 
-        losses, size_n_elements = zip(*[
-            self.forward_single_size(y_pred, y_true)
-            for y_pred, y_true in zip(model_output, batch.outputs)
-        ])
+        losses, size_n_elements = zip(
+            *[
+                self.forward_single_size(y_pred, y_true)
+                for y_pred, y_true in zip(model_output, batch.outputs)
+            ]
+        )
 
         if self.reduction == "mean":
             loss: torch.Tensor = cast(
                 torch.Tensor,
-                sum(_loss * _n_elements
-                    for _loss, _n_elements in zip(losses, size_n_elements)) /
-                sum(size_n_elements),
+                sum(
+                    _loss * _n_elements
+                    for _loss, _n_elements in zip(losses, size_n_elements)
+                )
+                / sum(size_n_elements),
             )
         else:
             raise ValueError(f"Reduction {self.reduction} not supported.")

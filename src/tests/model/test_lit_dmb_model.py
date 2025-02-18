@@ -23,37 +23,49 @@ class DMBModelCases:
 
     def case_se_resnet2d(self) -> DMBModel:
         """Return a DMB model with SeResNet2d module."""
-        return DMBModel(observables=["density"],
-                        module_list=[
-                            SeResNet2d(in_channels=4,
-                                       out_channels=7,
-                                       kernel_sizes=[5, 3, 3, 3],
-                                       n_channels=[16, 32, 32, 32],
-                                       dropout=0.1)
-                        ])
+        return DMBModel(
+            observables=["density"],
+            module_list=[
+                SeResNet2d(
+                    in_channels=4,
+                    out_channels=7,
+                    kernel_sizes=[5, 3, 3, 3],
+                    n_channels=[16, 32, 32, 32],
+                    dropout=0.1,
+                )
+            ],
+        )
 
     def case_resnet2d(self) -> DMBModel:
         """Return a DMB model with ResNet2d module."""
-        return DMBModel(observables=["density"],
-                        module_list=[
-                            ResNet2d(in_channels=4,
-                                     out_channels=7,
-                                     kernel_sizes=[5, 3, 3, 3],
-                                     n_channels=[3, 3, 3, 3],
-                                     dropout=0.1)
-                        ])
+        return DMBModel(
+            observables=["density"],
+            module_list=[
+                ResNet2d(
+                    in_channels=4,
+                    out_channels=7,
+                    kernel_sizes=[5, 3, 3, 3],
+                    n_channels=[3, 3, 3, 3],
+                    dropout=0.1,
+                )
+            ],
+        )
 
     def case_es_resnet2d(self) -> DMBModel:
         """Return a DMB model with EsSeResNet2d module."""
-        return DMBModel(observables=["density"],
-                        module_list=[
-                            EsSeResNet2d(in_channels=4,
-                                         out_channels=7,
-                                         kernel_sizes=[5, 3, 3, 3],
-                                         n_channels=[16, 16, 16, 16],
-                                         dropout=0.1,
-                                         se_squeeze_factor=2)
-                        ])
+        return DMBModel(
+            observables=["density"],
+            module_list=[
+                EsSeResNet2d(
+                    in_channels=4,
+                    out_channels=7,
+                    kernel_sizes=[5, 3, 3, 3],
+                    n_channels=[16, 16, 16, 16],
+                    dropout=0.1,
+                    se_squeeze_factor=2,
+                )
+            ],
+        )
 
 
 class OptimizerCases:
@@ -74,9 +86,9 @@ class LRSchedulerCases:
     def case_step_lr(self) -> dict[str, partial[torch.optim.lr_scheduler.StepLR] | Any]:
         """Return a dictionary with StepLR scheduler."""
         return {
-            "scheduler": partial(torch.optim.lr_scheduler.StepLR,
-                                 step_size=200,
-                                 gamma=0.5),
+            "scheduler": partial(
+                torch.optim.lr_scheduler.StepLR, step_size=200, gamma=0.5
+            ),
             "monitor": "train/mse",
             "interval": "epoch",
             "frequency": 1,
@@ -104,15 +116,18 @@ def get_dataloader() -> torch.utils.data.DataLoader:
 
     def _get_random_dmb_data() -> DMBData:
         """Return random DMB data."""
-        size = int(torch.randint(4, 20, (1, )).item())
-        return DMBData(inputs=torch.randn(4, size, size),
-                       outputs=torch.randn(7, size, size),
-                       sample_id="random")
+        size = int(torch.randint(4, 20, (1,)).item())
+        return DMBData(
+            inputs=torch.randn(4, size, size),
+            outputs=torch.randn(7, size, size),
+            sample_id="random",
+        )
 
-    return torch.utils.data.DataLoader(cast(
-        Dataset, [_get_random_dmb_data() for _ in range(100)]),
-                                       batch_size=2,
-                                       collate_fn=collate_sizes)
+    return torch.utils.data.DataLoader(
+        cast(Dataset, [_get_random_dmb_data() for _ in range(100)]),
+        batch_size=2,
+        collate_fn=collate_sizes,
+    )
 
 
 class TrainerCases:
@@ -120,13 +135,15 @@ class TrainerCases:
 
     def case_trainer_fast_dev(self, tmp_path: Path) -> Trainer:
         """Return a trainer with fast_dev_run."""
-        return Trainer(fast_dev_run=True,
-                       accelerator="auto",
-                       accumulate_grad_batches=8,
-                       deterministic=False,
-                       check_val_every_n_epoch=1,
-                       log_every_n_steps=1,
-                       default_root_dir=tmp_path)
+        return Trainer(
+            fast_dev_run=True,
+            accelerator="auto",
+            accumulate_grad_batches=8,
+            deterministic=False,
+            check_val_every_n_epoch=1,
+            log_every_n_steps=1,
+            default_root_dir=tmp_path,
+        )
 
 
 class TestLitDMBModel:
@@ -139,18 +156,21 @@ class TestLitDMBModel:
     @parametrize_with_cases("lr_scheduler", cases=LRSchedulerCases)
     @parametrize_with_cases("loss", cases=LossCases)
     @parametrize_with_cases("metrics", cases=MetricsCases)
-    def fixture_lit_dmb_model(dmb_model: DMBModel,
-                              optimizer: partial[torch.optim.Optimizer],
-                              lr_scheduler: dict[
-                                  str, partial[torch.optim.lr_scheduler._LRScheduler]],
-                              loss: Loss,
-                              metrics: torchmetrics.MetricCollection) -> LitDMBModel:
+    def fixture_lit_dmb_model(
+        dmb_model: DMBModel,
+        optimizer: partial[torch.optim.Optimizer],
+        lr_scheduler: dict[str, partial[torch.optim.lr_scheduler._LRScheduler]],
+        loss: Loss,
+        metrics: torchmetrics.MetricCollection,
+    ) -> LitDMBModel:
         """Return a LitDMBModel instance."""
-        return LitDMBModel(dmb_model,
-                           optimizer=optimizer,
-                           lr_scheduler=lr_scheduler,
-                           loss=loss,
-                           metrics=metrics)
+        return LitDMBModel(
+            dmb_model,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            loss=loss,
+            metrics=metrics,
+        )
 
     @staticmethod
     @fixture(name="train_dataloader", scope="class")
@@ -166,24 +186,35 @@ class TestLitDMBModel:
 
     @staticmethod
     @parametrize_with_cases("trainer", cases=TrainerCases)
-    def test_fit(lit_dmb_model: LitDMBModel, trainer: Trainer,
-                 train_dataloader: torch.utils.data.DataLoader,
-                 val_dataloader: torch.utils.data.DataLoader) -> None:
+    def test_fit(
+        lit_dmb_model: LitDMBModel,
+        trainer: Trainer,
+        train_dataloader: torch.utils.data.DataLoader,
+        val_dataloader: torch.utils.data.DataLoader,
+    ) -> None:
         """Test the fit method of a trainer."""
-        trainer.fit(lit_dmb_model,
-                    train_dataloaders=train_dataloader,
-                    val_dataloaders=val_dataloader)
+        trainer.fit(
+            lit_dmb_model,
+            train_dataloaders=train_dataloader,
+            val_dataloaders=val_dataloader,
+        )
 
     @staticmethod
     @parametrize_with_cases("trainer", cases=TrainerCases)
-    def test_validate(lit_dmb_model: LitDMBModel, trainer: Trainer,
-                      val_dataloader: torch.utils.data.DataLoader) -> None:
+    def test_validate(
+        lit_dmb_model: LitDMBModel,
+        trainer: Trainer,
+        val_dataloader: torch.utils.data.DataLoader,
+    ) -> None:
         """Test the validate method of a trainer."""
         trainer.validate(lit_dmb_model, dataloaders=val_dataloader)
 
     @staticmethod
     @parametrize_with_cases("trainer", cases=TrainerCases)
-    def test_test(lit_dmb_model: LitDMBModel, trainer: Trainer,
-                  val_dataloader: torch.utils.data.DataLoader) -> None:
+    def test_test(
+        lit_dmb_model: LitDMBModel,
+        trainer: Trainer,
+        val_dataloader: torch.utils.data.DataLoader,
+    ) -> None:
         """Test the test method of a trainer."""
         trainer.test(lit_dmb_model, dataloaders=val_dataloader)

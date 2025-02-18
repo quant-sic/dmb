@@ -34,13 +34,17 @@ class TestsSimulationObservables:
     def fixture_observables_keys(fake_output: FakeWormOutput) -> list[tuple[str, str]]:
         return list(
             itertools.chain.from_iterable(
-                list(itertools.product((obs_type, ), obs_name)) for obs_type, obs_name
-                in SimulationObservables(fake_output).observable_names.items()))
+                list(itertools.product((obs_type,), obs_name))
+                for obs_type, obs_name in SimulationObservables(
+                    fake_output
+                ).observable_names.items()
+            )
+        )
 
     @staticmethod
     def test_observable_types_and_shapes(
-            fake_output: FakeWormOutput, observables_keys: list[tuple[str,
-                                                                      str]]) -> None:
+        fake_output: FakeWormOutput, observables_keys: list[tuple[str, str]]
+    ) -> None:
         """Test the types and shapes of the observables."""
         simulation_observables = SimulationObservables(fake_output)
 
@@ -53,14 +57,17 @@ class TestsSimulationObservables:
                 return obj.shape in ((16, 16), ())
 
             expectation_value = simulation_observables.get_expectation_value(
-                obs_type, obs_name)
+                obs_type, obs_name
+            )
             assert expectation_value is not None
             assert type_check(expectation_value) and shape_check(expectation_value)
 
             error_analysis = simulation_observables.get_error_analysis(
-                obs_type, obs_name)
+                obs_type, obs_name
+            )
             assert isinstance(error_analysis, dict)
             assert not any(v is None for v in error_analysis.values())
             assert all(
                 type_check(cast(np.ndarray, v)) and shape_check(cast(np.ndarray, v))
-                for v in error_analysis.values())
+                for v in error_analysis.values()
+            )

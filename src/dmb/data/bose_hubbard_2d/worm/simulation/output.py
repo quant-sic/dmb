@@ -69,7 +69,8 @@ class WormOutput(Output):
                 densities: np.ndarray = f["simulation"]["densities"][()]
         except (KeyError, OSError) as e:
             self.logging_instance.error(
-                f"Exception occured during of file {self.out_file_path} loading: {e}")
+                f"Exception occured during of file {self.out_file_path} loading: {e}"
+            )
             return None
 
         # reshape densities to (n_samples, Lx, Ly)
@@ -77,7 +78,8 @@ class WormOutput(Output):
             densities = self._reshape_observable(densities)
         except (ValueError, TypeError) as e:
             self.logging_instance.error(
-                f"Exception occured during reshape: {e} for {self.out_file_path}")
+                f"Exception occured during reshape: {e} for {self.out_file_path}"
+            )
             return None
 
         return densities

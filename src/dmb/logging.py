@@ -4,9 +4,9 @@ import logging
 from pathlib import Path
 
 
-def create_logger(app_name: str,
-                  file: Path | None = None,
-                  level: int = logging.INFO) -> logging.Logger:
+def create_logger(
+    app_name: str, file: Path | None = None, level: int = logging.INFO
+) -> logging.Logger:
     """Serves as a unified way to instantiate a new logger. Will create a new logging
     instance with the name app_name. The logging output is sent to the console via
     a logging.StreamHandler() instance. The output will be formatted using the
@@ -32,7 +32,8 @@ def create_logger(app_name: str,
     """
     log_formatter = logging.Formatter(
         "%(asctime)s [%(filename)s] [%(funcName)s] [%(levelname)s] "
-        "[%(lineno)d] %(message)s")
+        "[%(lineno)d] %(message)s"
+    )
 
     # create new up logger
     logger = logging.getLogger(app_name)
@@ -51,9 +52,14 @@ def create_logger(app_name: str,
         logger.addHandler(file_handler)
 
     # if number of stream handlers is 0, add console handler
-    if (len(
-            list(filter(lambda x: isinstance(x, logging.StreamHandler),
-                        logger.handlers))) == 0):
+    if (
+        len(
+            list(
+                filter(lambda x: isinstance(x, logging.StreamHandler), logger.handlers)
+            )
+        )
+        == 0
+    ):
         logger.addHandler(console_handler)
 
     return logger

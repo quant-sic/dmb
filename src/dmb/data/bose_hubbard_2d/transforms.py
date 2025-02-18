@@ -1,4 +1,5 @@
 """Transforms for the Bose-Hubbard 2D dataset."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -43,29 +44,31 @@ class D4Group:
     def __attrs_post_init__(self) -> None:
         """Initialize the group elements."""
         object.__setattr__(
-            self, "elements", {
-                "identity":
-                GroupElement("identity", self.identity, self.identity),
-                "rotate_90_left":
-                GroupElement("rotate_90_left", self.rotate_90_left,
-                             self.rotate_270_left),
-                "rotate_180_left":
-                GroupElement("rotate_180_left", self.rotate_180_left,
-                             self.rotate_180_left),
-                "rotate_270_left":
-                GroupElement("rotate_270_left", self.rotate_270_left,
-                             self.rotate_90_left),
-                "flip_x":
-                GroupElement("flip_x", self.flip_x, self.flip_x),
-                "flip_y":
-                GroupElement("flip_y", self.flip_y, self.flip_y),
-                "reflection_x_y":
-                GroupElement("reflection_x_y", self.reflection_x_y,
-                             self.reflection_x_y),
-                "reflection_x_neg_y":
-                GroupElement("reflection_x_neg_y", self.reflection_x_neg_y,
-                             self.reflection_x_neg_y),
-            })
+            self,
+            "elements",
+            {
+                "identity": GroupElement("identity", self.identity, self.identity),
+                "rotate_90_left": GroupElement(
+                    "rotate_90_left", self.rotate_90_left, self.rotate_270_left
+                ),
+                "rotate_180_left": GroupElement(
+                    "rotate_180_left", self.rotate_180_left, self.rotate_180_left
+                ),
+                "rotate_270_left": GroupElement(
+                    "rotate_270_left", self.rotate_270_left, self.rotate_90_left
+                ),
+                "flip_x": GroupElement("flip_x", self.flip_x, self.flip_x),
+                "flip_y": GroupElement("flip_y", self.flip_y, self.flip_y),
+                "reflection_x_y": GroupElement(
+                    "reflection_x_y", self.reflection_x_y, self.reflection_x_y
+                ),
+                "reflection_x_neg_y": GroupElement(
+                    "reflection_x_neg_y",
+                    self.reflection_x_neg_y,
+                    self.reflection_x_neg_y,
+                ),
+            },
+        )
 
     def identity(self, x: torch.Tensor) -> torch.Tensor:
         """Identity transformation."""
@@ -120,7 +123,6 @@ class D4GroupTransforms(InputOutputDMBTransform):
         self.d4_group: D4Group = D4Group()
 
     def __call__(self, dmb_data: DMBData) -> DMBData:
-
         # with p=1/8 each choose one symmetry transform at random and apply it
         rnd = int(np.random.rand() * 8)
         element_transform = list(self.d4_group.elements.values())[rnd]
@@ -145,10 +147,12 @@ class TupleWrapperInTransform(InputOutputDMBTransform):
         self.transform = transform
 
     def __call__(self, dmb_data: DMBData) -> DMBData:
-        return DMBData(inputs=self.transform(dmb_data.inputs),
-                       outputs=dmb_data.outputs,
-                       sample_id=dmb_data.sample_id,
-                       group_elements=dmb_data.group_elements)
+        return DMBData(
+            inputs=self.transform(dmb_data.inputs),
+            outputs=dmb_data.outputs,
+            sample_id=dmb_data.sample_id,
+            group_elements=dmb_data.group_elements,
+        )
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
@@ -161,10 +165,12 @@ class TupleWrapperOutTransform(InputOutputDMBTransform):
         self.transform = transform
 
     def __call__(self, dmb_data: DMBData) -> DMBData:
-        return DMBData(inputs=dmb_data.inputs,
-                       outputs=self.transform(dmb_data.outputs),
-                       sample_id=dmb_data.sample_id,
-                       group_elements=dmb_data.group_elements)
+        return DMBData(
+            inputs=dmb_data.inputs,
+            outputs=self.transform(dmb_data.outputs),
+            sample_id=dmb_data.sample_id,
+            group_elements=dmb_data.group_elements,
+        )
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
@@ -178,10 +184,12 @@ class BoseHubbard2dTransforms(DMBDatasetTransform):
         base_augmentations: list[InputOutputDMBTransform] | None = None,
         train_augmentations: list[InputOutputDMBTransform] | None = None,
     ):
-        self.base_augmentations = ([] if base_augmentations is None else
-                                   base_augmentations)
-        self.train_augmentations = ([] if train_augmentations is None else
-                                    train_augmentations)
+        self.base_augmentations = (
+            [] if base_augmentations is None else base_augmentations
+        )
+        self.train_augmentations = (
+            [] if train_augmentations is None else train_augmentations
+        )
 
         self._mode: Literal["base", "train"] = "base"
 
@@ -209,13 +217,26 @@ class BoseHubbard2dTransforms(DMBDatasetTransform):
 
     def __repr__(self) -> str:
         """Return a string representation of the transform."""
-        return (self.__class__.__name__ + "((\n" +
-                ("\t base_augmentations={},\n".format(",".join(
-                    map(str, self.base_augmentations))) if self.base_augmentations else
-                 "") + ("\t train_augmentations={},\n".format(",".join(
-                     map(str, self.train_augmentations)))
-                        if self.train_augmentations else "") + f"\t mode={self.mode}"
-                "\n"
-                "\t)"
-                "\n"
-                ")")
+        return (
+            self.__class__.__name__
+            + "((\n"
+            + (
+                "\t base_augmentations={},\n".format(
+                    ",".join(map(str, self.base_augmentations))
+                )
+                if self.base_augmentations
+                else ""
+            )
+            + (
+                "\t train_augmentations={},\n".format(
+                    ",".join(map(str, self.train_augmentations))
+                )
+                if self.train_augmentations
+                else ""
+            )
+            + f"\t mode={self.mode}"
+            "\n"
+            "\t)"
+            "\n"
+            ")"
+        )

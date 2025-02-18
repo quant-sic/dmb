@@ -39,18 +39,20 @@ def get_missing_samples(
         dataset_dir_path=dataset_dir,
         transforms=BoseHubbard2dTransforms(),
         sample_filter_strategy=BoseHubbard2dSampleFilterStrategy(
-            max_density_error=max_density_error))
+            max_density_error=max_density_error
+        ),
+    )
 
     missing_tuples = []
     for L_i, ztU_i, zVU_i, muU_i in zip(L, ztU, zVU, muU):
         if not bh_dataset.has_phase_diagram_sample(
-                L=L_i,
-                ztU=ztU_i,
-                zVU=zVU_i,
-                muU=muU_i,
-                ztU_tol=tolerance_ztU,
-                zVU_tol=tolerance_zVU,
-                muU_tol=tolerance_muU,
+            L=L_i,
+            ztU=ztU_i,
+            zVU=zVU_i,
+            muU=muU_i,
+            ztU_tol=tolerance_ztU,
+            zVU_tol=tolerance_zVU,
+            muU_tol=tolerance_muU,
         ):
             missing_tuples.append((L_i, ztU_i, zVU_i, muU_i))
 
@@ -112,4 +114,5 @@ async def simulate(
 
     await sim_run.tune_nmeasure2(tau_threshold=tune_tau_max_threshold)
     await sim_run.run_iterative_until_converged(
-        max_abs_error_threshold=run_max_density_error)
+        max_abs_error_threshold=run_max_density_error
+    )

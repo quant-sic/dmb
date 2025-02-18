@@ -13,8 +13,9 @@ __all__ = [
 ]
 
 
-def convert_dimless_to_physical(ztU: float, muU: float, zVU: float,
-                                J: float) -> tuple[float, float, float]:
+def convert_dimless_to_physical(
+    ztU: float, muU: float, zVU: float, J: float
+) -> tuple[float, float, float]:
     """Convert the parameters from dimensionless to physical units."""
 
     U_on = 4 * J / ztU
@@ -115,8 +116,9 @@ def get_nn_input(
         if not len(U_on) == np.prod(mu.shape):
             U_on = U_on.view(-1, mu.shape[-2], mu.shape[-1])[0]
         else:
-            U_on = U_on.view(int(math.sqrt(U_on.shape[0])),
-                             int(math.sqrt(U_on.shape[0])))
+            U_on = U_on.view(
+                int(math.sqrt(U_on.shape[0])), int(math.sqrt(U_on.shape[0]))
+            )
     elif len(U_on.shape) == 2:
         if not U_on.shape[0] == U_on.shape[1]:
             raise ValueError("Input U_on has to be square")
@@ -125,8 +127,9 @@ def get_nn_input(
 
     # convert to 2D if necessary
     if len(V_nn.shape) == 1:
-        V_nn = V_nn.view(2, int(math.sqrt(V_nn.shape[0] / 2)),
-                         int(math.sqrt(V_nn.shape[0] / 2)))
+        V_nn = V_nn.view(
+            2, int(math.sqrt(V_nn.shape[0] / 2)), int(math.sqrt(V_nn.shape[0] / 2))
+        )
     elif len(V_nn.shape) == 3:
         if not V_nn.shape[1] == V_nn.shape[2]:
             raise ValueError("Input V_nn has to be square")
@@ -137,14 +140,16 @@ def get_nn_input(
     if cb_projection:
         if target_density is None:
             raise RuntimeError(
-                "If cb_projection is True, target_density has to be provided.")
+                "If cb_projection is True, target_density has to be provided."
+            )
         cb_proj = get_ckeckerboard_projection(target_density=target_density)
     else:
         cb_proj = torch.ones_like(mu)
 
     # get network input
-    inputs = torch.concat([mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[[0]]],
-                          dim=0)
+    inputs = torch.concat(
+        [mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[[0]]], dim=0
+    )
 
     return inputs
 
@@ -192,7 +197,8 @@ def get_nn_input_dimless_const_parameters(
     if cb_projection:
         if target_density is None:
             raise RuntimeError(
-                "If cb_projection is True, target_density has to be provided.")
+                "If cb_projection is True, target_density has to be provided."
+            )
         cb_proj = get_ckeckerboard_projection(target_density=target_density)
     else:
         cb_proj = torch.ones_like(muU, device=muU.device)
@@ -203,8 +209,9 @@ def get_nn_input_dimless_const_parameters(
     mu = muU * U_on
 
     # get network input
-    inputs = torch.concat([mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[None, :]],
-                          dim=0)
+    inputs = torch.concat(
+        [mu[None, :], cb_proj[None, :], U_on[None, :], V_nn[None, :]], dim=0
+    )
 
     return inputs
 

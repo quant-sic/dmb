@@ -28,20 +28,22 @@ def draw_random_config(
     V_nn_z_max: float = 1.75,
     mu_offset_min: float = -0.5,
     mu_offset_max: float = 3.0,
-) -> tuple[int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any,
-           float]:
+) -> tuple[
+    int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any, float
+]:
     """Draw random configuration for the simulation."""
 
     L = np.random.randint(low=L_half_min, high=L_half_max) * 2
-    U_on = (np.random.uniform(low=U_on_min, high=U_on_max)**(-1)) * 4
+    U_on = (np.random.uniform(low=U_on_min, high=U_on_max) ** (-1)) * 4
     V_nn = np.random.uniform(low=V_nn_z_min / 4, high=V_nn_z_max / 4) * U_on
     mu_offset = np.random.uniform(low=mu_offset_min, high=mu_offset_max) * U_on
 
     power, V_trap = get_random_trapping_potential(shape=(L, L), mu_offset=mu_offset)
 
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
-    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
-                                axis=0).repeat(2, axis=0)
+    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn), axis=0).repeat(
+        2, axis=0
+    )
     t_hop_array = np.ones((2, L, L))
 
     mu = mu_offset + V_trap
@@ -49,18 +51,20 @@ def draw_random_config(
     return L, U_on, V_nn, mu, t_hop_array, U_on_array, V_nn_array, power, mu_offset
 
 
-def draw_uniform_config() -> (tuple[int, float, float, np.ndarray, np.ndarray,
-                                    np.ndarray, np.ndarray, Any, float]):
+def draw_uniform_config() -> (
+    tuple[int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any, float]
+):
     """Draw uniform configuration for the simulation."""
 
     L = np.random.randint(low=4, high=10) * 2
-    U_on = (np.random.uniform(low=0.05, high=1)**(-1)) * 4
+    U_on = (np.random.uniform(low=0.05, high=1) ** (-1)) * 4
     V_nn = np.random.uniform(low=0.75 / 4, high=1.75 / 4) * U_on
     mu_offset = np.random.uniform(low=-0.5, high=3.0) * U_on
 
     U_on_array = np.full(shape=(L, L), fill_value=U_on)
-    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn),
-                                axis=0).repeat(2, axis=0)
+    V_nn_array = np.expand_dims(np.full(shape=(L, L), fill_value=V_nn), axis=0).repeat(
+        2, axis=0
+    )
     t_hop_array = np.ones((2, L, L))
 
     mu = mu_offset * np.ones(shape=(L, L))
@@ -69,32 +73,32 @@ def draw_uniform_config() -> (tuple[int, float, float, np.ndarray, np.ndarray,
 
 
 @app.command(
-    help="Run worm simulation for 2D Bose-Hubbard model with random potential.")
-def simulate_random(number_of_samples: int = typer.Option(
-    default=1, help="Number of samples to run."),
-                    number_of_concurrent_jobs: int = typer.Option(
-                        default=1, help="Number of concurrent jobs."),
-                    potential_type: Literal["random", "uniform"] = typer.Option(
-                        default="random", help="Type of potential."),
-                    L_half_min: int = typer.Option(
-                        default=4, help="Minimum half side length of lattice."),
-                    L_half_max: int = typer.Option(
-                        default=10, help="Maximum half side length of lattice."),
-                    U_on_min: float = typer.Option(default=0.05,
-                                                   help="Minimum U_on value."),
-                    U_on_max: float = typer.Option(default=1.0,
-                                                   help="Maximum U_on value."),
-                    V_nn_z_min: float = typer.Option(default=0.75,
-                                                     help="Minimum V_nn_z value."),
-                    V_nn_z_max: float = typer.Option(default=1.75,
-                                                     help="Maximum V_nn_z value."),
-                    mu_offset_min: float = typer.Option(
-                        default=-0.5, help="Minimum mu_offset value."),
-                    mu_offset_max: float = typer.Option(
-                        default=3.0, help="Maximum mu_offset value."),
-                    max_density_error: float = typer.Option(
-                        default=0.015, help="Maximum density error.")) -> None:
-
+    help="Run worm simulation for 2D Bose-Hubbard model with random potential."
+)
+def simulate_random(
+    number_of_samples: int = typer.Option(default=1, help="Number of samples to run."),
+    number_of_concurrent_jobs: int = typer.Option(
+        default=1, help="Number of concurrent jobs."
+    ),
+    potential_type: Literal["random", "uniform"] = typer.Option(
+        default="random", help="Type of potential."
+    ),
+    L_half_min: int = typer.Option(
+        default=4, help="Minimum half side length of lattice."
+    ),
+    L_half_max: int = typer.Option(
+        default=10, help="Maximum half side length of lattice."
+    ),
+    U_on_min: float = typer.Option(default=0.05, help="Minimum U_on value."),
+    U_on_max: float = typer.Option(default=1.0, help="Maximum U_on value."),
+    V_nn_z_min: float = typer.Option(default=0.75, help="Minimum V_nn_z value."),
+    V_nn_z_max: float = typer.Option(default=1.75, help="Maximum V_nn_z value."),
+    mu_offset_min: float = typer.Option(default=-0.5, help="Minimum mu_offset value."),
+    mu_offset_max: float = typer.Option(default=3.0, help="Maximum mu_offset value."),
+    max_density_error: float = typer.Option(
+        default=0.015, help="Maximum density error."
+    ),
+) -> None:
     load_dotenv()
 
     simulations_dir = REPO_DATA_ROOT / f"bose_hubbard_2d/{potential_type}/simulations"
@@ -165,5 +169,7 @@ def simulate_random(number_of_samples: int = typer.Option(
 
     loop.run_until_complete(
         asyncio.gather(
-            *[run_sample(sample_idx) for sample_idx in range(number_of_samples)]))
+            *[run_sample(sample_idx) for sample_idx in range(number_of_samples)]
+        )
+    )
     loop.close()

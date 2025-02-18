@@ -34,9 +34,11 @@ class SlurmDispatcherSettings(BaseSettings):
         env_prefix="slurm_dispatcher_",
     )
 
-    partition: str = Field(default="standard",
-                           title="Partition",
-                           description="The partition to use on the cluster.")
+    partition: str = Field(
+        default="standard",
+        title="Partition",
+        description="The partition to use on the cluster.",
+    )
     number_of_tasks_per_node: int = Field(
         default=1,
         title="Number of tasks per node",
@@ -88,7 +90,7 @@ class Dispatcher(metaclass=abc.ABCMeta):
 
 def auto_create_dispatcher() -> Dispatcher:
     """Automatically determine the dispatcher based on the environment.
-    
+
     Returns:
         Dispatcher: The determined dispatcher.
     """
@@ -177,7 +179,6 @@ class SlurmDispatcher(Dispatcher):
         task: list[str],
         timeout: int,
     ) -> ReturnCode:
-
         script_path = work_directory / "run.sh"
 
         create_script_out = self.create_sbatch_script(
@@ -226,11 +227,13 @@ class LocalDispatcher(Dispatcher):
         )
 
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(),
-                                                    timeout=timeout)
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=timeout
+            )
             await process.wait()
-            return_code = (ReturnCode.SUCCESS
-                           if process.returncode == 0 else ReturnCode.FAILURE)
+            return_code = (
+                ReturnCode.SUCCESS if process.returncode == 0 else ReturnCode.FAILURE
+            )
 
         except asyncio.TimeoutError:
             process.kill()
@@ -240,11 +243,13 @@ class LocalDispatcher(Dispatcher):
         # write output to file
         now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         pipeout_dir.mkdir(exist_ok=True, parents=True)
-        with open(pipeout_dir / f"stdout_{job_name}_{now}.txt", "w",
-                  encoding="utf-8") as f:
+        with open(
+            pipeout_dir / f"stdout_{job_name}_{now}.txt", "w", encoding="utf-8"
+        ) as f:
             f.write(stdout.decode("utf-8"))
-        with open(pipeout_dir / f"stderr_{job_name}_{now}.txt", "w",
-                  encoding="utf-8") as f:
+        with open(
+            pipeout_dir / f"stderr_{job_name}_{now}.txt", "w", encoding="utf-8"
+        ) as f:
             f.write(stderr.decode("utf-8"))
 
         return return_code

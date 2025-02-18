@@ -18,11 +18,13 @@ class DatasetDirFilterCases:
     @staticmethod
     @case(tags=("dataset_dir", "filter"))
     def case_dataset_dir_filter_sample_1(
-            tmp_path: Path) -> tuple[Path, SampleFilterStrategy, list[str]]:
+        tmp_path: Path,
+    ) -> tuple[Path, SampleFilterStrategy, list[str]]:
         """Return the dataset directory, filter strategy, and expected sample ids."""
 
-        def convert_dimless(ztU: float, muU: float, zVU: float,
-                            J: float) -> dict[str, float]:
+        def convert_dimless(
+            ztU: float, muU: float, zVU: float, J: float
+        ) -> dict[str, float]:
             """Convert the parameters from dimensionless to physical units."""
 
             U_on, mu, V_nn = convert_dimless_to_physical(ztU, muU, zVU, J)
@@ -36,29 +38,34 @@ class DatasetDirFilterCases:
         metadata = [
             {
                 "max_density_error": 0.01,
-                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0), "J": 1.0,
-                "L": 10
-            },  #ok
+                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0),
+                "J": 1.0,
+                "L": 10,
+            },  # ok
             {
                 "max_density_error": 0.01,
-                **convert_dimless(ztU=0.025, muU=1.0, zVU=1.0, J=1.0), "J": 1.0,
-                "L": 10
-            },  #bad
+                **convert_dimless(ztU=0.025, muU=1.0, zVU=1.0, J=1.0),
+                "J": 1.0,
+                "L": 10,
+            },  # bad
             {
                 "max_density_error": 0.01,
-                **convert_dimless(ztU=0.5, muU=4.0, zVU=1.0, J=1.0), "J": 1.0,
-                "L": 10
-            },  #bad
+                **convert_dimless(ztU=0.5, muU=4.0, zVU=1.0, J=1.0),
+                "J": 1.0,
+                "L": 10,
+            },  # bad
             {
                 "max_density_error": 0.01,
-                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0), "J": 1.0,
-                "L": 1
-            },  #bad
+                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0),
+                "J": 1.0,
+                "L": 1,
+            },  # bad
             {
                 "max_density_error": 0.1,
-                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0), "J": 1.0,
-                "L": 10
-            },  #bad
+                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0),
+                "J": 1.0,
+                "L": 10,
+            },  # bad
         ]
         sample_ids = [f"sample_{idx}" for idx in range(len(metadata))]
 
@@ -91,8 +98,10 @@ class TestBoseHubbard2dDataset:
     """Tests for the BoseHubbard2dDataset."""
 
     @staticmethod
-    @parametrize_with_cases("dataset_dir, sample_filter_strategy, expected_sample_ids",
-                            cases=DatasetDirFilterCases)
+    @parametrize_with_cases(
+        "dataset_dir, sample_filter_strategy, expected_sample_ids",
+        cases=DatasetDirFilterCases,
+    )
     def test_dataset_dir_filter_sample(
         dataset_dir: Path,
         sample_filter_strategy: SampleFilterStrategy,
@@ -100,8 +109,9 @@ class TestBoseHubbard2dDataset:
     ) -> None:
         """Test loading the dataset directory with a filter strategy."""
 
-        dataset = BoseHubbard2dDataset(dataset_dir_path=dataset_dir,
-                                       sample_filter_strategy=sample_filter_strategy)
+        dataset = BoseHubbard2dDataset(
+            dataset_dir_path=dataset_dir, sample_filter_strategy=sample_filter_strategy
+        )
 
         assert len(dataset) == len(expected_sample_ids)
         assert set(dataset.sample_ids) == set(expected_sample_ids)

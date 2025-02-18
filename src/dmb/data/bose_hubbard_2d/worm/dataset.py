@@ -4,6 +4,7 @@ import random
 import re
 from collections import defaultdict
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 from attrs import define, field, frozen
@@ -36,7 +37,8 @@ class WormSimulationsSplitStrategy(IdDatasetSplitStrategy):
             simulation_ids[simulation_id].append(sample_id)
 
         unique_simulation_ids, weights = map(
-            np.array, zip(*[(k, len(v)) for k, v in simulation_ids.items()]))
+            np.array, zip(*[(k, len(v)) for k, v in simulation_ids.items()])
+        )
 
         order = np.arange(len(unique_simulation_ids))
         random.seed(seed)
@@ -49,17 +51,19 @@ class WormSimulationsSplitStrategy(IdDatasetSplitStrategy):
         split_indices = [0]
         for split_idx, split_length in enumerate(np.cumsum(agnostic_split_lengths)):
             next_splits = np.argwhere(
-                np.cumsum(np.array(weights)[order]) > split_length)
-            if len(next_splits) == 0 or split_idx == len(
-                    agnostic_split_lengths) - 1:  # enforce last split to reach the end
+                np.cumsum(np.array(weights)[order]) > split_length
+            )
+            if (
+                len(next_splits) == 0 or split_idx == len(agnostic_split_lengths) - 1
+            ):  # enforce last split to reach the end
                 split_indices.append(len(weights))
             else:
                 split_indices.append(int(np.min(next_splits)))
 
         split_ids = {}
-        for split_name, start_index, end_index in zip(split_fractions,
-                                                      split_indices[:-1],
-                                                      split_indices[1:]):
+        for split_name, start_index, end_index in zip(
+            split_fractions, split_indices[:-1], split_indices[1:]
+        ):
             split_ids[split_name] = [
                 sample_id
                 for simulation_id in unique_simulation_ids[order[start_index:end_index]]
@@ -85,8 +89,10 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
         if not self.max_density_error:
             return True
 
-        if metadata["max_density_error"] and metadata[
-                "max_density_error"] < self.max_density_error:
+        if (
+            metadata["max_density_error"]
+            and metadata["max_density_error"] < self.max_density_error
+        ):
             return True
 
         if self.allow_negative_mu_null_error and metadata["mu"] < 0:
@@ -106,24 +112,33 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
         if not self.ztU_range:
             return True
 
-        return self.ztU_range[0] <= (4 * metadata["J"] /
-                                     metadata["U_on"]) <= self.ztU_range[1]
+        return (
+            self.ztU_range[0]
+            <= (4 * metadata["J"] / metadata["U_on"])
+            <= self.ztU_range[1]
+        )
 
     def _filter_muU(self, metadata: dict[str, float]) -> bool:  # pylint: disable=invalid-name
         """Filter samples based on the chemical potential."""
         if not self.muU_range:
             return True
 
-        return self.muU_range[0] <= (metadata["mu"] /
-                                     metadata["U_on"]) <= self.muU_range[1]
+        return (
+            self.muU_range[0]
+            <= (metadata["mu"] / metadata["U_on"])
+            <= self.muU_range[1]
+        )
 
     def _filter_zVU(self, metadata: dict[str, float]) -> bool:  # pylint: disable=invalid-name
         """Filter samples based on the nearest-neighbor interaction strength."""
         if not self.zVU_range:
             return True
 
-        return self.zVU_range[0] <= (4 * metadata["V_nn"] /
-                                     metadata["U_on"]) <= self.zVU_range[1]
+        return (
+            self.zVU_range[0]
+            <= (4 * metadata["V_nn"] / metadata["U_on"])
+            <= self.zVU_range[1]
+        )
 
     def filter(self, sample: DMBSample) -> bool:
         """Return whether a sample should be included in the dataset."""
@@ -131,9 +146,12 @@ class BoseHubbard2dSampleFilterStrategy(SampleFilterStrategy):
         metadata = sample.metadata
 
         return bool(
-            self._filter_ztU(metadata) and self._filter_muU(metadata)  # pylint: disable=invalid-name
-            and self._filter_zVU(metadata) and self._filter_L(metadata)  # pylint: disable=invalid-name
-            and self._filter_error(metadata))
+            self._filter_ztU(metadata)
+            and self._filter_muU(metadata)  # pylint: disable=invalid-name
+            and self._filter_zVU(metadata)
+            and self._filter_L(metadata)  # pylint: disable=invalid-name
+            and self._filter_error(metadata)
+        )
 
 
 @define
@@ -150,7 +168,8 @@ class BoseHubbard2dDataset(DMBDataset):
             zVU_range=(0.75, 1.75),
             L_range=(2, 20),
             max_density_error=0.015,
-        ))
+        )
+    )
 
     def get_phase_diagram_position(self, idx: int) -> tuple[float, float, float]:
         """Get the phase diagram position for a sample."""
@@ -180,8 +199,12 @@ class BoseHubbard2dDataset(DMBDataset):
 
             L_i = self.samples[idx].metadata["L"]
 
-            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
-                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
+            if (
+                abs(ztU_i - ztU) <= ztU_tol
+                and abs(muU_i - muU) <= muU_tol
+                and abs(zVU_i - zVU) <= zVU_tol
+                and L_i == L
+            ):
                 return True
 
         return False
@@ -195,15 +218,28 @@ class BoseHubbard2dDataset(DMBDataset):
         ztU_tol: float = 0.01,
         muU_tol: float = 0.01,
         zVU_tol: float = 0.01,
+        criterion: Literal["smallest_error"] = "smallest_error",
     ) -> DMBData | None:
         """Get a phase diagram sample from the dataset."""
+
+        samples = []
 
         for idx, _ in enumerate(iter(self)):
             zVU_i, muU_i, ztU_i = self.get_phase_diagram_position(idx)
             L_i = self.samples[idx].metadata["L"]
 
-            if (abs(ztU_i - ztU) <= ztU_tol and abs(muU_i - muU) <= muU_tol
-                    and abs(zVU_i - zVU) <= zVU_tol and L_i == L):
-                return self[idx]
+            if (
+                abs(ztU_i - ztU) <= ztU_tol
+                and abs(muU_i - muU) <= muU_tol
+                and abs(zVU_i - zVU) <= zVU_tol
+                and L_i == L
+            ):
+                samples.append(self.samples[idx])
 
-        return None
+        if not samples:
+            return None
+
+        if criterion == "smallest_error":
+            return min(samples, key=lambda sample: sample.metadata["max_density_error"])
+
+        raise ValueError(f"Invalid criterion: {criterion}")

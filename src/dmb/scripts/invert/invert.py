@@ -19,25 +19,20 @@ from dmb.paths import REPO_ROOT
     config_name="invert.yaml",
 )
 def invert(cfg: DictConfig) -> None:
-
     pl.seed_everything(cfg.seed, workers=True)
 
     callbacks = list(hydra.utils.instantiate(cfg.callbacks).values())
     logger = list(hydra.utils.instantiate(cfg.logger).values())
 
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer,
-                                               logger=logger,
-                                               callbacks=callbacks)
+    trainer: Trainer = hydra.utils.instantiate(
+        cfg.trainer, logger=logger, callbacks=callbacks
+    )
 
     lit_model: LightningModule = hydra.utils.instantiate(cfg.lit_model)
 
     trainer.fit(lit_model, train_dataloaders=InversionFakeDataLoader())
 
     trainer.save_checkpoint(Path(trainer.default_root_dir) / "model.ckpt")
-
-    # save as .pt
-    torch.save(lit_model.inversion_result.mu,
-               Path(trainer.default_root_dir) / "inverted.pt")
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ env:
     sh: git rev-parse --show-toplevel
 
   DATA_DIR_ROOT: "{{ .REPO_ROOT }}/data"
+  LOGS_DIR_ROOT: "{{ .REPO_ROOT }}/logs"
   VIRTUAL_ENV: "{{ .REPO_ROOT }}/.venv"
 
 vars:
@@ -43,7 +44,7 @@ tasks:
       - task: load_dataset
         vars:
           DATA_DIR: "bose_hubbard_2d/box/1.0/0.1/41"
-          INCLUDE_TUNE_DIRS: "--include-tune-dirs"
+          INCLUDE_TUNE_DIRS: "--include-tune-dirs --reevaluate"
 
   load_dataset_wedding_cake:
     desc: Load the wedding cake dataset
@@ -209,6 +210,7 @@ tasks:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
 
   invert:
+
     desc: Invert a density
     deps:
       - setup
@@ -219,3 +221,29 @@ tasks:
 
     cmds:
       - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+
+  generate_model_plots:
+    desc: Generate plots
+    deps:
+      - setup
+    vars:
+      JOB_NAME: generate_plots
+
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/generate_plots.py plot-all"
+
+      LOG_DIR: "{{ .LOGS_DIR_ROOT }}/train/bose_hubbard_2d/worm/se_resnet/mse/softplus/runs/2025-01-03_13-19-37"
+
+    cmds:
+      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+
+  generate_run_time_plot:
+    desc: Generate a run time plot
+    deps:
+      - setup
+    vars:
+      JOB_NAME: generate_run_time_plot
+
+      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/analyze_qmc_runtimes.py --max-num-simulations=10000"
+
+    cmds:
+      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch

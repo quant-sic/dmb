@@ -18,21 +18,19 @@ class IdDatasetSplitStrategy(metaclass=ABCMeta):
     """A strategy for splitting a dataset into multiple subsets."""
 
     @abstractmethod
-    def split(self,
-              dataset: IdDataset,
-              split_fractions: dict[str, float],
-              seed: int = 42) -> dict[str, list[str]]:
+    def split(
+        self, dataset: IdDataset, split_fractions: dict[str, float], seed: int = 42
+    ) -> dict[str, list[str]]:
         """Split a dataset into multiple subsets."""
 
 
 class AllIdsEqualSplitStrategy(IdDatasetSplitStrategy):
     """A strategy for splitting a dataset into multiple subsets,
-        where all IDs are equal."""
+    where all IDs are equal."""
 
-    def split(self,
-              dataset: IdDataset,
-              split_fractions: dict[str, float],
-              seed: int = 42) -> dict[str, list[str]]:
+    def split(
+        self, dataset: IdDataset, split_fractions: dict[str, float], seed: int = 42
+    ) -> dict[str, list[str]]:
         """Split a dataset into multiple subsets."""
 
         dataset_indices = np.arange(len(dataset))  # type: ignore
@@ -52,10 +50,13 @@ class AllIdsEqualSplitStrategy(IdDatasetSplitStrategy):
 
         split_ids = {}
         for (split_name, split_fraction), start_shuffled_idx, end_shuffled_idx in zip(
-                split_fractions.items(), split_indices[:-1], split_indices[1:]):
+            split_fractions.items(), split_indices[:-1], split_indices[1:]
+        ):
             split_ids[split_name] = list(
                 dataset.get_ids_from_indices(
-                    dataset_indices[start_shuffled_idx:end_shuffled_idx]))
+                    dataset_indices[start_shuffled_idx:end_shuffled_idx]
+                )
+            )
 
         return split_ids
 
@@ -73,8 +74,7 @@ class Split:
     def apply(self, dataset: IdDataset) -> dict[str, Subset]:
         """Apply the split to a dataset."""
         return {
-            split_name:
-            Subset(
+            split_name: Subset(
                 dataset=dataset,
                 indices=dataset.get_indices_from_ids(self.split_ids[split_name]),
             )
@@ -110,7 +110,8 @@ class Split:
     ) -> dict[str, list[str]]:
         """Generate a split based on split fractions."""
         if sum(split_fractions.values()) > 1.0 + 1e-8 or any(
-                fraction < 0.0 for fraction in split_fractions.values()):
+            fraction < 0.0 for fraction in split_fractions.values()
+        ):
             raise ValueError("Split fractions be positive and sum to at most 1.")
 
         return split_strategy.split(dataset, split_fractions, seed)

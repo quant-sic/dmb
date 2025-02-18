@@ -32,10 +32,10 @@ class InversionResult(torch.nn.Module):
         self,
         shape: tuple[int, ...],
         input_parameters: dict[str, Any],
-        muU_interval: tuple[float, float] = (-1.5, 5.0)
+        muU_interval: tuple[float, float] = (-1.5, 5.0),
     ) -> None:
         """Initialize the inversion result.
-        
+
         Args:
             shape: The shape of the inversion result.
             input_parameters: The input parameters for the inversion result.
@@ -44,8 +44,9 @@ class InversionResult(torch.nn.Module):
         super().__init__()
 
         self.input_parameters = input_parameters
-        self.muU_unconstrained = torch.nn.Parameter(torch.empty(*shape),
-                                                    requires_grad=True)
+        self.muU_unconstrained = torch.nn.Parameter(
+            torch.empty(*shape), requires_grad=True
+        )
         torch.nn.init.xavier_uniform_(self.muU_unconstrained)
 
         self.muU_interval = muU_interval
@@ -63,8 +64,9 @@ class InversionResult(torch.nn.Module):
 
     def forward(self) -> torch.Tensor:
         """Get the inversion result."""
-        nn_input = get_nn_input_dimless_const_parameters(muU=self.muU,
-                                                         **self.input_parameters)
+        nn_input = get_nn_input_dimless_const_parameters(
+            muU=self.muU, **self.input_parameters
+        )
         return nn_input
 
 
@@ -129,7 +131,8 @@ class InversionResultLitModel(LightningModule):
 
     def forward(self) -> torch.Tensor:
         dmb_model_out: torch.Tensor = self.dmb_model(
-            self.inversion_result().unsqueeze(0))
+            self.inversion_result().unsqueeze(0)
+        )
         return dmb_model_out
 
     def _calculate_loss(self) -> tuple[torch.Tensor, LossOutput]:
@@ -142,7 +145,8 @@ class InversionResultLitModel(LightningModule):
             outputs=[self.output.unsqueeze(0).expand_as(model_out)],
             sample_ids=[],
             group_elements=[],
-            size=1).to(model_out.device)
+            size=1,
+        ).to(model_out.device)
 
         return model_out, self.loss(model_out, batch)
 
@@ -157,10 +161,11 @@ class InversionResultLitModel(LightningModule):
         self.log_metrics(
             stage="train",
             metric_collection=dict(
-                itertools.chain(self.metrics.items(), {
-                    "loss": loss_out.loss,
-                    **loss_out.loggables
-                }.items())),
+                itertools.chain(
+                    self.metrics.items(),
+                    {"loss": loss_out.loss, **loss_out.loggables}.items(),
+                )
+            ),
             on_step=True,
             on_epoch=True,
         )
@@ -170,13 +175,15 @@ class InversionResultLitModel(LightningModule):
     def configure_optimizers(self) -> OptimizerLRScheduler:
         """Configure the optimizer and scheduler."""
         optimizer: torch.optim.Optimizer = self.optimizer(
-            params=self.inversion_result.parameters())
+            params=self.inversion_result.parameters()
+        )
 
         configuration: dict[str, Any] = {"optimizer": optimizer}
 
         if self.lr_scheduler is not None:
             scheduler: _LRScheduler = self.lr_scheduler["scheduler"](
-                optimizer=optimizer)
+                optimizer=optimizer
+            )
             configuration["lr_scheduler"] = {
                 **self.lr_scheduler,
                 "scheduler": scheduler,
@@ -193,9 +200,9 @@ class InversionResultLitModel(LightningModule):
     ) -> None:
         """Log metrics."""
         for metric_name, metric in metric_collection.items():
-
-            computed_metric = (metric.compute() if isinstance(
-                metric, torchmetrics.Metric) else metric)
+            computed_metric = (
+                metric.compute() if isinstance(metric, torchmetrics.Metric) else metric
+            )
 
             if isinstance(computed_metric, dict):
                 loggable = {

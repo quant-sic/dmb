@@ -4,6 +4,7 @@ dynamic = ["version"]
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
+dependencies = []
 
 [tool.uv]
 default-groups = ["base"]
@@ -40,6 +41,7 @@ base = [
     "wandb>=0.18.3",
     "lie-learn",
     "py3nj",
+    "comet-ml>=3.47.6",
 ]
 dev = [
     "ipykernel>=6.29.5",

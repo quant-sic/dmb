@@ -18,8 +18,9 @@ from .output import Output
 log = create_logger(__name__)
 
 
-def reshape_if_not_none(results: dict[str, np.ndarray] | None, attribute: str,
-                        shape: tuple[int, ...]) -> np.ndarray | None:
+def reshape_if_not_none(
+    results: dict[str, np.ndarray] | None, attribute: str, shape: tuple[int, ...]
+) -> np.ndarray | None:
     """Reshape the attribute of the results if it is not None."""
     if results is None:
         return None
@@ -60,18 +61,25 @@ def ulli_wolff_mc_error_analysis(
     """
     sample_shape = samples.shape[1:]
     number_individual_observables = int(np.prod(sample_shape))
-    individual_observable_names = [
-        "".join([f"{int(idx/shape_i)}"
-                 for shape_i in sample_shape[:-1]] + [f"{idx% sample_shape[-1]}"])
-        for idx in range(number_individual_observables)
-    ] if number_individual_observables > 1 else ["0"]
+    individual_observable_names = (
+        [
+            "".join(
+                [f"{int(idx/shape_i)}" for shape_i in sample_shape[:-1]]
+                + [f"{idx% sample_shape[-1]}"]
+            )
+            for idx in range(number_individual_observables)
+        ]
+        if number_individual_observables > 1
+        else ["0"]
+    )
 
-    samples_reshaped = samples.reshape(1, samples.shape[0],
-                                       number_individual_observables)
+    samples_reshaped = samples.reshape(
+        1, samples.shape[0], number_individual_observables
+    )
 
     def function_shape_adjuster(
-        function: Callable[[np.ndarray],
-                           np.ndarray]) -> Callable[[np.ndarray], np.ndarray]:
+        function: Callable[[np.ndarray], np.ndarray],
+    ) -> Callable[[np.ndarray], np.ndarray]:
         """Adjust the shape of input data to the function."""
 
         def wrapper(data: np.ndarray) -> np.ndarray:
@@ -98,7 +106,8 @@ def ulli_wolff_mc_error_analysis(
         # calculate the mean of the observable
         analysis.mean()
         mean_analysis_results = analysis.apply(
-            function_shape_adjuster(derived_quantity))
+            function_shape_adjuster(derived_quantity)
+        )
         variance = np.array(derived_quantity(samples).var(axis=0))
 
     try:
@@ -117,19 +126,23 @@ def ulli_wolff_mc_error_analysis(
     except concurrent.futures.TimeoutError:
         logging_instance.warning(
             "TimeoutError: The Ulli Wolff Error analysis timed out after "
-            f"{timeout} seconds.")
+            f"{timeout} seconds."
+        )
         error_analysis_results = None
 
-    expectation_value = reshape_if_not_none(mean_analysis_results, "value",
-                                            sample_shape)
+    expectation_value = reshape_if_not_none(
+        mean_analysis_results, "value", sample_shape
+    )
 
     error = reshape_if_not_none(error_analysis_results, "dvalue", sample_shape)
     naive_error = reshape_if_not_none(error_analysis_results, "naive_err", sample_shape)
     tau_int = reshape_if_not_none(error_analysis_results, "tau_int", sample_shape)
-    tau_int_error = reshape_if_not_none(error_analysis_results, "dtau_int",
-                                        sample_shape)
-    error_on_error = reshape_if_not_none(error_analysis_results, "ddvalue",
-                                         sample_shape)
+    tau_int_error = reshape_if_not_none(
+        error_analysis_results, "dtau_int", sample_shape
+    )
+    error_on_error = reshape_if_not_none(
+        error_analysis_results, "ddvalue", sample_shape
+    )
 
     return {
         "expectation_value": expectation_value,
@@ -171,10 +184,14 @@ class DensityDerivedObservable:
 
         samples = self._subsample(densities)
 
-        mapped_samples = (self.sample_function(samples)
-                          if self.sample_function else samples)
-        derived_quantity = (self.derived_quantity(mapped_samples)
-                            if self.derived_quantity else mapped_samples)
+        mapped_samples = (
+            self.sample_function(samples) if self.sample_function else samples
+        )
+        derived_quantity = (
+            self.derived_quantity(mapped_samples)
+            if self.derived_quantity
+            else mapped_samples
+        )
 
         return np.array(derived_quantity.mean(axis=0))
 
@@ -196,14 +213,17 @@ class DensityDerivedObservable:
         samples = self._subsample(densities)
 
         if self._error_previous_samples is not None and np.array_equal(
-                samples, self._error_previous_samples):
+            samples, self._error_previous_samples
+        ):
             return cast(dict[str, np.ndarray | None], self._error_previous_results)
 
-        mapped_samples = (self.sample_function(samples)
-                          if self.sample_function else samples)
+        mapped_samples = (
+            self.sample_function(samples) if self.sample_function else samples
+        )
 
-        results = ulli_wolff_mc_error_analysis(samples=mapped_samples,
-                                               derived_quantity=self.derived_quantity)
+        results = ulli_wolff_mc_error_analysis(
+            samples=mapped_samples, derived_quantity=self.derived_quantity
+        )
 
         # store the results and samples for future reference
         self._error_previous_results = results
@@ -277,12 +297,14 @@ class SimulationObservables:
         """Return the observable with the given name."""
         if observable_type == "primary":
             expectation_value: np.ndarray | None = self.primary_observables[
-                name].expectation_value(self.output)
+                name
+            ].expectation_value(self.output)
             return expectation_value
 
         if observable_type == "derived":
             expectation_value = self.derived_observables[name].expectation_value(
-                self.output)
+                self.output
+            )
             return expectation_value
 
         raise ValueError(f"Invalid observable type: {observable_type}")
@@ -304,8 +326,9 @@ class SimulationObservables:
 
     def __contains__(self, key: str) -> bool:
         """Return whether the observable with the given key is present."""
-        return key in itertools.chain(self.primary_observables,
-                                      self.derived_observables)
+        return key in itertools.chain(
+            self.primary_observables, self.derived_observables
+        )
 
 
 # sample_function = None
@@ -332,8 +355,9 @@ def get_density_density_corr_1(samples: np.ndarray) -> np.ndarray:
 def get_density_density_corr_2(samples: np.ndarray) -> np.ndarray:
     """Return density-density correlation with shift (1, 1)."""
 
-    density_corr_2: np.ndarray = np.roll(
-        np.roll(samples, axis=-2, shift=1), axis=2, shift=1) * samples
+    density_corr_2: np.ndarray = (
+        np.roll(np.roll(samples, axis=-2, shift=1), axis=2, shift=1) * samples
+    )
     return density_corr_2
 
 
@@ -341,8 +365,9 @@ def get_density_density_corr_2(samples: np.ndarray) -> np.ndarray:
 def get_density_density_corr_3(samples: np.ndarray) -> np.ndarray:
     """Return density-density correlation with shift (1, -1)."""
 
-    density_corr_3: np.ndarray = np.roll(
-        np.roll(samples, axis=-2, shift=-1), axis=-1, shift=1) * samples
+    density_corr_3: np.ndarray = (
+        np.roll(np.roll(samples, axis=-2, shift=-1), axis=-1, shift=1) * samples
+    )
     return density_corr_3
 
 

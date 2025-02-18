@@ -6,10 +6,9 @@ from torch import nn
 from torchvision.ops.misc import SqueezeExcitation
 
 
-def conv2d(in_channels: int,
-           out_channels: int,
-           kernel_size: int,
-           bias: bool = False) -> nn.Conv2d:
+def conv2d(
+    in_channels: int, out_channels: int, kernel_size: int, bias: bool = False
+) -> nn.Conv2d:
     """Return a 2D convolutional layer with circular padding.
 
     Args:
@@ -36,12 +35,14 @@ class BasicBlock(nn.Module):
     ResNet Basic Block
     """
 
-    def __init__(self,
-                 in_channels: int,
-                 out_channels: int,
-                 kernel_size: int,
-                 is_first_block: bool = False,
-                 dropout: float = 0.0):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        is_first_block: bool = False,
+        dropout: float = 0.0,
+    ):
         super().__init__()
 
         self.in_channels = in_channels
@@ -133,17 +134,19 @@ class ResNet2d(nn.Module):
         self.n_channels = n_channels
         self.dropout = dropout
 
-        self.first_block = nn.Sequential(*[
-            conv2d(
-                in_channels=in_channels,
-                out_channels=n_channels[0],
-                kernel_size=kernel_sizes[0],
-                bias=False,
-            ),
-            nn.BatchNorm2d(n_channels[0]),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-        ])
+        self.first_block = nn.Sequential(
+            *[
+                conv2d(
+                    in_channels=in_channels,
+                    out_channels=n_channels[0],
+                    kernel_size=kernel_sizes[0],
+                    bias=False,
+                ),
+                nn.BatchNorm2d(n_channels[0]),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+            ]
+        )
 
         self.basicblock_list = []
         for i_block in range(len(n_channels) - 1):
@@ -162,20 +165,23 @@ class ResNet2d(nn.Module):
 
             self.basicblock_list.append(tmp_block)
 
-        self.last_block = nn.Sequential(*[
-            nn.BatchNorm2d(self.n_channels[-1]),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            conv2d(
-                in_channels=self.n_channels[-1],
-                out_channels=self.out_channels,
-                kernel_size=3,
-                bias=False,
-            ),
-        ])
+        self.last_block = nn.Sequential(
+            *[
+                nn.BatchNorm2d(self.n_channels[-1]),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                conv2d(
+                    in_channels=self.n_channels[-1],
+                    out_channels=self.out_channels,
+                    kernel_size=3,
+                    bias=False,
+                ),
+            ]
+        )
 
-        self.resnet = nn.Sequential(self.first_block, *self.basicblock_list,
-                                    self.last_block)
+        self.resnet = nn.Sequential(
+            self.first_block, *self.basicblock_list, self.last_block
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the ResNet2d module."""
@@ -293,18 +299,20 @@ class SeResNet2d(nn.Module):
         self.n_channels = n_channels
         self.dropout = dropout
 
-        self.first_block = nn.Sequential(*[
-            conv2d(
-                in_channels=in_channels,
-                out_channels=n_channels[0],
-                kernel_size=kernel_sizes[0],
-                bias=False,
-            ),
-            nn.BatchNorm2d(n_channels[0]),
-            SqueezeExcitation(n_channels[0], n_channels[0] // squeeze_factor),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-        ])
+        self.first_block = nn.Sequential(
+            *[
+                conv2d(
+                    in_channels=in_channels,
+                    out_channels=n_channels[0],
+                    kernel_size=kernel_sizes[0],
+                    bias=False,
+                ),
+                nn.BatchNorm2d(n_channels[0]),
+                SqueezeExcitation(n_channels[0], n_channels[0] // squeeze_factor),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+            ]
+        )
 
         self.basicblock_list = []
         for i_block in range(len(n_channels) - 1):
@@ -323,21 +331,24 @@ class SeResNet2d(nn.Module):
 
             self.basicblock_list.append(tmp_block)
 
-        self.last_block = nn.Sequential(*[
-            nn.BatchNorm2d(self.n_channels[-1]),
-            SqueezeExcitation(self.n_channels[-1], self.n_channels[-1] // 4),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            conv2d(
-                in_channels=self.n_channels[-1],
-                out_channels=self.out_channels,
-                kernel_size=3,
-                bias=False,
-            ),
-        ])
+        self.last_block = nn.Sequential(
+            *[
+                nn.BatchNorm2d(self.n_channels[-1]),
+                SqueezeExcitation(self.n_channels[-1], self.n_channels[-1] // 4),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                conv2d(
+                    in_channels=self.n_channels[-1],
+                    out_channels=self.out_channels,
+                    kernel_size=3,
+                    bias=False,
+                ),
+            ]
+        )
 
-        self.resnet = nn.Sequential(self.first_block, *self.basicblock_list,
-                                    self.last_block)
+        self.resnet = nn.Sequential(
+            self.first_block, *self.basicblock_list, self.last_block
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the SeResNet2d module."""
