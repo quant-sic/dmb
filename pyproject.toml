@@ -68,17 +68,23 @@ ci = [
 cpu = [
     "torch==2.5.1 ; platform_machine != 'x86_64'",
     "torch==2.5.1+cpu ; platform_machine == 'x86_64'",
-    "torchvision>=0.20.1",
+    "torchvision==0.20.1 ; platform_machine != 'x86_64'",
+    "torchvision==0.20.1+cpu ; platform_machine == 'x86_64'",
 ]
+
 cu124 = [
     "torch==2.5.1+cu124; platform_machine == 'x86_64'",
-    "torchvision>=0.20.1",
+    "torchvision==0.20.1+cu124 ; platform_machine == 'x86_64'",
 ]
 
 [tool.uv.sources]
 torch = [
     {index = "torch-cpu",extra = "cpu", marker = "platform_machine == 'x86_64'"},
     {index = "torch-cu124",extra = "cu124", marker = "platform_machine == 'x86_64'"},
+]
+torchvision = [
+    { index = "torch-cpu", extra = "cpu", marker = "platform_machine == 'x86_64'" },
+    { index = "torch-cu124", extra = "cu124", marker = "platform_machine == 'x86_64'" },
 ]
 fyeldgenerator = { git = "https://github.com/cphyc/FyeldGenerator.git" }
 lie-learn = { git = "https://github.com/AMLab-Amsterdam/lie_learn" }
