@@ -7,8 +7,10 @@ import torch
 from pytest_cases import case, parametrize_with_cases
 
 from dmb.data.bose_hubbard_2d.nn_input import convert_dimless_to_physical
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset, \
-    BoseHubbard2dSampleFilterStrategy
+from dmb.data.bose_hubbard_2d.worm.dataset import (
+    BoseHubbard2dDataset,
+    BoseHubbard2dSampleFilterStrategy,
+)
 from dmb.data.dataset import SampleFilterStrategy
 
 

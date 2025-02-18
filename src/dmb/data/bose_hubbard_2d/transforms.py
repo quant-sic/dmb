@@ -9,8 +9,12 @@ import torch
 from attrs import field, frozen
 
 from dmb.data.dataset import DMBData
-from dmb.data.transforms import DMBDatasetTransform, DMBTransform, \
-    GroupElement, InputOutputDMBTransform
+from dmb.data.transforms import (
+    DMBDatasetTransform,
+    DMBTransform,
+    GroupElement,
+    InputOutputDMBTransform,
+)
 
 
 class GaussianNoiseTransform(DMBTransform):

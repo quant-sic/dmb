@@ -6,8 +6,12 @@ import torch
 import typer
 
 from dmb.data.bose_hubbard_2d.plotting.phase_diagram import plot_phase_diagram
-from dmb.data.bose_hubbard_2d.plotting.sandbox import create_box_cuts_plot, \
-    create_box_plot, create_wedding_cake_plot, plot_phase_diagram_mu_cut
+from dmb.data.bose_hubbard_2d.plotting.sandbox import (
+    create_box_cuts_plot,
+    create_box_plot,
+    create_wedding_cake_plot,
+    plot_phase_diagram_mu_cut,
+)
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation
 from dmb.model.dmb_model import PredictionMapping
 from dmb.model.lit_dmb_model import LitDMBModel
@@ -207,7 +211,7 @@ def plot_inversion(
         ("qmc_simulation_result", qmc_simulation_result),
     ):
         plottable = plottable.squeeze()
-        fig = plt.figure(figsize=(5, 5))
+        plt.figure(figsize=(5, 5))
         plt.imshow(plottable)
         plt.axis("off")
 

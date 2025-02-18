@@ -13,8 +13,11 @@ import numpy as np
 from dotenv import load_dotenv
 
 from dmb.data.bose_hubbard_2d.potential import get_random_trapping_potential
-from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
-    WormSimulation, WormSimulationRunner
+from dmb.data.bose_hubbard_2d.worm.simulation import (
+    WormInputParameters,
+    WormSimulation,
+    WormSimulationRunner,
+)
 from dmb.data.dispatching import auto_create_dispatcher
 from dmb.logging import create_logger
 from dmb.paths import REPO_DATA_ROOT

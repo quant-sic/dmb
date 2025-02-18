@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import typer
-from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from dmb.data.bose_hubbard_2d.worm.simulation import WormSimulation

@@ -50,9 +50,8 @@ tasks:
     desc: Lint the code
     cmds:
       - isort --check-only {{ .PYTHON_CODE_DIRS }}
-      - ruff check
+      - ruff check {{ .PYTHON_CODE_DIRS }}
       - mypy {{ .PYTHON_CODE_DIRS }}
-      - pylint -v {{ .PYTHON_CODE_DIRS }}
 
   test:
     desc: Run tests

@@ -1,5 +1,8 @@
 name: CI jobs
 
+env:
+  TASK_X_ENV_PRECEDENCE: "1"
+
 on:
   push:
     branches: ["main"]

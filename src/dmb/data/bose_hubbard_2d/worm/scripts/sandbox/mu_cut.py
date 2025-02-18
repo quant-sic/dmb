@@ -3,8 +3,7 @@ import asyncio
 
 import numpy as np
 
-from dmb.data.bose_hubbard_2d.worm.scripts.simulate import \
-    get_missing_samples, simulate
+from dmb.data.bose_hubbard_2d.worm.scripts.simulate import get_missing_samples, simulate
 from dmb.paths import REPO_DATA_ROOT
 
 if __name__ == "__main__":

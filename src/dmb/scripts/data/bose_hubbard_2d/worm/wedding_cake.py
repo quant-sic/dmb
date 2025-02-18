@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import os
 
@@ -7,8 +6,7 @@ import typer
 from dotenv import load_dotenv
 
 from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential
-from dmb.data.bose_hubbard_2d.worm.simulate import get_missing_samples, \
-    simulate
+from dmb.data.bose_hubbard_2d.worm.simulate import get_missing_samples, simulate
 from dmb.paths import REPO_DATA_ROOT
 
 app = typer.Typer()

@@ -10,8 +10,13 @@ import numpy as np
 from attrs import define, field, frozen
 
 from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms
-from dmb.data.dataset import DMBData, DMBDataset, DMBSample, IdDataset, \
-    SampleFilterStrategy
+from dmb.data.dataset import (
+    DMBData,
+    DMBDataset,
+    DMBSample,
+    IdDataset,
+    SampleFilterStrategy,
+)
 from dmb.data.split import IdDatasetSplitStrategy
 from dmb.logging import create_logger
 

@@ -7,8 +7,10 @@ from typing import Any, cast
 import numpy as np
 import torch
 import torchmetrics
-from torchmetrics.functional.regression.mse import \
-    _mean_squared_error_compute, _mean_squared_error_update
+from torchmetrics.functional.regression.mse import (
+    _mean_squared_error_compute,
+    _mean_squared_error_update,
+)
 
 from dmb.logging import create_logger
 

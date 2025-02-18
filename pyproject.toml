@@ -164,6 +164,6 @@ based_on_style = "pep8"
 column_limit = 88
 
 [tool.isort]
+profile = "black"
 known_first_party = ["dmb"]
-multi_line_output = 2
 

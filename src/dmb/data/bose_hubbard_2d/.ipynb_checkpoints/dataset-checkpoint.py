@@ -1,7 +1,20 @@
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional, \
-    Sequence, Sized, Tuple, Type, Union, cast, list
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Mapping,
+    Optional,
+    Sequence,
+    Sized,
+    Tuple,
+    Type,
+    Union,
+    cast,
+    list,
+)
 
 import lightning.pytorch as pl
 import torch

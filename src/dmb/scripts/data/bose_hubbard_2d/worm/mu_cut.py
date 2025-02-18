@@ -1,11 +1,9 @@
-import argparse
 import asyncio
 
 import numpy as np
 import typer
 
-from dmb.data.bose_hubbard_2d.worm.simulate import get_missing_samples, \
-    simulate
+from dmb.data.bose_hubbard_2d.worm.simulate import get_missing_samples, simulate
 from dmb.paths import REPO_DATA_ROOT
 
 app = typer.Typer()

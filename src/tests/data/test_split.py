@@ -6,8 +6,7 @@ import pytest
 from pytest_cases import case, filters, parametrize_with_cases
 
 from dmb.data.bose_hubbard_2d.worm.dataset import WormSimulationsSplitStrategy
-from dmb.data.split import AllIdsEqualSplitStrategy, IdDatasetSplitStrategy, \
-    Split
+from dmb.data.split import AllIdsEqualSplitStrategy, IdDatasetSplitStrategy, Split
 from tests.data.fake_id_dataset import FakeIdDataset
 
 

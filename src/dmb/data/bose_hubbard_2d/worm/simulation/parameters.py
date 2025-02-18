@@ -138,7 +138,7 @@ class WormInputParameters:
             for name in ("mu", "t_hop", "U_on", "V_nn"):
                 params[name] = file[f"/{name}"][()]
 
-                if name in ("t_hop","V_nn"):
+                if name in ("t_hop", "V_nn"):
                     params[name] = params[name].reshape(2, params["Lx"], params["Ly"])
                 else:
                     params[name] = params[name].reshape(params["Lx"], params["Ly"])

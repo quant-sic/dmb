@@ -15,7 +15,6 @@ from dmb.model.lit_dmb_model import LitDMBModel
 from dmb.model.loss import Loss, MSELoss
 from dmb.model.metrics import MSE
 from dmb.model.modules import EsSeResNet2d, ResNet2d, SeResNet2d
-from dmb.scripts.train.callbacks import PlottingCallback
 
 
 class DMBModelCases:

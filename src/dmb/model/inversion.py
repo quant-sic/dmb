@@ -16,8 +16,7 @@ from torch.distributions.constraints import interval
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 
-from dmb.data.bose_hubbard_2d.nn_input import \
-    get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
 from dmb.data.collate import MultipleSizesBatch
 from dmb.model.dmb_model import DMBModel
 from dmb.model.lit_dmb_model import LitDMBModel

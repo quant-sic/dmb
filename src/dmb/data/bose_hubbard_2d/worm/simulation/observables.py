@@ -9,8 +9,12 @@ from typing import Any, Callable, cast
 import numpy as np
 from attrs import define
 
-from auto_correlation import Analysis, DerivedAnalysis, \
-    GammaPathologicalError, PrimaryAnalysis
+from auto_correlation import (
+    Analysis,
+    DerivedAnalysis,
+    GammaPathologicalError,
+    PrimaryAnalysis,
+)
 from dmb.logging import create_logger
 
 from .output import Output

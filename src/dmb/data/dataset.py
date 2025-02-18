@@ -9,8 +9,11 @@ import torch
 from attrs import define, field, frozen
 from torch.utils.data import Dataset
 
-from dmb.data.transforms import DMBData, DMBDatasetTransform, \
-    IdentityDMBDatasetTransform
+from dmb.data.transforms import (
+    DMBData,
+    DMBDatasetTransform,
+    IdentityDMBDatasetTransform,
+)
 
 
 class IdDataset(Dataset, ABC):

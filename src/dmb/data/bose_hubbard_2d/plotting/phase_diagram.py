@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from dmb.data.bose_hubbard_2d.nn_input import \
-    get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
 from dmb.data.bose_hubbard_2d.plotting import PLOT_STYLE, TEXT_WIDTH
 from dmb.model.dmb_model import PredictionMapping
 

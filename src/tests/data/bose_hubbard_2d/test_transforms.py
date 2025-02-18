@@ -8,12 +8,20 @@ from pytest_cases import case
 from pytest_cases import filters as ft
 from pytest_cases import fixture, parametrize, parametrize_with_cases
 
-from dmb.data.bose_hubbard_2d.transforms import BoseHubbard2dTransforms, \
-    D4Group, D4GroupTransforms, GaussianNoiseTransform, \
-    TupleWrapperInTransform, TupleWrapperOutTransform
+from dmb.data.bose_hubbard_2d.transforms import (
+    BoseHubbard2dTransforms,
+    D4Group,
+    D4GroupTransforms,
+    GaussianNoiseTransform,
+    TupleWrapperInTransform,
+    TupleWrapperOutTransform,
+)
 from dmb.data.dataset import DMBData
-from dmb.data.transforms import DMBDatasetTransform, DMBTransform, \
-    InputOutputDMBTransform
+from dmb.data.transforms import (
+    DMBDatasetTransform,
+    DMBTransform,
+    InputOutputDMBTransform,
+)
 
 
 class DMBDataCases:

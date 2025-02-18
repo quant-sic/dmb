@@ -7,8 +7,12 @@ import matplotlib.pyplot as plt
 from lightning.pytorch.callbacks import Callback
 
 from dmb.data.bose_hubbard_2d.plotting.phase_diagram import plot_phase_diagram
-from dmb.data.bose_hubbard_2d.plotting.sandbox import create_box_cuts_plot, \
-    create_box_plot, create_wedding_cake_plot, plot_phase_diagram_mu_cut
+from dmb.data.bose_hubbard_2d.plotting.sandbox import (
+    create_box_cuts_plot,
+    create_box_plot,
+    create_wedding_cake_plot,
+    plot_phase_diagram_mu_cut,
+)
 from dmb.model.dmb_model import PredictionMapping
 
 

@@ -4,8 +4,7 @@ from typing import cast
 import numpy as np
 import pytest
 
-from dmb.data.bose_hubbard_2d.worm.simulation.observables import \
-    SimulationObservables
+from dmb.data.bose_hubbard_2d.worm.simulation.observables import SimulationObservables
 from dmb.data.bose_hubbard_2d.worm.simulation.output import Output
 
 

@@ -9,13 +9,16 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colorbar import Colorbar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dmb.data.bose_hubbard_2d.nn_input import \
-    get_nn_input_dimless_const_parameters
+from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
 from dmb.data.bose_hubbard_2d.plotting import PLOT_STYLE, TEXT_WIDTH
-from dmb.data.bose_hubbard_2d.potential import get_quadratic_mu_potential, \
-    get_square_mu_potential
-from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset, \
-    BoseHubbard2dSampleFilterStrategy
+from dmb.data.bose_hubbard_2d.potential import (
+    get_quadratic_mu_potential,
+    get_square_mu_potential,
+)
+from dmb.data.bose_hubbard_2d.worm.dataset import (
+    BoseHubbard2dDataset,
+    BoseHubbard2dSampleFilterStrategy,
+)
 from dmb.model.dmb_model import PredictionMapping
 from dmb.paths import REPO_DATA_ROOT
 
@@ -107,7 +110,7 @@ def create_wedding_cake_plot(
                 )
             )
 
-            cm = ax.pcolormesh(
+            ax.pcolormesh(
                 X,
                 Y,
                 combined,
@@ -214,7 +217,7 @@ def create_box_plot(
                 int(L / 2), : int(L / 2) + 1
             ]
 
-            cm = ax.pcolormesh(
+            ax.pcolormesh(
                 X,
                 Y,
                 combined,

@@ -7,8 +7,7 @@ import h5py
 import pytest
 from pydantic_settings import BaseSettings
 
-from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, \
-    WormSimulation
+from dmb.data.bose_hubbard_2d.worm.simulation import WormInputParameters, WormSimulation
 from dmb.data.dispatching import ReturnCode
 from dmb.data.dispatching.dispatchers import Dispatcher
 

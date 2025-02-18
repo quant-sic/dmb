@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import cv2
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt

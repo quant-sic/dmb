@@ -4,8 +4,6 @@ from pathlib import Path
 
 import hydra
 import lightning.pytorch as pl
-import numpy as np
-import torch
 from lightning.pytorch import LightningModule, Trainer
 from omegaconf import DictConfig
 
