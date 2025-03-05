@@ -34,5 +34,6 @@ export PARTITION=standard
 export NUMBER_OF_TASKS_PER_NODE=1
 
 export VIRTUAL_ENV={{ venv_path }}
+export PATH=$VIRTUAL_ENV/bin:$PATH
 
 srun {{ command }}
