@@ -22,7 +22,7 @@ tasks:
     desc: "Install dependencies"
     vars:
       EXTRAS: '{{ .EXTRAS | default "--extra cu124" }}'
-      GROUPS: '{{ .GROUPS | default "--group ci --group dev" }}'
+      GROUPS: '{{ .GROUPS | default "--all-groups" }}'
     cmds:
       - uv sync {{ .GROUPS }} {{ .EXTRAS }}
 

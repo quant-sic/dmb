@@ -98,11 +98,13 @@ class EquivarianceErrorLoss(Loss):
             ]
 
             # variance
-            losses.append(
-                torch.var(y_pred_original[sample_indices], dim=0, correction=1)
-            )
+            if len(sample_indices) > 1:
+                losses.append(torch.var(y_pred_original[sample_indices], dim=0))
 
-        loss = torch.mean(torch.stack(losses))
+        if len(losses) == 0:
+            loss = torch.tensor(0.0)
+        else:
+            loss = torch.mean(torch.stack(losses))
 
         return loss, len(set(sample_ids))
 

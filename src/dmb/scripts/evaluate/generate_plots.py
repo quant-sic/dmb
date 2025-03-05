@@ -185,17 +185,17 @@ def plot_all(
 def plot_inversion(
     inversion_log_dir: Path = typer.Option(
         default=REPO_LOGS_ROOT
-        / "invert/minerva/runs/2025-02-18_22-28-47/minerva_2025-02-18_22-28-47/version_0",
+        / "invert/minerva/runs/2025-02-19_21-46-59/minerva_2025-02-19_21-46-59/version_0",
         help="Path to the log directory",
     ),
     qmc_simulation_dir: Path = typer.Option(
         default=REPO_DATA_ROOT
-        / "bose_hubbard_2d/from_potential/simulations/2025-01-19_22-47-26_sample_8273749_minerva_test_2025-01-19-22-47-26/tune",
+        / "bose_hubbard_2d/from_potential/simulations/2025-02-19_21-49-40_sample_8298782_minerva_test_2025-02-19-21-49-40",
         help="Path to the qmc simulation directory",
     ),
 ) -> None:
     target = torch.load(inversion_log_dir / "results/target.pt", weights_only=False)
-    inverted = torch.load(inversion_log_dir / "results/inverted.pt", weights_only=False)
+    mu = torch.load(inversion_log_dir / "results/mu.pt", weights_only=False)
     remapped = torch.load(inversion_log_dir / "results/remapped.pt", weights_only=False)
 
     qmc_simulation_result = WormSimulation.from_dir(
@@ -210,22 +210,34 @@ def plot_inversion(
     figures_dir = REPO_DATA_ROOT / "figures/inversion" / inversion_log_dir.parent.name
     figures_dir.mkdir(parents=True, exist_ok=True)
 
-    for name, plottable in (
-        ("target", target),
-        ("inverted", inverted),
-        ("remapped", remapped),
-        ("qmc_simulation_result", qmc_simulation_result),
+    fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+
+    for idx, (name, plottable) in enumerate(
+        (
+            ("target", target),
+            ("mu", mu),
+            ("remapped", remapped),
+            ("qmc_simulation_result", qmc_simulation_result),
+        )
     ):
         plt.figure(figsize=(5, 5))
         plt.imshow(plottable)
         plt.axis("off")
 
-        plt.clim(-1.5, 5.0)
+        # plt.clim(-0.5, 3.0)
 
         plt.tight_layout()
         plt.savefig(
             figures_dir / f"{name}.pdf", transparent=True, bbox_inches="tight", dpi=600
         )
+
+        ax[idx].imshow(plottable)
+        ax[idx].axis("off")
+        ax[idx].set_title(name)
+
+    fig.savefig(
+        figures_dir / "comparison.pdf", transparent=True, bbox_inches="tight", dpi=600
+    )
 
 
 if __name__ == "__main__":
