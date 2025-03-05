@@ -65,7 +65,6 @@ class SeResnetBlock(nn.Module):
             in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
-            bias=False,
         )
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.relu2 = nn.ReLU()

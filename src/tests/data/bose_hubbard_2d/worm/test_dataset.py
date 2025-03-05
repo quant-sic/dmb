@@ -25,7 +25,7 @@ class DatasetDirFilterCases:
         """Return the dataset directory, filter strategy, and expected sample ids."""
 
         def convert_dimless(
-            ztU: float, muU: float, zVU: float, J: float
+            ztU: float=0.5, muU: float=1.0, zVU: float=1.0, J: float=1.0
         ) -> dict[str, float]:
             """Convert the parameters from dimensionless to physical units."""
 
@@ -37,38 +37,24 @@ class DatasetDirFilterCases:
                 "V_nn": V_nn,
             }
 
+        base_metadata = {
+            "max_density_error": 0.01,
+            "J": 1.0,
+            "L": 10,
+            **convert_dimless(),
+        }
+
         metadata = [
-            {
-                "max_density_error": 0.01,
-                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0),
-                "J": 1.0,
-                "L": 10,
-            },  # ok
-            {
-                "max_density_error": 0.01,
-                **convert_dimless(ztU=0.025, muU=1.0, zVU=1.0, J=1.0),
-                "J": 1.0,
-                "L": 10,
-            },  # bad
-            {
-                "max_density_error": 0.01,
-                **convert_dimless(ztU=0.5, muU=4.0, zVU=1.0, J=1.0),
-                "J": 1.0,
-                "L": 10,
-            },  # bad
-            {
-                "max_density_error": 0.01,
-                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0),
-                "J": 1.0,
-                "L": 1,
-            },  # bad
-            {
-                "max_density_error": 0.1,
-                **convert_dimless(ztU=0.5, muU=1.0, zVU=1.0, J=1.0),
-                "J": 1.0,
-                "L": 10,
-            },  # bad
+            base_metadata,  # ok
+            {**base_metadata, **convert_dimless(muU=-0.4)},  # ok
+            {**base_metadata, **convert_dimless(muU=-1.0)},  # bad
+            {**base_metadata, **convert_dimless(muU=4.0)},  # bad
+            {**base_metadata, **convert_dimless(ztU=0.025)},  # bad
+            {**base_metadata, "L": 1},  # bad
+            {**base_metadata, "max_density_error": 0.1},  # bad
+            {**base_metadata, "L": 25, "max_density_error": 0.1},  # bad
         ]
+
         sample_ids = [f"sample_{idx}" for idx in range(len(metadata))]
 
         # save samples and metadata
@@ -87,13 +73,13 @@ class DatasetDirFilterCases:
 
         sample_filter_strategy = BoseHubbard2dSampleFilterStrategy(
             ztU_range=(0.05, 1.0),
-            muU_range=(-0.05, 3.0),
+            muU_range=(-0.5, 3.0),
             zVU_range=(0.75, 1.75),
             L_range=(2, 20),
             max_density_error=0.015,
         )
 
-        return tmp_path, sample_filter_strategy, [sample_ids[0]]
+        return tmp_path, sample_filter_strategy, sample_ids[:2]
 
 
 class TestBoseHubbard2dDataset:
