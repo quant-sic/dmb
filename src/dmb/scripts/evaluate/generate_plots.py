@@ -26,9 +26,11 @@ def load_model(log_dir: Path, checkpoint: Path | None = None) -> LitDMBModel:
     if checkpoint is None:
         # get latest step in log_dir/checkpoints/best
         checkpoint = sorted(
-            (log_dir / "checkpoints/best_train").glob("*.ckpt"),
+            (log_dir / "checkpoints/best").glob("*.ckpt"),
             key=lambda x: int(x.stem.split("=")[-1]),
         )[-1]
+
+    print(f"Loading model from {checkpoint}, log_dir: {log_dir}")
 
     model = LitDMBModel.load_from_logged_checkpoint(log_dir, checkpoint)
 
@@ -172,7 +174,7 @@ def plot_all(
         / "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-19-37",
         help="Path to the log directory",
     ),
-    checkpoint: Path = typer.Option(default=None, help="Path to the checkpoint file"),
+    checkpoint: Path|None = typer.Option(default=None, help="Path to the checkpoint file"),
 ) -> None:
     plot_wedding_cake(log_dir, checkpoint)
     plot_box_cuts(log_dir, checkpoint)

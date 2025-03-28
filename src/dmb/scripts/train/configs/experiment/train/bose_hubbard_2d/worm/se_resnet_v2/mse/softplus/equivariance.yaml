@@ -20,7 +20,7 @@ trainer:
 
 callbacks:
   plotting:
-    plot_interval: 20
+    plot_interval: 75
 
 datamodule:
 
