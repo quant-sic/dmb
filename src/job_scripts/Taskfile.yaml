@@ -206,9 +206,11 @@ tasks:
 
       SPLIT_FILE: '{{ .SPLIT_FILE | default "v2.json" }}'
       SPLIT_FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_FILE }}"
+      CKPT_PATH: '{{ .CKPT_PATH | default "" }}'
 
-      _COMMAND: "python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
 
+      _COMMAND: python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}{{ if .CKPT_PATH }} '"ckpt_path={{ .CKPT_PATH }}"'{{ end }}
+      
     cmds:
       - jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
 
@@ -232,9 +234,10 @@ tasks:
     vars:
       JOB_NAME: generate_plots
 
-      LOG_DIR: "{{ .LOGS_DIR_ROOT }}/train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-18-23"
+      LOG_DIR: '{{ .LOG_DIR | default "{{ .LOGS_DIR_ROOT }}/train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-18-23" }}'
+      CHECKPOINT: '{{ .CHECKPOINT | default "" }}'
 
-      _COMMAND: "python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/generate_plots.py plot-all --log-dir={{ .LOG_DIR }}"
+      _COMMAND: "python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/generate_plots.py plot-all --log-dir={{ .LOG_DIR }}{{ if .CHECKPOINT }} --checkpoint={{ .CHECKPOINT }}{{ end }}" 
 
     cmds:
       - jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch

@@ -15,9 +15,14 @@ from dmb.paths import REPO_ROOT
     config_name="train.yaml",
 )
 def train(cfg: DictConfig) -> None:
+
     pl.seed_everything(cfg.seed, workers=True)
 
     callbacks = list(hydra.utils.instantiate(cfg.callbacks).values())
+    for callback in callbacks:
+        if isinstance(callback, pl.callbacks.ModelCheckpoint):
+            callback.CHECKPOINT_EQUALS_CHAR = "_"
+
     logger = list(hydra.utils.instantiate(cfg.logger).values())
 
     trainer: Trainer = hydra.utils.instantiate(

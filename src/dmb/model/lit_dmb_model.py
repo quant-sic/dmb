@@ -228,7 +228,27 @@ class LitDMBModel(pl.LightningModule):
                 on_step=on_step,
                 on_epoch=on_epoch,
                 batch_size=batch_size,
-            )
+            ) 
+
+    def on_train_start(self) -> None:
+        """Execute at the start of training."""
+        self.model.train()
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        """Execute when loading a checkpoint."""
+        super().on_load_checkpoint(checkpoint)
+
+        # # print optimizer state
+        # optimizer = self.trainer.optimizers[0]
+        # # Access the exp_avg and exp_avg_sq for each parameter
+        # for i, param in enumerate(optimizer.param_groups[0]):
+        #     if param in optimizer.state:
+        #         state = optimizer.state[param]
+
+        #         #lr
+        #         print("lr:\n{}".format(
+        #         # print("exp_avg:\n{}".format(exp_avg))
+        #         # print("exp_avg_sq:\n{}".format(exp_avg_sq))
 
     def on_train_epoch_end(self) -> None:
         """Execute at the end of each training epoch."""
