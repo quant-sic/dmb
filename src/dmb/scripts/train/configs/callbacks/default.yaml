@@ -24,3 +24,11 @@ progress_bar:
 # swa:
 #   _target_: lightning.pytorch.callbacks.StochasticWeightAveraging
 #   swa_lrs: 1e-2
+
+gradient_accumulation_scheduler:
+  _target_: lightning.pytorch.callbacks.GradientAccumulationScheduler
+  scheduling:
+    250: 2
+    500: 4
+    1000: 8
+    2000: 16

@@ -14,13 +14,20 @@ seed: 12345
 
 trainer:
   max_epochs: 10000
-  accumulate_grad_batches: 16
+  # accumulate_grad_batches: 16
   check_val_every_n_epoch: 15
   log_every_n_steps: 15
 
 callbacks:
   plotting:
-    plot_interval: 75
+    plot_interval: 50
+
+  gradient_accumulation_scheduler:
+    scheduling:
+      250: 2
+      500: 4
+      1000: 8
+      2000: 16
 
 datamodule:
 
