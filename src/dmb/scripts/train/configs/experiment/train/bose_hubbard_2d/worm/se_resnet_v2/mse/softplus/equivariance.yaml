@@ -38,7 +38,12 @@ datamodule:
     train:
       _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
       _partial_: true
-      n_duplicates: 16
+      n_duplicates: 8
+
+    val:
+      _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+      _partial_: true
+      n_duplicates: 8
 
 
 lit_model:
@@ -88,4 +93,4 @@ lit_model:
         _target_: dmb.model.loss.EquivarianceErrorLoss
     weights:
       mse: 1.0
-      equivariance: 10.0
+      equivariance: 25.0

@@ -25,7 +25,7 @@ class DatasetDirFilterCases:
         """Return the dataset directory, filter strategy, and expected sample ids."""
 
         def convert_dimless(
-            ztU: float=0.5, muU: float=1.0, zVU: float=1.0, J: float=1.0
+            ztU: float = 0.5, muU: float = 1.0, zVU: float = 1.0, J: float = 1.0
         ) -> dict[str, float]:
             """Convert the parameters from dimensionless to physical units."""
 

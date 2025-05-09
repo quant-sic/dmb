@@ -69,6 +69,14 @@ class FakeDMBTransform(DMBTransform):
         """Return the input plus 1."""
         return x + 1
 
+    def state_dict(self) -> dict:
+        """Return an empty state dict."""
+        return {}
+
+    def load_state_dict(self, state_dict: dict) -> None:
+        """Do nothing."""
+        pass
+
 
 class TestTupleWrapperTransform(InputOutputDMBTransformTests):
     """Tests for the TupleWrapperInTransform and TupleWrapperOutTransform classes."""

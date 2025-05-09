@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -15,6 +15,9 @@ from dmb.data.transforms import (
     GroupElement,
     InputOutputDMBTransform,
 )
+from dmb.logging import create_logger
+
+log = create_logger(__name__)
 
 
 class GaussianNoiseTransform(DMBTransform):
@@ -37,6 +40,14 @@ class GaussianNoiseTransform(DMBTransform):
     def __repr__(self) -> str:
         """Return a string representation of the transform."""
         return self.__class__.__name__ + f"(mean={self.mean}, std={self.std})"
+
+    def state_dict(self) -> dict[str, Any]:
+        """Return the state of the transform."""
+        return {}
+
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        """Load the state of the transform."""
+        pass
 
 
 @frozen
@@ -122,13 +133,15 @@ class D4GroupTransforms(InputOutputDMBTransform):
     - reflection x=-y
     """
 
-    def __init__(self) -> None:
+    def __init__(self, generator: np.random.Generator | None = None) -> None:
         """Initialize the transform."""
         self.d4_group: D4Group = D4Group()
 
+        self.generator = generator or np.random.default_rng(seed=42)
+
     def __call__(self, dmb_data: DMBData) -> DMBData:
         # with p=1/8 each choose one symmetry transform at random and apply it
-        rnd = int(np.random.rand() * 8)
+        rnd = int(self.generator.uniform(0, 8))
         element_transform = list(self.d4_group.elements.values())[rnd]
 
         dmb_data_out = DMBData(
@@ -142,6 +155,17 @@ class D4GroupTransforms(InputOutputDMBTransform):
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()"
+
+    def state_dict(self) -> dict[str, Any]:
+        """Return the state of the transform."""
+        return {
+            "generator_state": self.generator.bit_generator.state,
+        }
+
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        """Load the state of the transform."""
+        self.generator.bit_generator.state = state["generator_state"]
+        log.info("Loaded generator state: %s", self.generator.bit_generator.state)
 
 
 class TupleWrapperInTransform(InputOutputDMBTransform):
@@ -161,6 +185,14 @@ class TupleWrapperInTransform(InputOutputDMBTransform):
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
 
+    def state_dict(self) -> dict[str, Any]:
+        """Return the state of the transform."""
+        return self.transform.state_dict()
+
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        """Load the state of the transform."""
+        self.transform.load_state_dict(state)
+
 
 class TupleWrapperOutTransform(InputOutputDMBTransform):
     """A wrapper for a DMBTransform that only applies the transform to the output."""
@@ -178,6 +210,14 @@ class TupleWrapperOutTransform(InputOutputDMBTransform):
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()" + "\n" + self.transform.__repr__()
+
+    def state_dict(self) -> dict[str, Any]:
+        """Return the state of the transform."""
+        return self.transform.state_dict()
+
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        """Load the state of the transform."""
+        self.transform.load_state_dict(state)
 
 
 class BoseHubbard2dTransforms(DMBDatasetTransform):
@@ -244,3 +284,23 @@ class BoseHubbard2dTransforms(DMBDatasetTransform):
             "\n"
             ")"
         )
+
+    def state_dict(self) -> dict[str, Any]:
+        """Return the state of the transform."""
+        return {
+            "base_augmentations": [aug.state_dict() for aug in self.base_augmentations],
+            "train_augmentations": [
+                aug.state_dict() for aug in self.train_augmentations
+            ],
+        }
+
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        """Load the state of the transform."""
+        for aug, augmentation_state in zip(
+            self.base_augmentations, state["base_augmentations"]
+        ):
+            aug.load_state_dict(augmentation_state)
+        for aug, augmentation_state in zip(
+            self.train_augmentations, state["train_augmentations"]
+        ):
+            aug.load_state_dict(augmentation_state)

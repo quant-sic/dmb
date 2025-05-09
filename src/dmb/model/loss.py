@@ -79,23 +79,38 @@ class EquivarianceErrorLoss(Loss):
         group_elements: list[list[GroupElement]],
     ) -> tuple[torch.Tensor, int]:
         """Calculate the loss for a single size."""
+        # get group elements
+        accumulated_group_elements = [
+            GroupElement.from_group_elements(group_elements)
+            for group_elements in group_elements
+        ]
+
+        # all close does not capture variations in training well. Eg. from Dropout
+        acts_like_identity = [
+            group_element.acts_like_identity(y_pred_sample)
+            for y_pred_sample, group_element in zip(y_pred, accumulated_group_elements)
+        ]
 
         # transform back to original sample
         y_pred_original = torch.stack(
             [
-                GroupElement.from_group_elements(group_elements).inverse_transform(
-                    y_pred_sample
+                group_element.inverse_transform(y_pred_sample)
+                for y_pred_sample, group_element in zip(
+                    y_pred, accumulated_group_elements
                 )
-                for y_pred_sample, group_elements in zip(y_pred, group_elements)
             ]
         )
         losses = []
 
         # get indices of sample groups with same id
-        for sample_id in sample_ids:
+        for sample_id in set(sample_ids):
             sample_indices = [
                 idx for idx, id in enumerate(sample_ids) if id == sample_id
             ]
+
+            # if all group elements are identity, skip
+            if all(acts_like_identity[idx] for idx in sample_indices):
+                continue
 
             # variance
             if len(sample_indices) > 1:

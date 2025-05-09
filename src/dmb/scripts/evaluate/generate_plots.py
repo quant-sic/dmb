@@ -44,7 +44,9 @@ def plot_wedding_cake(
         / "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-19-37",
         help="Path to the log directory",
     ),
-    checkpoint: Path = typer.Option(default=None, help="Path to the checkpoint file"),
+    checkpoint: Path | None = typer.Option(
+        default=None, help="Path to the checkpoint file"
+    ),
 ) -> None:
     model = load_model(log_dir, checkpoint)
     output = create_wedding_cake_plot(mapping=PredictionMapping(model=model.model))
@@ -64,7 +66,9 @@ def plot_box_cuts(
         / "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-19-37",
         help="Path to the log directory",
     ),
-    checkpoint: Path = typer.Option(default=None, help="Path to the checkpoint file"),
+    checkpoint: Path | None = typer.Option(
+        default=None, help="Path to the checkpoint file"
+    ),
 ) -> None:
     model = load_model(log_dir, checkpoint)
     output = create_box_cuts_plot(mapping=PredictionMapping(model=model.model))
@@ -83,7 +87,9 @@ def plot_box(
         / "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-19-37",
         help="Path to the log directory",
     ),
-    checkpoint: Path = typer.Option(default=None, help="Path to the checkpoint file"),
+    checkpoint: Path | None = typer.Option(
+        default=None, help="Path to the checkpoint file"
+    ),
 ) -> None:
     model = load_model(log_dir, checkpoint)
     output = create_box_plot(mapping=PredictionMapping(model=model.model))
@@ -104,7 +110,9 @@ def plot_phase_diagram_for_model(
         / "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-19-37",
         help="Path to the log directory",
     ),
-    checkpoint: Path = typer.Option(default=None, help="Path to the checkpoint file"),
+    checkpoint: Path | None = typer.Option(
+        default=None, help="Path to the checkpoint file"
+    ),
 ) -> None:
     model = load_model(log_dir, checkpoint)
 
@@ -140,7 +148,9 @@ def plot_phase_diagram_mu_cut_for_model(
         / "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-19-37",
         help="Path to the log directory",
     ),
-    checkpoint: Path = typer.Option(default=None, help="Path to the checkpoint file"),
+    checkpoint: Path | None = typer.Option(
+        default=None, help="Path to the checkpoint file"
+    ),
 ) -> None:
     model = load_model(log_dir, checkpoint)
 
@@ -174,7 +184,9 @@ def plot_all(
         / "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-19-37",
         help="Path to the log directory",
     ),
-    checkpoint: Path|None = typer.Option(default=None, help="Path to the checkpoint file"),
+    checkpoint: Path | None = typer.Option(
+        default=None, help="Path to the checkpoint file"
+    ),
 ) -> None:
     plot_wedding_cake(log_dir, checkpoint)
     plot_box_cuts(log_dir, checkpoint)

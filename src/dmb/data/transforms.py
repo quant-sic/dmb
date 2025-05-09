@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Callable, Literal
+from typing import Any, Callable, Literal
 
 import torch
 from attrs import define, frozen
@@ -53,6 +53,18 @@ class GroupElement:
             inverse_transform=cls._compose_inverse(group_elements),
         )
 
+    def acts_like_identity(self, x: torch.Tensor) -> bool:
+        """Check if this group element acts as the identity on the given tensor.
+
+        Args:
+            x: A tensor to test the group element on.
+
+        Returns:
+            True if applying the transform leaves x unchanged, False otherwise.
+        """
+        y = self.transform(x)
+        return torch.allclose(x, y)
+
 
 @frozen
 class DMBData:
@@ -71,6 +83,14 @@ class DMBTransform(metaclass=ABCMeta):
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         """Apply the transform to the input tensor."""
 
+    @abstractmethod
+    def state_dict(self) -> dict[str, Any]:
+        """Return the state of the transform."""
+
+    @abstractmethod
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        """Load the state of the transform."""
+
 
 class InputOutputDMBTransform(metaclass=ABCMeta):
     """A data augmentation protocol for input-output pairs"""
@@ -78,6 +98,14 @@ class InputOutputDMBTransform(metaclass=ABCMeta):
     @abstractmethod
     def __call__(self, dmb_data: DMBData) -> DMBData:
         """Apply the transform to the input-output pair."""
+
+    @abstractmethod
+    def state_dict(self) -> dict[str, Any]:
+        """Return the state of the transform."""
+
+    @abstractmethod
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        """Load the state of the transform."""
 
 
 class DMBDatasetTransform(metaclass=ABCMeta):
@@ -101,6 +129,14 @@ class DMBDatasetTransform(metaclass=ABCMeta):
     def __repr__(self) -> str:
         """Return a string representation of the transform."""
 
+    @abstractmethod
+    def state_dict(self) -> dict[str, object]:
+        """Return the state of the transform."""
+
+    @abstractmethod
+    def load_state_dict(self, state: dict[str, object]) -> None:
+        """Load the state of the transform."""
+
 
 @define
 class IdentityDMBDatasetTransform(DMBDatasetTransform):
@@ -113,3 +149,9 @@ class IdentityDMBDatasetTransform(DMBDatasetTransform):
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()"
+
+    def state_dict(self) -> dict[str, object]:
+        return {}
+
+    def load_state_dict(self, state: dict[str, object]) -> None:
+        pass

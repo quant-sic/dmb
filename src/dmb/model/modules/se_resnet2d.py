@@ -76,7 +76,7 @@ class SeResnetBlock(nn.Module):
 
         identity = x
 
-        out = self.conv1(x)
+        out: torch.Tensor = self.conv1(x)
         out = self.bn1(out)
         out = self.relu1(out)
 

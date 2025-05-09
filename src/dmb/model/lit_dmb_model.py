@@ -13,7 +13,7 @@ import lightning.pytorch as pl
 import torch
 import torchmetrics
 import yaml
-from attrs import define, field, frozen
+from attrs import field, frozen
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from omegaconf import DictConfig
 from torch.optim import Optimizer
@@ -52,21 +52,37 @@ class WeightsCheckpoint:
         )
 
 
-@define(hash=False, eq=False)
 class LitDMBModel(pl.LightningModule):
     """Lightning module for DMB models."""
 
-    model: DMBModel
-    optimizer: functools.partial[Optimizer]
-    lr_scheduler: dict[str, functools.partial[_LRScheduler | Any]]
-    loss: Loss
-    metrics: torchmetrics.MetricCollection
-    weights_checkpoint: WeightsCheckpoint | None = None
+    def __init__(
+        self,
+        model: DMBModel,
+        optimizer: functools.partial[Optimizer],
+        lr_scheduler: dict[str, functools.partial[_LRScheduler | Any]],
+        loss: Loss,
+        metrics: torchmetrics.MetricCollection,
+        weights_checkpoint: WeightsCheckpoint | None = None,
+    ) -> None:
+        """Initialize the LitDMBModel.
 
-    def __attrs_pre_init__(self) -> None:
+        Args:
+            model: The DMB model.
+            optimizer: The optimizer for the model.
+            lr_scheduler: The learning rate scheduler for the model.
+            loss: The loss function for the model.
+            metrics: The metrics for the model.
+            weights_checkpoint: The weights checkpoint to load from.
+        """
         super().__init__()
 
-    def __attrs_post_init__(self) -> None:
+        self.model = model
+        self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
+        self.loss = loss
+        self.metrics = metrics
+        self.weights_checkpoint = weights_checkpoint
+
         self.example_input_array = torch.zeros(1, 4, 10, 10)
 
         if self.weights_checkpoint is not None:
@@ -228,27 +244,11 @@ class LitDMBModel(pl.LightningModule):
                 on_step=on_step,
                 on_epoch=on_epoch,
                 batch_size=batch_size,
-            ) 
+            )
 
     def on_train_start(self) -> None:
         """Execute at the start of training."""
         self.model.train()
-
-    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        """Execute when loading a checkpoint."""
-        super().on_load_checkpoint(checkpoint)
-
-        # # print optimizer state
-        # optimizer = self.trainer.optimizers[0]
-        # # Access the exp_avg and exp_avg_sq for each parameter
-        # for i, param in enumerate(optimizer.param_groups[0]):
-        #     if param in optimizer.state:
-        #         state = optimizer.state[param]
-
-        #         #lr
-        #         print("lr:\n{}".format(
-        #         # print("exp_avg:\n{}".format(exp_avg))
-        #         # print("exp_avg_sq:\n{}".format(exp_avg_sq))
 
     def on_train_epoch_end(self) -> None:
         """Execute at the end of each training epoch."""
