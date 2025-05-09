@@ -83,13 +83,13 @@ class DMBTransform(metaclass=ABCMeta):
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         """Apply the transform to the input tensor."""
 
-    @abstractmethod
     def state_dict(self) -> dict[str, Any]:
         """Return the state of the transform."""
+        return {}
 
-    @abstractmethod
     def load_state_dict(self, state: dict[str, Any]) -> None:
         """Load the state of the transform."""
+        pass
 
 
 class InputOutputDMBTransform(metaclass=ABCMeta):
@@ -99,13 +99,13 @@ class InputOutputDMBTransform(metaclass=ABCMeta):
     def __call__(self, dmb_data: DMBData) -> DMBData:
         """Apply the transform to the input-output pair."""
 
-    @abstractmethod
     def state_dict(self) -> dict[str, Any]:
         """Return the state of the transform."""
+        return {}
 
-    @abstractmethod
     def load_state_dict(self, state: dict[str, Any]) -> None:
         """Load the state of the transform."""
+        pass
 
 
 class DMBDatasetTransform(metaclass=ABCMeta):
@@ -129,13 +129,13 @@ class DMBDatasetTransform(metaclass=ABCMeta):
     def __repr__(self) -> str:
         """Return a string representation of the transform."""
 
-    @abstractmethod
     def state_dict(self) -> dict[str, object]:
         """Return the state of the transform."""
+        return {}
 
-    @abstractmethod
     def load_state_dict(self, state: dict[str, object]) -> None:
         """Load the state of the transform."""
+        pass
 
 
 @define
@@ -149,9 +149,3 @@ class IdentityDMBDatasetTransform(DMBDatasetTransform):
 
     def __repr__(self) -> str:
         return self.__class__.__name__ + "()"
-
-    def state_dict(self) -> dict[str, object]:
-        return {}
-
-    def load_state_dict(self, state: dict[str, object]) -> None:
-        pass

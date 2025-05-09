@@ -41,14 +41,6 @@ class GaussianNoiseTransform(DMBTransform):
         """Return a string representation of the transform."""
         return self.__class__.__name__ + f"(mean={self.mean}, std={self.std})"
 
-    def state_dict(self) -> dict[str, Any]:
-        """Return the state of the transform."""
-        return {}
-
-    def load_state_dict(self, state: dict[str, Any]) -> None:
-        """Load the state of the transform."""
-        pass
-
 
 @frozen
 class D4Group:
