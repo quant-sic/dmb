@@ -45,6 +45,10 @@ tasks:
       MARK: '{{ .MARK | default "not requires_worm" }}'
     cmds:
       - pytest -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
+      - |
+        if [ -z "$CI" ]; then
+          find {{ .REPO_ROOT }} -maxdepth 1 -type f -name '.coverage*' -delete
+        fi
 
   licenses:
     desc: List licenses of dependencies
