@@ -4,8 +4,10 @@ Code for the paper [Deep learning of spatial densities in inhomogeneous correlat
 
 ## Bose Hubbard Model in 2D
 
-![box_cuts](./docs/box_cuts.png)
-![inversion](./docs/inversion.png)
+<p align="center">
+    <img src="./docs/box_cuts.png" alt="Box cuts" width="49%"/>
+    <img src="./docs/inversion.png" alt="Inversion" width="49%"/>
+</p>
 
 
 ### Data Generation
