@@ -13,7 +13,6 @@ seed: 12345
 trainer:
   max_epochs: 250
   accumulate_grad_batches: 5
-  precision: 16-mixed
   deterministic: False
   check_val_every_n_epoch: 10
   log_every_n_steps: 10
@@ -21,8 +20,9 @@ trainer:
 lit_model:
 
   lit_dmb_model:
-    log_dir: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-18-23"
-    checkpoint_path: "train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-18-23/checkpoints/best_train/epoch=1139-step=9120.ckpt"
+    log_dir: "train/bose_hubbard_2d/worm/all_obs/se_resnet_v4/mse/exp/runs/8370774"
+
+    checkpoint_path: "train/bose_hubbard_2d/worm/all_obs/se_resnet_v4/mse/exp/runs/8370774/checkpoints/best/epoch_215-step_64208.ckpt"
 
   lr_scheduler:
     scheduler:

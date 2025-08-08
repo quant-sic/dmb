@@ -1,5 +1,6 @@
 from functools import cache
 from pathlib import Path
+from typing import Generator
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,20 +22,24 @@ from dmb.paths import REPO_DATA_ROOT, REPO_LOGS_ROOT
 app = typer.Typer()
 
 
-@cache
-def load_model(log_dir: Path, checkpoint: Path | None = None) -> LitDMBModel:
+def load_model(log_dir: Path, checkpoint: Path | None = None) -> dict[LitDMBModel]:
     if checkpoint is None:
-        # get latest step in log_dir/checkpoints/best
-        checkpoint = sorted(
-            (log_dir / "checkpoints/best").glob("*.ckpt"),
-            key=lambda x: int(x.stem.split("=")[-1]),
-        )[-1]
+        # get latest step in log_dir/checkpoints
+        checkpoints = sorted(
+            (log_dir / "checkpoints").glob("**/*.ckpt"),
+            key=lambda x: int(x.stem.split("=")[-1].split("_")[-1]),
+        )
 
     print(f"Loading model from {checkpoint}, log_dir: {log_dir}")
 
-    model = LitDMBModel.load_from_logged_checkpoint(log_dir, checkpoint)
+    models = {}
+    for checkpoint in checkpoints:
+        model = LitDMBModel.load_from_logged_checkpoint(log_dir, checkpoint)
 
-    return model
+        key = checkpoint.relative_to(log_dir / "checkpoints").with_suffix("").as_posix()
+        models[key] = model
+
+    return models
 
 
 @app.command()
@@ -48,15 +53,20 @@ def plot_wedding_cake(
         default=None, help="Path to the checkpoint file"
     ),
 ) -> None:
-    model = load_model(log_dir, checkpoint)
-    output = create_wedding_cake_plot(mapping=PredictionMapping(model=model.model))
+    for ckpt_name, model in load_model(log_dir, checkpoint).items():
+        output = create_wedding_cake_plot(mapping=PredictionMapping(model=model.model))
 
-    figures_dir = REPO_DATA_ROOT / "figures" / log_dir.name / "wedding_cake"
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    for key, value in output["wedding_cake"].items():
-        value.savefig(
-            figures_dir / f"{key}.pdf", transparent=True, bbox_inches="tight", dpi=600
+        figures_dir = (
+            REPO_DATA_ROOT / "figures" / log_dir.name / ckpt_name / "wedding_cake"
         )
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        for key, value in output["wedding_cake"].items():
+            value.savefig(
+                figures_dir / f"{key}.pdf",
+                transparent=True,
+                bbox_inches="tight",
+                dpi=600,
+            )
 
 
 @app.command()
@@ -70,14 +80,14 @@ def plot_box_cuts(
         default=None, help="Path to the checkpoint file"
     ),
 ) -> None:
-    model = load_model(log_dir, checkpoint)
-    output = create_box_cuts_plot(mapping=PredictionMapping(model=model.model))
+    for ckpt_name, model in load_model(log_dir, checkpoint).items():
+        output = create_box_cuts_plot(mapping=PredictionMapping(model=model.model))
 
-    figures_dir = REPO_DATA_ROOT / "figures" / log_dir.name
-    figures_dir.mkdir(parents=True, exist_ok=True)
-    output["box_cuts"].savefig(
-        figures_dir / "box_cuts.pdf", transparent=True, bbox_inches="tight", dpi=600
-    )
+        figures_dir = REPO_DATA_ROOT / "figures" / log_dir.name / ckpt_name
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        output["box_cuts"].savefig(
+            figures_dir / "box_cuts.pdf", transparent=True, bbox_inches="tight", dpi=600
+        )
 
 
 @app.command()
@@ -91,16 +101,19 @@ def plot_box(
         default=None, help="Path to the checkpoint file"
     ),
 ) -> None:
-    model = load_model(log_dir, checkpoint)
-    output = create_box_plot(mapping=PredictionMapping(model=model.model))
+    for ckpt_name, model in load_model(log_dir, checkpoint).items():
+        output = create_box_plot(mapping=PredictionMapping(model=model.model))
 
-    figures_dir = REPO_DATA_ROOT / "figures" / log_dir.name / "box"
-    figures_dir.mkdir(parents=True, exist_ok=True)
+        figures_dir = REPO_DATA_ROOT / "figures" / log_dir.name / ckpt_name / "box"
+        figures_dir.mkdir(parents=True, exist_ok=True)
 
-    for key, value in output["box"].items():
-        value.savefig(
-            figures_dir / f"{key}.pdf", transparent=True, bbox_inches="tight", dpi=600
-        )
+        for key, value in output["box"].items():
+            value.savefig(
+                figures_dir / f"{key}.pdf",
+                transparent=True,
+                bbox_inches="tight",
+                dpi=600,
+            )
 
 
 @app.command()
@@ -114,31 +127,31 @@ def plot_phase_diagram_for_model(
         default=None, help="Path to the checkpoint file"
     ),
 ) -> None:
-    model = load_model(log_dir, checkpoint)
-
-    for zVU in (1.0, 1.5):
-        figures = plot_phase_diagram(
-            mapping=PredictionMapping(model=model.model), zVU=zVU
-        )
-
-        for key, value in figures.items():
-            figures_dir = (
-                REPO_DATA_ROOT
-                / "figures"
-                / log_dir.name
-                / "phase_diagram"
-                / f"zVU={zVU}"
-                / key
+    for ckpt_name, model in load_model(log_dir, checkpoint).items():
+        for zVU in (1.0, 1.5):
+            figures = plot_phase_diagram(
+                mapping=PredictionMapping(model=model.model), zVU=zVU
             )
-            figures_dir.mkdir(parents=True, exist_ok=True)
 
-            for title, fig in value.items():
-                fig.savefig(
-                    figures_dir / f"{title}.pdf",
-                    transparent=True,
-                    bbox_inches="tight",
-                    dpi=600,
+            for key, value in figures.items():
+                figures_dir = (
+                    REPO_DATA_ROOT
+                    / "figures"
+                    / log_dir.name
+                    / ckpt_name
+                    / "phase_diagram"
+                    / f"zVU={zVU}"
+                    / key
                 )
+                figures_dir.mkdir(parents=True, exist_ok=True)
+
+                for title, fig in value.items():
+                    fig.savefig(
+                        figures_dir / f"{title}.pdf",
+                        transparent=True,
+                        bbox_inches="tight",
+                        dpi=600,
+                    )
 
 
 @app.command()
@@ -152,29 +165,29 @@ def plot_phase_diagram_mu_cut_for_model(
         default=None, help="Path to the checkpoint file"
     ),
 ) -> None:
-    model = load_model(log_dir, checkpoint)
-
-    for zVU in (1.0, 1.5):
-        for ztU in (0.1, 0.25):
-            figures = plot_phase_diagram_mu_cut(
-                mapping=PredictionMapping(model=model.model), zVU=zVU, ztU=ztU
-            )
-            figures_dir = (
-                REPO_DATA_ROOT
-                / "figures"
-                / log_dir.name
-                / "phase_diagram_mu_cut"
-                / f"zVU={zVU}/ztU={ztU}"
-            )
-            figures_dir.mkdir(parents=True, exist_ok=True)
-
-            for title, fig in figures.items():
-                fig.savefig(
-                    figures_dir / f"{title}.pdf",
-                    transparent=True,
-                    bbox_inches="tight",
-                    dpi=600,
+    for ckpt_name, model in load_model(log_dir, checkpoint).items():
+        for zVU in (1.0, 1.5):
+            for ztU in (0.1, 0.25):
+                figures = plot_phase_diagram_mu_cut(
+                    mapping=PredictionMapping(model=model.model), zVU=zVU, ztU=ztU
                 )
+                figures_dir = (
+                    REPO_DATA_ROOT
+                    / "figures"
+                    / log_dir.name
+                    / ckpt_name
+                    / "phase_diagram_mu_cut"
+                    / f"zVU={zVU}/ztU={ztU}"
+                )
+                figures_dir.mkdir(parents=True, exist_ok=True)
+
+                for title, fig in figures.items():
+                    fig.savefig(
+                        figures_dir / f"{title}.pdf",
+                        transparent=True,
+                        bbox_inches="tight",
+                        dpi=600,
+                    )
 
 
 @app.command()

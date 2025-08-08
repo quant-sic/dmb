@@ -1,7 +1,11 @@
 """Dataset classes for DMB data."""
 
+from __future__ import annotations
+
+import itertools
 import json
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Iterable
@@ -181,3 +185,45 @@ class DMBDataset(IdDataset):
         if "transforms" in state:
             self.transforms.load_state_dict(state["transforms"])
             log.info("Loaded state dict for transforms: %s", self.transforms.__repr__())
+
+
+class EvaluationData(Dataset):
+    """Dataset for evaluation data.
+
+    This dataset is used to evaluate the model on a specific set of inputs and outputs.
+    It is expected to be used with a DataLoader.
+    """
+
+    def __init__(self, inputs: list[torch.Tensor], outputs: list[torch.Tensor]) -> None:
+        """Initialize the evaluation data."""
+        self.inputs = inputs
+        self.outputs = outputs
+
+    @classmethod
+    def from_data_generation_functions(
+        cls,
+        data_generation_functions: list[
+            Callable[[], tuple[torch.Tensor, torch.Tensor, ...]]
+        ],
+    ) -> EvaluationData:
+        """Create an EvaluationData instance from data generation functions."""
+        inputs, outputs = map(
+            list,
+            map(
+                itertools.chain.from_iterable,
+                zip(*[func()[:2] for func in data_generation_functions]),
+            ),
+        )
+
+        return cls(list(inputs), list(outputs))
+
+    def __len__(self) -> int:
+        return len(self.inputs)
+
+    def __getitem__(self, idx: int) -> DMBData:
+        """Return the inputs and outputs for the given index."""
+        return DMBData(
+            inputs=self.inputs[idx],
+            outputs=self.outputs[idx],
+            sample_id=f"eval_{idx}",
+        )

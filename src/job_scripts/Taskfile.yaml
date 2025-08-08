@@ -1,5 +1,15 @@
 version: "3"
 
+vars:
+  JOB_SCRIPTS_DIR: "{{.REPO_ROOT}}/src/job_scripts"
+  TEMPLATES_DIR: "{{.JOB_SCRIPTS_DIR}}/templates"
+
+  STANDARD_CPU_JOB_TEMPLATE: "standard_cpu_job_template.sh.jinja2"
+  GPU_JOB_TEMPLATE: "gpu_job_template.sh.jinja2"
+  QMC_JOBS_STARTER_TEMPLATE: "qmc_jobs_starter_template.sh.jinja2"
+
+  PIPE_OUT_ROOT: "{{.REPO_ROOT}}/pipe_out"
+
 env:
   REPO_ROOT:
     sh: git rev-parse --show-toplevel
@@ -10,16 +20,6 @@ env:
 
   PATH:
     sh: echo {{ .VIRTUAL_ENV }}/bin:$PATH
-
-vars:
-  JOB_SCRIPTS_DIR: "{{.REPO_ROOT}}/src/job_scripts"
-  TEMPLATES_DIR: "{{.JOB_SCRIPTS_DIR}}/templates"
-
-  STANDARD_CPU_JOB_TEMPLATE: "standard_cpu_job_template.sh.jinja2"
-  GPU_JOB_TEMPLATE: "gpu_job_template.sh.jinja2"
-  QMC_JOBS_STARTER_TEMPLATE: "qmc_jobs_starter_template.sh.jinja2"
-
-  PIPE_OUT_ROOT: "{{.REPO_ROOT}}/pipe_out"
 
 dotenv: ["{{ .REPO_ROOT }}/.env"]
 
@@ -36,7 +36,7 @@ tasks:
     vars:
       JOB_NAME: load_dataset
 
-      _COMMAND: 'python {{ .REPO_ROOT }}/src/dmb/data/bose_hubbard_2d/worm/scripts/load_dataset.py {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/simulations {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/dataset {{ .INCLUDE_TUNE_DIRS | default "" }}'
+      _COMMAND: 'python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/load_dataset.py {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/simulations {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/dataset {{ .INCLUDE_TUNE_DIRS | default "" }}'
 
     cmds:
       - jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch

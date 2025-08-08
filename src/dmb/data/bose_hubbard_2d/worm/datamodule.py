@@ -5,7 +5,7 @@ from typing import Any, Callable, Literal
 
 import lightning.pytorch as pl
 from lightning.fabric.utilities.seed import pl_worker_init_function
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 
 from dmb.data.bose_hubbard_2d.worm.dataset import BoseHubbard2dDataset
 from dmb.data.collate import collate_sizes
@@ -20,6 +20,9 @@ log = create_logger(__name__)
 class BoseHubbard2dDataModule(pl.LightningDataModule):
     """LightningDataModule for BoseHubbard2dDataset."""
 
+    val_dataloader_names: list[str] = ["val", "val/data"]
+    test_dataloader_names: list[str] = ["test", "test/data"]
+
     def __init__(
         self,
         dataset: BoseHubbard2dDataset,
@@ -31,6 +34,7 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
             Literal["train", "val", "test"], partial[MDuplicatesPerBatchSampler]
         ]
         | None = None,
+        evaluation_data: Dataset | None = None,
     ) -> None:
         """Initialize the data module.
 
@@ -56,6 +60,8 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
         }
         self.stage_subsets: dict[str, Subset[BoseHubbard2dDataset]] = {}
         self.initialized_batch_samplers: dict[str, MDuplicatesPerBatchSampler] = {}
+
+        self.evaluation_data = evaluation_data
 
     def get_collate_fn(self) -> Callable:
         """Get the collate function for the dataset."""
@@ -101,24 +107,52 @@ class BoseHubbard2dDataModule(pl.LightningDataModule):
         )
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.stage_subsets["val"],
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=self.get_collate_fn(),
-            batch_sampler=self.initialized_batch_samplers["val"],
-            worker_init_fn=pl_worker_init_function,
+        return [
+            DataLoader(
+                self.stage_subsets["val"],
+                num_workers=self.num_workers,
+                pin_memory=self.pin_memory,
+                collate_fn=self.get_collate_fn(),
+                batch_sampler=self.initialized_batch_samplers["val"],
+                worker_init_fn=pl_worker_init_function,
+            )
+        ] + (
+            [
+                DataLoader(
+                    self.evaluation_data,
+                    num_workers=self.num_workers,
+                    pin_memory=self.pin_memory,
+                    collate_fn=self.get_collate_fn(),
+                    worker_init_fn=pl_worker_init_function,
+                )
+            ]
+            if self.evaluation_data is not None
+            else []
         )
 
     def test_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.stage_subsets["test"],
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=self.get_collate_fn(),
-            batch_sampler=self.initialized_batch_samplers["test"],
-            worker_init_fn=pl_worker_init_function,
+        return [
+            DataLoader(
+                self.stage_subsets["test"],
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=self.pin_memory,
+                collate_fn=self.get_collate_fn(),
+                batch_sampler=self.initialized_batch_samplers["test"],
+                worker_init_fn=pl_worker_init_function,
+            )
+        ] + (
+            [
+                DataLoader(
+                    self.evaluation_data,
+                    num_workers=self.num_workers,
+                    pin_memory=self.pin_memory,
+                    collate_fn=self.get_collate_fn(),
+                    worker_init_fn=pl_worker_init_function,
+                )
+            ]
+            if self.evaluation_data is not None
+            else []
         )
 
     def state_dict(self) -> dict[str, Any]:

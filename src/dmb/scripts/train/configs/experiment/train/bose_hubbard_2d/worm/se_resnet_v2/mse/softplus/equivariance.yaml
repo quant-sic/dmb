@@ -24,10 +24,10 @@ callbacks:
 
   gradient_accumulation_scheduler:
     scheduling:
-      250: 2
-      500: 4
-      1000: 8
-      2000: 16
+      100: 2
+      250: 4
+      500: 8
+      1000: 16
 
 datamodule:
 
@@ -63,8 +63,8 @@ lit_model:
         out_channels: 9,
         # kernel_sizes: [5,3,3,3],
         # n_channels: [16, 32, 64, 128],
-        kernel_sizes: [5,3,3,3,3,3,3,3,3,3,3,3],
-        n_channels: [16, 32, 64, 64, 64, 128, 128, 128, 128,128,128,128],
+        kernel_sizes: [5,3,3,3,3,3,3],
+        n_channels: [16, 32, 64, 64, 64, 128, 128],
         dropout: 0.1
       },
     ]

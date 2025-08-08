@@ -138,12 +138,16 @@ class FilterStrategy:
 
 
 def load_sample(
-    simulation_dir: Path, observables: list[str], reload: bool = False
+    simulation_dir: Path,
+    observables: list[str],
+    reload: bool = False,
+    overwrite: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor, dict]:
     """Load a sample from a simulation directory."""
 
     inputs_path = simulation_dir / "inputs.pt"
     outputs_path = simulation_dir / "outputs.pt"
+    errors_path = simulation_dir / "errors.pt"
 
     try:
         sim = WormSimulation.from_dir(simulation_dir)
@@ -152,10 +156,15 @@ def load_sample(
     except:  # pylint: disable=bare-except # noqa: E722
         reload = True
     else:
-        if not set(saved_observables) == set(observables):
+        if not set(observables).issubset(set(saved_observables)):
             reload = True
 
-    if not inputs_path.exists() or not outputs_path.exists() or reload:
+    if (
+        not inputs_path.exists()
+        or not outputs_path.exists()
+        or not errors_path.exists()
+        or reload
+    ):
         sim = WormSimulation.from_dir(simulation_dir)
 
         saved_observables = (
@@ -174,7 +183,7 @@ def load_sample(
                     shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
                     fill_value=obs,
                 )
-                if (obs and obs.ndim == 0)
+                if (obs is not None and obs.ndim == 0)
                 else obs
             )
             for obs in expectation_values
@@ -182,6 +191,27 @@ def load_sample(
         # stack observables
         outputs = torch.stack(
             [torch.from_numpy(obs) for obs in expanded_expectation_values],
+            dim=0,
+        )
+
+        errors = [
+            sim.observables.get_error_analysis(obs_type, obs_name)["error"]
+            for obs_type in ["primary", "derived"]
+            for obs_name in sim.observables.observable_names[obs_type]
+        ]
+        expanded_errors = [
+            (
+                np.full(
+                    shape=(sim.input_parameters.Lx, sim.input_parameters.Ly),
+                    fill_value=err,
+                )
+                if (err is not None and err.ndim == 0)
+                else err
+            )
+            for err in errors
+        ]
+        errors = torch.stack(
+            [torch.from_numpy(err) for err in expanded_errors],
             dim=0,
         )
 
@@ -194,8 +224,15 @@ def load_sample(
         )
 
         # save to .npy files
-        torch.save(inputs, inputs_path)
-        torch.save(outputs, outputs_path)
+        if overwrite or not inputs_path.exists():
+            torch.save(inputs, inputs_path)
+
+        if overwrite or not outputs_path.exists():
+            torch.save(outputs, outputs_path)
+
+        if overwrite or not errors_path.exists():
+            log.info(f"Saving errors to {errors_path}")
+            torch.save(errors, errors_path)
 
         # save saved_observables
         sim.record["saved_observables"] = saved_observables
@@ -203,6 +240,7 @@ def load_sample(
     else:
         inputs = torch.load(inputs_path, weights_only=True, map_location="cpu")
         outputs = torch.load(outputs_path, weights_only=True, map_location="cpu")
+        errors = torch.load(errors_path, weights_only=True, map_location="cpu")
 
         # load saved_observables
         sim = WormSimulation.from_dir(simulation_dir)
@@ -210,6 +248,7 @@ def load_sample(
 
         # filter observables
         outputs = outputs[[saved_observables.index(obs) for obs in observables]]
+        errors = errors[[saved_observables.index(obs) for obs in observables]]
 
     metadata = {
         "max_density_error": sim.max_density_error,
@@ -220,7 +259,7 @@ def load_sample(
         "V_nn": sim.input_parameters.V_nn[0, 0, 0],
     }
 
-    return inputs, outputs, metadata
+    return inputs, outputs, errors, metadata
 
 
 @app.command()
@@ -304,11 +343,12 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
     )
 
     for sim_dir in tqdm(filter(filter_strategy.filter, all_simulation_directories)):
-        inputs, outputs, metadata = load_sample(
-            sim_dir, list(observables), reload=reevaluate
+        inputs, outputs, errors, metadata = load_sample(
+            sim_dir, list(observables), reload=reevaluate, overwrite=False
         )
 
         if (inputs[0] == 0).all():
+            log.warning(f"Skipping simulation {sim_dir} with zero inputs. ")
             continue
 
         sample_save_path = samples_dir / (
@@ -318,8 +358,11 @@ def load_dataset_simulations(  # pylint: disable=dangerous-default-value
         )
         sample_save_path.mkdir(exist_ok=True, parents=True)
 
+        log.info(f"Saving sample to {sample_save_path} with observables {observables}")
+
         torch.save(inputs, sample_save_path / "inputs.pt")
         torch.save(outputs, sample_save_path / "outputs.pt")
+        torch.save(errors, sample_save_path / "errors.pt")
 
         with open(sample_save_path / "metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f)

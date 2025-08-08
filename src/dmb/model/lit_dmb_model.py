@@ -21,7 +21,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from dmb.data.collate import MultipleSizesBatch
 from dmb.logging import create_logger
-from dmb.model.dmb_model import DMBModel
+from dmb.model.dmb_model import DMBModel, DMBModelOutput
 from dmb.model.loss import Loss, LossOutput
 from dmb.paths import REPO_LOGS_ROOT
 
@@ -62,6 +62,7 @@ class LitDMBModel(pl.LightningModule):
         lr_scheduler: dict[str, functools.partial[_LRScheduler | Any]],
         loss: Loss,
         metrics: torchmetrics.MetricCollection,
+        evaluation_data_metrics: torchmetrics.MetricCollection | None = None,
         weights_checkpoint: WeightsCheckpoint | None = None,
     ) -> None:
         """Initialize the LitDMBModel.
@@ -81,6 +82,7 @@ class LitDMBModel(pl.LightningModule):
         self.lr_scheduler = lr_scheduler
         self.loss = loss
         self.metrics = metrics
+        self.evaluation_data_metrics = evaluation_data_metrics
         self.weights_checkpoint = weights_checkpoint
 
         self.example_input_array = torch.zeros(1, 4, 10, 10)
@@ -122,22 +124,22 @@ class LitDMBModel(pl.LightningModule):
         )
         return model
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out: torch.Tensor = self.model(x)
+    def forward(self, x: torch.Tensor | list[torch.Tensor]) -> DMBModelOutput:
+        out: DMBModelOutput = self.model(x)
         return out
 
     def _calculate_loss(
         self, batch: MultipleSizesBatch
-    ) -> tuple[torch.Tensor, LossOutput]:
+    ) -> tuple[DMBModelOutput, LossOutput]:
         model_out = self(batch.inputs)
         loss_output = self.loss(model_out, batch)
 
         return model_out, loss_output
 
     def _evaluate_metrics(
-        self, batch: MultipleSizesBatch, model_out: torch.Tensor
+        self, batch: MultipleSizesBatch, model_out: DMBModelOutput
     ) -> None:
-        self.metrics.update(preds=model_out, target=batch.outputs)
+        self.metrics.update(preds=model_out.inference_output, target=batch.outputs)
 
     def training_step(
         self,
@@ -162,25 +164,57 @@ class LitDMBModel(pl.LightningModule):
 
         return loss_output.loss
 
-    def validation_step(self, batch: MultipleSizesBatch) -> None:
-        model_out, loss_output = self._calculate_loss(batch)
-        self._evaluate_metrics(batch, model_out)
+    def validation_step(
+        self, batch: MultipleSizesBatch, batch_idx: int, dataloader_idx: int = 0
+    ) -> None:
+        """Validation step for the model.
 
-        # log metrics
-        self.log_metrics(
-            stage="val",
-            metric_collection=dict(
+        Args:
+            dataloader_idx: The index of the dataloader.
+            batch: The batch of data.
+        """
+
+        dataloader_name = self.trainer.datamodule.val_dataloader_names[dataloader_idx]
+
+        if dataloader_name == "val":
+            model_out, loss_output = self._calculate_loss(batch)
+            self._evaluate_metrics(batch, model_out)
+
+            _metric_collection = dict(
                 itertools.chain(
                     self.metrics.items(),
                     {"loss": loss_output.loss, **loss_output.loggables}.items(),
                 )
-            ),
+            )
+
+        elif dataloader_name == "val/data":
+            if self.evaluation_data_metrics is not None:
+                self.evaluation_data_metrics.update(
+                    preds=[
+                        mapped[:, 0].unsqueeze(1)
+                        for mapped in self(batch.inputs).inference_output
+                    ],
+                    target=[output.unsqueeze(1) for output in batch.outputs],
+                )
+
+                _metric_collection = dict(
+                    itertools.chain(self.evaluation_data_metrics.items())
+                )
+            else:
+                _metric_collection = {}
+
+        # log metrics
+        self.log_metrics(
+            stage=dataloader_name,
+            metric_collection=_metric_collection,
             on_step=False,
             on_epoch=True,
             batch_size=batch.size,
         )
 
-    def test_step(self, batch: MultipleSizesBatch) -> None:
+    def test_step(
+        self, batch: MultipleSizesBatch, batch_idx: int, dataloader_idx: int = 0
+    ) -> None:
         model_out, loss_output = self._calculate_loss(batch)
         self._evaluate_metrics(batch, model_out)
 
@@ -204,6 +238,10 @@ class LitDMBModel(pl.LightningModule):
             params=filter(lambda p: p.requires_grad, self.model.parameters()),
         )
 
+        # some schedulers require the initial learning rate to be set
+        for group in optimizer.param_groups:
+            group.setdefault("initial_lr", group["lr"])
+
         configuration: dict[str, Any] = {"optimizer": optimizer}
 
         if self.lr_scheduler is not None:
@@ -219,7 +257,7 @@ class LitDMBModel(pl.LightningModule):
 
     def log_metrics(
         self,
-        stage: Literal["train", "val", "test"],
+        stage: Literal["train", "val", "val/data", "test"],
         metric_collection: Mapping[str, torch.Tensor | torchmetrics.Metric],
         on_step: bool,
         on_epoch: bool,
@@ -244,6 +282,7 @@ class LitDMBModel(pl.LightningModule):
                 on_step=on_step,
                 on_epoch=on_epoch,
                 batch_size=batch_size,
+                add_dataloader_idx=False,
             )
 
     def on_train_start(self) -> None:
