@@ -32,6 +32,20 @@ task install
 
 ### Data Generation
 
+The Bose Hubbard model in 2D is simulated with [QMC code](https://github.com/quant-sic/worm) adapted from [here](https://github.com/LodePollet/worm) to handle non-uniform chemical potentials.
+
+After installation, random potentials can be simulated using:
+
+```bash
+uv run --no-sync python src/dmb/scripts/data/bose_hubbard_2d/worm/random_potential.py --potential-type random --number-of-samples <number_of_samples> --number-of-concurrent-jobs 1 --max-density-error <max_density_error>
+```
+
+A training dataset can be generated with:
+
+```bash
+uv run --no-sync python src/dmb/scripts/data/bose_hubbard_2d/worm/load_dataset.py <path_to_your_simulations> <target_dataset_path>
+```
+
 ### Training
 
 Model training is set up with [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/stable/). The training script is `train.py`.
