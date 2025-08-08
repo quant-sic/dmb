@@ -16,6 +16,7 @@
 /logs
 
 !data/test/*
+!docs/*.png
 
 .venv
 .trunk
