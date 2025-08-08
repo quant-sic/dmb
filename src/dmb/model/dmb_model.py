@@ -52,7 +52,7 @@ class DMBModel(nn.Module):
 
         self.observables = observables
 
-    def forward_single_size(self, x: torch.Tensor) -> list[DMBModelOutput]:
+    def forward_single_size(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass for a single input size."""
         for module in itertools.chain(self.modules_list):
             x = module(x)

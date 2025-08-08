@@ -1,7 +1,6 @@
 """ResNet2d and SeResNet2d modules."""
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 

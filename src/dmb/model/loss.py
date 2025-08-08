@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Literal, cast
 
 import torch
-from attrs import define, frozen
+from attrs import frozen
 
 from dmb.data.collate import MultipleSizesBatch
 from dmb.data.transforms import GroupElement
@@ -27,7 +27,7 @@ class LossOutput:
 class Loss(ABC, torch.nn.Module):
     """Base class for loss functions."""
 
-    def __init__(self, label_modification: nn.Module | None = None) -> None:
+    def __init__(self, label_modification: torch.nn.Module | None = None) -> None:
         """Initialize the loss function.
 
         Args:
@@ -53,7 +53,7 @@ class WeightedLoss(Loss):
         self,
         constituent_losses: dict[str, Loss],
         weights: dict[str, float] | None = None,
-        label_modification: nn.Module | None = None,
+        label_modification: torch.nn.Module | None = None,
     ) -> None:
         """Initialize the loss function.
 
@@ -93,7 +93,7 @@ class WeightedLoss(Loss):
 class EquivarianceErrorLoss(Loss):
     """Equivariance loss."""
 
-    def __init__(self, label_modification: nn.Module | None = None) -> None:
+    def __init__(self, label_modification: torch.nn.Module | None = None) -> None:
         """Initialize the loss function."""
 
         super().__init__(label_modification=label_modification)
@@ -179,7 +179,7 @@ class MSELoss(Loss):
         self,
         *args: Any,
         reduction: Literal["mean", "size_mean"] = "mean",
-        label_modification: nn.Module | None = None,
+        label_modification: torch.nn.Module | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the loss function.
@@ -239,7 +239,7 @@ class MSLELoss(Loss):
         self,
         *args: Any,
         reduction: Literal["mean"] = "mean",
-        label_modification: nn.Module | None = None,
+        label_modification: torch.nn.Module | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(label_modification=label_modification)
@@ -302,7 +302,7 @@ class MSLELoss(Loss):
 class MAPELoss(Loss):
     """Mean Absolute Percentage Error loss function."""
 
-    def __init__(self, label_modification: nn.Module | None = None) -> None:
+    def __init__(self, label_modification: torch.nn.Module | None = None) -> None:
         """Initialize the loss function."""
         super().__init__(label_modification=label_modification)
 

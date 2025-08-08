@@ -48,7 +48,7 @@ uv run --no-sync python src/dmb/scripts/data/bose_hubbard_2d/worm/load_dataset.p
 
 ### Training
 
-Model training is set up with [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/stable/). The training script is `train.py`.
+Model training is set up with [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/). The training script is `train.py`.
 
 The model and training is configured with [Hydra](https://hydra.cc/).
 
@@ -59,9 +59,21 @@ To define an experiment, create a new configuration file in the `src/dmb/scripts
 To start training, run the following command:
 
 ```bash
-uv run --no-sync python src/dmb/scripts/train/train.py experiment=your_experiment_name
+uv run --no-sync python src/dmb/scripts/train/train.py experiment=path/to/your/config.yaml
 ```
 
 ### Inversion
 
+Add an inversion configuration file in `src/dmb/scripts/invert/configs/experiment`. The configuration file should define the model, dataset, and inversion parameters.
 
+To run the inversion, use the following command:
+
+```bash
+uv run --no-sync python src/dmb/scripts/invert/invert.py experiment=path/to/your/config.yaml
+```
+
+To simulate the inverted potential with QMC, use the following command:
+
+```bash
+uv run --no-sync python src/dmb/scripts/data/bose_hubbard_2d/worm/from_potential.py <path_to_your_inverted_potential> --number-of-concurrent-jobs 1 --max-density-error <max_density_error>
+```

@@ -96,7 +96,7 @@ class FourierAttention(nn.Module):
         x_fft_att = x_fft * f_attention
 
         # Go back to spatial domain
-        x_att = torch.fft.irfft2(x_fft_att, s=x.shape[-2:], dim=(-2, -1))
+        x_att: torch.Tensor = torch.fft.irfft2(x_fft_att, s=x.shape[-2:], dim=(-2, -1))
 
         return x_att
 

@@ -18,7 +18,7 @@ from torch.optim.optimizer import Optimizer
 
 from dmb.data.bose_hubbard_2d.nn_input import get_nn_input_dimless_const_parameters
 from dmb.data.collate import MultipleSizesBatch
-from dmb.model.dmb_model import DMBModel
+from dmb.model.dmb_model import DMBModel, DMBModelOutput
 from dmb.model.lit_dmb_model import LitDMBModel
 from dmb.model.loss import Loss, LossOutput
 from dmb.paths import REPO_DATA_ROOT
@@ -131,7 +131,7 @@ class InversionResultLitModel(LightningModule):
         # set dmb model to eval
         self.dmb_model.eval()
 
-    def forward(self) -> torch.Tensor:
+    def forward(self) -> DMBModelOutput:
         dmb_model_out: torch.Tensor = self.dmb_model(
             self.inversion_result().unsqueeze(0)
         )
@@ -140,24 +140,29 @@ class InversionResultLitModel(LightningModule):
     def _calculate_loss(self) -> tuple[torch.Tensor, LossOutput]:
         model_out = self()
         density_feature_dim = self.dmb_model.observables.index("density")
-        model_out = model_out[..., density_feature_dim, :, :]
+        predicted_density = model_out.inference_output[0][..., density_feature_dim, :, :]
 
         batch = MultipleSizesBatch(
             inputs=[],
-            outputs=[self.output.unsqueeze(0).expand_as(model_out)],
+            outputs=[self.output.unsqueeze(0).expand_as(predicted_density)],
             sample_ids=[],
             group_elements=[],
             size=1,
-        ).to(model_out.device)
+        ).to(predicted_density.device)
 
-        return model_out, self.loss(model_out, batch)
+        reconstructed_model_out = DMBModelOutput(
+            loss_input=[predicted_density],
+            inference_output=[predicted_density],
+        )
 
-    def _evaluate_metrics(self, model_out: torch.Tensor) -> None:
-        self.metrics.update(preds=model_out, target=self.output.to(model_out.device))
+        return predicted_density, self.loss(reconstructed_model_out, batch)
+
+    def _evaluate_metrics(self, predicted_density: torch.Tensor) -> None:
+        self.metrics.update(preds=predicted_density, target=self.output.to(predicted_density.device))
 
     def training_step(self, *args: Any, **kwargs: dict) -> torch.Tensor:
-        model_out, loss_out = self._calculate_loss()
-        self._evaluate_metrics(model_out)
+        predicted_density, loss_out = self._calculate_loss()
+        self._evaluate_metrics(predicted_density)
 
         # log metrics
         self.log_metrics(
