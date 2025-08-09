@@ -1,5 +1,7 @@
 # Many Body Density Prediction
 
+[Overview](docs/overview_final_arxive.pdf)
+
 Code for the paper [Deep learning of spatial densities in inhomogeneous correlated quantum systems](https://arxiv.org/pdf/2211.09050)
 
 ## Setup
