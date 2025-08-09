@@ -1,8 +1,10 @@
 """ResNet2d and SeResNet2d modules."""
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch import nn
+from torch.nn.modules.utils import _pair
 
 
 def conv2d(
@@ -99,6 +101,94 @@ class FourierAttention(nn.Module):
         x_att: torch.Tensor = torch.fft.irfft2(x_fft_att, s=x.shape[-2:], dim=(-2, -1))
 
         return x_att
+
+
+class LocalFourierAttention(nn.Module):
+    """Local Fourier-space Attention Module."""
+
+    def __init__(
+        self,
+        channels: int,
+        kernel_size: int = 7,
+        stride: int = 1,
+        reduction_factor: int = 16,
+    ):
+        super().__init__()
+        self.kernel_size = _pair(kernel_size)
+        self.stride = _pair(stride)
+        # Padding to maintain input spatial dimensions
+        self.padding = (self.kernel_size[0] // 2, self.kernel_size[1] // 2)
+
+        # The attention network learns to weigh different frequencies within each patch.
+        # It operates on the channel dimension of the Fourier-transformed patches.
+        self.attention_net = nn.Sequential(
+            nn.Conv2d(channels, channels // reduction_factor, 1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels // reduction_factor, channels, 1, bias=False),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        B, C, H, W = x.shape
+        k_h, k_w = self.kernel_size
+
+        # 1. Unfold to get local patches
+        # Extracts sliding local blocks from the input tensor.
+        # Output shape: (B, C * k_h * k_w, L), where L is the number of patches.
+        x_unf = F.unfold(
+            x, kernel_size=self.kernel_size, padding=self.padding, stride=self.stride
+        )
+        L = x_unf.shape[-1]
+
+        # 2. Reshape for batch processing of patches
+        # We treat the collection of patches as a new batch dimension for efficiency.
+        # (B, C*k_h*k_w, L) -> (B, L, C, k_h, k_w) -> (B*L, C, k_h, k_w)
+        x_unf = x_unf.view(B, C, k_h, k_w, L)
+        patches = x_unf.permute(0, 4, 1, 2, 3).contiguous().view(B * L, C, k_h, k_w)
+
+        # 3. Go to Fourier space (on each patch)
+        patches_fft = torch.fft.rfft2(patches, dim=(-2, -1))
+
+        # 4. Learn and apply attention in Fourier space
+        fft_magnitude = torch.abs(patches_fft)
+        f_attention = self.attention_net(fft_magnitude)
+        patches_fft_att = patches_fft * f_attention
+
+        # 5. Go back to spatial domain (for each patch)
+        patches_att = torch.fft.irfft2(patches_fft_att, s=(k_h, k_w), dim=(-2, -1))
+
+        # 6. Reshape back for folding
+        # (B*L, C, k_h, k_w) -> (B, L, C, k_h, k_w) -> (B, C*k_h*k_w, L)
+        patches_att = patches_att.view(B, L, C, k_h, k_w)
+        attended_unf = (
+            patches_att.permute(0, 2, 3, 4, 1).contiguous().reshape(B, C * k_h * k_w, L)
+        )
+
+        # 7. Fold to reconstruct the image and normalize
+        # The 'fold' operation sums the values from overlapping patches. To get a
+        # proper average, we compute a normalization map by folding a tensor of ones.
+        norm_map = F.fold(
+            torch.ones_like(attended_unf),
+            output_size=(H, W),
+            kernel_size=self.kernel_size,
+            padding=self.padding,
+            stride=self.stride,
+        )
+        # Avoid division by zero
+        norm_map = torch.where(
+            norm_map == 0, torch.tensor(1.0, device=x.device), norm_map
+        )
+
+        # Fold the attended patches and apply normalization
+        x_att = F.fold(
+            attended_unf,
+            output_size=(H, W),
+            kernel_size=self.kernel_size,
+            padding=self.padding,
+            stride=self.stride,
+        )
+
+        return x_att / norm_map
 
 
 class HybridAttention(nn.Module):
@@ -216,10 +306,10 @@ class DMBNet2dv5(nn.Module):
     - Learnable weights for feature fusion at each level
     - Repeated BiFPN blocks for iterative feature refinement
     - Optional layer selection for applying BiFPN only to specified indices
-    
+
     Args:
         in_channels: Number of input channels
-        out_channels: Number of output channels  
+        out_channels: Number of output channels
         kernel_sizes: List of kernel sizes for each layer
         n_channels: List of channel counts for each layer
         dropout: Dropout probability
@@ -247,17 +337,19 @@ class DMBNet2dv5(nn.Module):
         self.n_channels = n_channels
         self.dropout = dropout
         self.bifpn_repeats = bifpn_repeats
-        
+
         # Default to using all layers if no specific indices provided
         if bifpn_layer_indices is None:
             self.bifpn_layer_indices = list(range(len(n_channels)))
         else:
             self.bifpn_layer_indices = bifpn_layer_indices
-        
+
         # Validate indices
         for idx in self.bifpn_layer_indices:
             if idx < 0 or idx >= len(n_channels):
-                raise ValueError(f"bifpn_layer_indices contains invalid index {idx}. Must be in range [0, {len(n_channels)-1}]")
+                raise ValueError(
+                    f"bifpn_layer_indices contains invalid index {idx}. Must be in range [0, {len(n_channels)-1}]"
+                )
 
         # Feature extraction backbone
         self.backbone_blocks = nn.ModuleList()
@@ -291,14 +383,18 @@ class DMBNet2dv5(nn.Module):
         )  # Use the maximum channels from selected layers as BiFPN feature dim
         self.lateral_convs = nn.ModuleDict()
         for i in self.bifpn_layer_indices:
-            self.lateral_convs[str(i)] = conv2d(n_channels[i], bifpn_channels, kernel_size=1)
+            self.lateral_convs[str(i)] = conv2d(
+                n_channels[i], bifpn_channels, kernel_size=1
+            )
 
         # BiFPN intermediate convolutions for each level
         self.bifpn_convs = nn.ModuleList()
         for _ in range(bifpn_repeats):
             level_convs = nn.ModuleDict()
             for i in self.bifpn_layer_indices:
-                level_convs[str(i)] = conv2d(bifpn_channels, bifpn_channels, kernel_size=3)
+                level_convs[str(i)] = conv2d(
+                    bifpn_channels, bifpn_channels, kernel_size=3
+                )
             self.bifpn_convs.append(level_convs)
 
         # Weighted fusion modules for BiFPN
@@ -356,22 +452,26 @@ class DMBNet2dv5(nn.Module):
         # Apply lateral convolutions only to specified layer indices
         lateral_features = {}
         for layer_idx in self.bifpn_layer_indices:
-            lateral_features[layer_idx] = self.lateral_convs[str(layer_idx)](backbone_features[layer_idx])
+            lateral_features[layer_idx] = self.lateral_convs[str(layer_idx)](
+                backbone_features[layer_idx]
+            )
 
         # BiFPN repeated blocks - only process specified layers
         current_features = lateral_features
         for repeat_idx in range(self.bifpn_repeats):
             # Top-down pathway
             td_features = {}
-            
+
             # Process layers in order of indices
             sorted_indices = sorted(self.bifpn_layer_indices)
-            td_features[sorted_indices[0]] = current_features[sorted_indices[0]]  # Highest level unchanged
+            td_features[sorted_indices[0]] = current_features[
+                sorted_indices[0]
+            ]  # Highest level unchanged
 
             for i in range(1, len(sorted_indices)):
                 current_idx = sorted_indices[i]
                 higher_idx = sorted_indices[i - 1]
-                
+
                 # Upsample higher level feature to match current level
                 higher_level = F.interpolate(
                     td_features[higher_idx],
@@ -381,33 +481,46 @@ class DMBNet2dv5(nn.Module):
                 )
 
                 # Weighted fusion of upsampled higher level and current lateral
-                td_features[current_idx] = self.td_weights[repeat_idx][str(current_idx)](
-                    [higher_level, current_features[current_idx]]
-                )
+                td_features[current_idx] = self.td_weights[repeat_idx][
+                    str(current_idx)
+                ]([higher_level, current_features[current_idx]])
 
                 # Apply convolution
-                td_features[current_idx] = self.bifpn_convs[repeat_idx][str(current_idx)](td_features[current_idx])
+                td_features[current_idx] = self.bifpn_convs[repeat_idx][
+                    str(current_idx)
+                ](td_features[current_idx])
 
             # Bottom-up pathway
             bu_features = {}
-            bu_features[sorted_indices[-1]] = td_features[sorted_indices[-1]]  # Lowest level unchanged
+            bu_features[sorted_indices[-1]] = td_features[
+                sorted_indices[-1]
+            ]  # Lowest level unchanged
 
             for i in range(len(sorted_indices) - 2, -1, -1):
                 current_idx = sorted_indices[i]
                 lower_idx = sorted_indices[i + 1]
-                
+
                 # Downsample lower level feature to match current level
                 lower_level = F.adaptive_avg_pool2d(
-                    bu_features[lower_idx], output_size=td_features[current_idx].shape[-2:]
+                    bu_features[lower_idx],
+                    output_size=td_features[current_idx].shape[-2:],
                 )
 
                 # Weighted fusion of downsampled lower level, top-down, and lateral
-                bu_features[current_idx] = self.bu_weights[repeat_idx][str(current_idx)](
-                    [td_features[current_idx], lower_level, current_features[current_idx]]
+                bu_features[current_idx] = self.bu_weights[repeat_idx][
+                    str(current_idx)
+                ](
+                    [
+                        td_features[current_idx],
+                        lower_level,
+                        current_features[current_idx],
+                    ]
                 )
 
                 # Apply convolution
-                bu_features[current_idx] = self.bifpn_convs[repeat_idx][str(current_idx)](bu_features[current_idx])
+                bu_features[current_idx] = self.bifpn_convs[repeat_idx][
+                    str(current_idx)
+                ](bu_features[current_idx])
 
             # Update current features for next iteration
             current_features = bu_features

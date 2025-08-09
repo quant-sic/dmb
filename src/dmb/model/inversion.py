@@ -140,7 +140,9 @@ class InversionResultLitModel(LightningModule):
     def _calculate_loss(self) -> tuple[torch.Tensor, LossOutput]:
         model_out = self()
         density_feature_dim = self.dmb_model.observables.index("density")
-        predicted_density = model_out.inference_output[0][..., density_feature_dim, :, :]
+        predicted_density = model_out.inference_output[0][
+            ..., density_feature_dim, :, :
+        ]
 
         batch = MultipleSizesBatch(
             inputs=[],
@@ -158,7 +160,9 @@ class InversionResultLitModel(LightningModule):
         return predicted_density, self.loss(reconstructed_model_out, batch)
 
     def _evaluate_metrics(self, predicted_density: torch.Tensor) -> None:
-        self.metrics.update(preds=predicted_density, target=self.output.to(predicted_density.device))
+        self.metrics.update(
+            preds=predicted_density, target=self.output.to(predicted_density.device)
+        )
 
     def training_step(self, *args: Any, **kwargs: dict) -> torch.Tensor:
         predicted_density, loss_out = self._calculate_loss()
