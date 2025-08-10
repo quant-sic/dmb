@@ -25,14 +25,14 @@ callbacks:
 
   gradient_accumulation_scheduler:
     scheduling:
-      100: 8
-      250: 8
-      500: 8
-      1000: 8
+      100: 16
+      250: 16
+      500: 16
+      1000: 16
 
 datamodule:
 
-  batch_size: 512
+  batch_size: 256
 
   dataset:
     transforms: 
@@ -67,7 +67,8 @@ lit_model:
         reduction_factor: 16,
         dropout: 0.1,
         bifpn_repeats: 2,
-        bifpn_layer_indices: [0, 3, 8, 15]
+        bifpn_layer_indices: [0, 3, 8, 15],
+        attention_mode: "local_fourier(cbam)",
       },
     ]
 

@@ -67,7 +67,8 @@ lit_model:
         reduction_factor: 16,
         dropout: 0.1,
         bifpn_repeats: 2,
-        bifpn_layer_indices: [0, 5, 10, 15]
+        bifpn_layer_indices: [0, 5, 10, 15],
+        attention_mode: "cbam",
       },
     ]
 

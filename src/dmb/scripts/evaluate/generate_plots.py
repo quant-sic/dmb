@@ -199,6 +199,8 @@ def plot_all(
         default=None, help="Path to the checkpoint file"
     ),
 ) -> None:
+    """Plot all available plots for the given log directory and checkpoint."""
+
     plot_wedding_cake(log_dir, checkpoint)
     plot_box_cuts(log_dir, checkpoint)
     plot_box(log_dir, checkpoint)

@@ -1,5 +1,7 @@
 """ResNet2d and SeResNet2d modules."""
 
+from typing import Literal
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -52,7 +54,12 @@ class CBAM(nn.Module):
         # Spatial attention
         self.spatial_attention = nn.Sequential(
             # Using 3 input channels for avg, max, and std pooling
-            nn.Conv2d(3, 1, 5, padding=2, padding_mode="circular"),
+            conv2d(
+                in_channels=3,
+                out_channels=1,
+                kernel_size=5,
+                bias=True,
+            )
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -110,7 +117,7 @@ class LocalFourierAttention(nn.Module):
         self,
         channels: int,
         kernel_size: int = 7,
-        stride: int = 1,
+        stride: int = 5,
         reduction_factor: int = 16,
     ):
         super().__init__()
@@ -194,17 +201,66 @@ class LocalFourierAttention(nn.Module):
 class HybridAttention(nn.Module):
     """Combines CBAM and Fourier-space Attention with a learnable gate."""
 
-    def __init__(self, channels: int, reduction_factor: int = 16):
+    def __init__(
+        self,
+        channels: int,
+        reduction_factor: int = 16,
+        mode: Literal[
+            "global_fourier(cbam)",
+            "local_fourier(cbam)",
+            "cbam",
+            "global_fourier",
+            "local_fourier",
+            "global_fourier+cbam",
+            "local_fourier+cbam",
+        ] = "global_fourier(cbam)",
+    ):
         super().__init__()
-        self.cbam = CBAM(channels, reduction_factor)
-        self.fourier_attention = FourierAttention(channels, reduction_factor)
+
+        self.mode = mode
+
+        if "cbam" in mode:
+            self.cbam = CBAM(channels, reduction_factor)
+
+        if "local_fourier" in mode:
+            # Use Local Fourier Attention for local context
+            self.fourier_attention = LocalFourierAttention(
+                channels, reduction_factor=reduction_factor
+            )
+        elif "global_fourier" in mode:
+            # Use global Fourier Attention for global context
+            self.fourier_attention = FourierAttention(channels, reduction_factor)
+
+        if "+" in mode:
+            self.gate = nn.Parameter(
+                torch.tensor(0.5, dtype=torch.float32, requires_grad=True)
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Get attended features from both modules
-        x_cbam = self.cbam(x)
-        x_fourier_cbam = self.fourier_attention(x_cbam)
+        """Forward pass of the HybridAttention module."""
 
-        return x_fourier_cbam
+        if "+" in self.mode:
+            x_cbam = self.cbam(x)
+            x_fourier = self.fourier_attention(x)
+
+            return self.gate * x_cbam + (1 - self.gate) * x_fourier
+
+        elif self.mode == "cbam":
+            # Only apply CBAM
+            return self.cbam(x)
+
+        elif self.mode in ["global_fourier", "local_fourier"]:
+            # Only apply Fourier attention
+            return self.fourier_attention(x)
+
+        elif "fourier(cbam)" in self.mode:
+            # Apply CBAM first, then Fourier attention
+            x_cbam = self.cbam(x)
+            x_fourier_cbam = self.fourier_attention(x_cbam)
+
+            return x_fourier_cbam
+
+        return x
 
 
 class Block(nn.Module):
@@ -218,6 +274,7 @@ class Block(nn.Module):
         stride: int = 1,
         dropout: float = 0.0,
         reduction_factor: int = 4,
+        attention_mode: str = "global_fourier(cbam)",
     ):
         super().__init__()
 
@@ -244,12 +301,13 @@ class Block(nn.Module):
         )
 
         self.attention = HybridAttention(
-            out_channels, reduction_factor=reduction_factor
+            out_channels, reduction_factor=reduction_factor, mode=attention_mode
         )
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
+                # nn.BatchNorm2d(out_channels),
                 conv2d(
                     in_channels,
                     out_channels,
@@ -328,6 +386,7 @@ class DMBNet2dv5(nn.Module):
         reduction_factor: int = 4,
         bifpn_repeats: int = 2,
         bifpn_layer_indices: list[int] | None = None,
+        attention_mode: str = "global_fourier(cbam)",
     ):
         super().__init__()
 
@@ -372,6 +431,7 @@ class DMBNet2dv5(nn.Module):
                         kernel_size=kernel_size,
                         dropout=dropout,
                         reduction_factor=reduction_factor,
+                        attention_mode=attention_mode,
                     )
                 )
             current_in_channels = channels
