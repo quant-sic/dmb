@@ -43,7 +43,10 @@ class PlottingCallback(Callback):
     def on_train_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
-        if not trainer.current_epoch % self.plot_interval == 0:
+        if (
+            not trainer.current_epoch % self.plot_interval == 0
+            or trainer.current_epoch == 0
+        ):
             return
 
         if not trainer.log_dir:

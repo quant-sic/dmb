@@ -5,8 +5,25 @@ from typing import Iterable, cast
 
 import numpy as np
 import torch
+from attrs import define, field
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
+
+
+@define
+class DMBModelOutput:
+    """DMB model output class."""
+
+    loss_input: list[torch.Tensor] = field()
+    inference_output: list[torch.Tensor] = field()
+
+
+@define
+class OutputModifications:
+    """Output modifications for DMB model."""
+
+    loss_input: nn.Module = field(default=nn.Identity())
+    inference_output: nn.Module = field(default=nn.Identity())
 
 
 class DMBModel(nn.Module):
@@ -16,7 +33,7 @@ class DMBModel(nn.Module):
         self,
         observables: list[str],
         module_list: Iterable[nn.Module],
-        output_modification: Iterable[nn.Module] = (),
+        modifications: OutputModifications | None = None,
     ) -> None:
         """Initialize DMB model.
 
@@ -28,27 +45,33 @@ class DMBModel(nn.Module):
         super().__init__()
 
         self.modules_list = torch.nn.ModuleList(modules=module_list)
-        self.output_modification = torch.nn.ModuleList(modules=output_modification)
+
+        self.modifications = (
+            modifications if modifications is not None else OutputModifications()
+        )
 
         self.observables = observables
 
-    def forward_single_size(self, x: torch.Tensor) -> torch.Tensor:
+    def forward_single_size(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass for a single input size."""
-        for module in itertools.chain(self.modules_list, self.output_modification):
+        for module in itertools.chain(self.modules_list):
             x = module(x)
 
-        return x
+        loss_input = self.modifications.loss_input(x)
+        inference_output = self.modifications.inference_output(x)
 
-    def forward(
-        self, x: torch.Tensor | list[torch.Tensor]
-    ) -> torch.Tensor | list[torch.Tensor]:
-        """Compute forward pass."""
-        if isinstance(x, (tuple, list)):
-            out: list[torch.Tensor] | torch.Tensor = [
-                self.forward_single_size(_x) for _x in x
-            ]
-        else:
-            out = self.forward_single_size(x)
+        return loss_input, inference_output
+
+    def forward(self, x: torch.Tensor | list[torch.Tensor]) -> DMBModelOutput:
+        """Forward pass of the DMB model."""
+        if not isinstance(x, (tuple, list)):
+            x = [x]
+
+        out: DMBModelOutput = DMBModelOutput(loss_input=[], inference_output=[])
+        for _x in x:
+            loss_input, inference_output = self.forward_single_size(_x)
+            out.loss_input.append(loss_input)
+            out.inference_output.append(inference_output)
 
         return out
 
@@ -87,7 +110,7 @@ class PredictionMapping:
             outputs = []
             for batch in dataloader:
                 batch = batch.to(self.model.device).float()
-                outputs.append(self.model(batch))
+                outputs.append(self.model(batch).inference_output[0])
 
             outputs_tensor = torch.cat(outputs, dim=0).to("cpu").detach()
 

@@ -1,6 +1,5 @@
 """Dataset for the Bose-Hubbard model."""
 
-import random
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -39,9 +38,8 @@ class WormSimulationsSplitStrategy(IdDatasetSplitStrategy):
             np.array, zip(*[(k, len(v)) for k, v in simulation_ids.items()])
         )
 
-        order = np.arange(len(unique_simulation_ids))
-        random.seed(seed)
-        random.shuffle(order)  # type: ignore
+        generator = np.random.default_rng(seed)
+        order = generator.permutation(len(unique_simulation_ids))
 
         agnostic_split_lengths = [
             int(split_fraction * len(dataset))  # type: ignore

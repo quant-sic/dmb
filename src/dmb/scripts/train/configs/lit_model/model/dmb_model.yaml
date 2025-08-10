@@ -12,4 +12,4 @@ observables:
   - density_variance
 
 module_list: []
-output_modification: []
+modifications: null

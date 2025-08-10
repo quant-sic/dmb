@@ -5,7 +5,7 @@
 model_checkpoint_best_train:
   _target_: lightning.pytorch.callbacks.ModelCheckpoint
   dirpath: ${paths.output_dir}/checkpoints/best_train # directory to save the model file
-  filename: '{epoch}-{step}' # checkpoint filename
+  filename: '{epoch}_{step}' # checkpoint filename
   monitor: "train/loss" # name of the logged metric which determines when model is improving
   verbose: False # verbosity mode
   save_last: null # additionally always save an exact copy of the last checkpoint to a file last.ckpt

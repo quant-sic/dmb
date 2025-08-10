@@ -235,7 +235,7 @@ def plot_phase_diagram(
         for name, reduction in reductions.items():
             with plt.rc_context(PLOT_STYLE):
                 figures_out[obs][name] = plt.figure(
-                    figsize=(TEXT_WIDTH * 0.33, TEXT_WIDTH * 0.33),
+                    figsize=(TEXT_WIDTH * 0.34, TEXT_WIDTH * 0.33),
                     constrained_layout=True,
                 )
 

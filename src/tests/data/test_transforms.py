@@ -10,6 +10,24 @@ class GroupElementsCases:
     """Cases for GroupElement tests."""
 
     @staticmethod
+    def case_empty() -> (
+        tuple[list[GroupElement], torch.Tensor, torch.Tensor, GroupElement]
+    ):
+        """Return an empty list of group elements, the initial number,
+        the expected result after applying the group elements,
+        and the composed group element."""
+        return (
+            [],
+            torch.Tensor([1.0]),
+            torch.Tensor([1.0]),
+            GroupElement(
+                name="identity",
+                transform=lambda x: x,
+                inverse_transform=lambda x: x,
+            ),
+        )
+
+    @staticmethod
     def case_group_elements_add() -> (
         tuple[list[GroupElement], torch.Tensor, torch.Tensor, GroupElement]
     ):

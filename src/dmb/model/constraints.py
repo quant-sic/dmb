@@ -22,3 +22,19 @@ class Exponential(torch.nn.Module):
             x: Input tensor.
         """
         return torch.exp(x) + self.eps
+
+
+class Log1p(torch.nn.Module):
+    """Log1p constraint."""
+
+    def __init__(self) -> None:
+        """Initialize Log1p constraint."""
+        super().__init__()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Args:
+            x: Input tensor.
+        """
+        return torch.log1p(x)

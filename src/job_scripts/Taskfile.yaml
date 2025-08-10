@@ -1,13 +1,5 @@
 version: "3"
 
-env:
-  REPO_ROOT:
-    sh: git rev-parse --show-toplevel
-
-  DATA_DIR_ROOT: "{{ .REPO_ROOT }}/data"
-  LOGS_DIR_ROOT: "{{ .REPO_ROOT }}/logs"
-  VIRTUAL_ENV: "{{ .REPO_ROOT }}/.venv"
-
 vars:
   JOB_SCRIPTS_DIR: "{{.REPO_ROOT}}/src/job_scripts"
   TEMPLATES_DIR: "{{.JOB_SCRIPTS_DIR}}/templates"
@@ -17,6 +9,17 @@ vars:
   QMC_JOBS_STARTER_TEMPLATE: "qmc_jobs_starter_template.sh.jinja2"
 
   PIPE_OUT_ROOT: "{{.REPO_ROOT}}/pipe_out"
+
+env:
+  REPO_ROOT:
+    sh: git rev-parse --show-toplevel
+
+  DATA_DIR_ROOT: "{{ .REPO_ROOT }}/data"
+  LOGS_DIR_ROOT: "{{ .REPO_ROOT }}/logs"
+  VIRTUAL_ENV: "{{ .REPO_ROOT }}/.venv"
+
+  PATH:
+    sh: echo {{ .VIRTUAL_ENV }}/bin:$PATH
 
 dotenv: ["{{ .REPO_ROOT }}/.env"]
 
@@ -33,10 +36,10 @@ tasks:
     vars:
       JOB_NAME: load_dataset
 
-      _COMMAND: 'uv run python {{ .REPO_ROOT }}/src/dmb/data/bose_hubbard_2d/worm/scripts/load_dataset.py {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/simulations {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/dataset {{ .INCLUDE_TUNE_DIRS | default "" }}'
+      _COMMAND: 'python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/load_dataset.py {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/simulations {{ .REPO_ROOT }}/data/{{ .DATA_DIR }}/dataset {{ .INCLUDE_TUNE_DIRS | default "" }}'
 
     cmds:
-      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
+      - jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
 
   load_dataset_box:
     desc: Load the box dataset
@@ -84,10 +87,10 @@ tasks:
       QMC_TASK_OPTIONS: '{{ .QMC_TASK_OPTIONS | default "" }}'
 
       _COMMAND:
-        sh: echo "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS }} {{ .QMC_TASK_OPTIONS }}"
+        sh: echo "python {{ .REPO_ROOT }}/src/dmb/scripts/data/bose_hubbard_2d/worm/{{ .QMC_SCRIPT_FILE }} {{ .QMC_TASK_ARGS }} {{ .QMC_TASK_OPTIONS }}"
 
     cmds:
-      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .QMC_JOBS_STARTER_TEMPLATE }} -D qmc_task={{ .QMC_TASK }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D slurm_array_size={{ .SLURM_ARRAY_SIZE }} -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} -D worm_mpi_executable='{{ .WORM_MPI_EXECUTABLE }}' | sbatch
+      - jinja2 {{.TEMPLATES_DIR}}/{{ .QMC_JOBS_STARTER_TEMPLATE }} -D qmc_task={{ .QMC_TASK }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D slurm_array_size={{ .SLURM_ARRAY_SIZE }} -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} -D worm_mpi_executable='{{ .WORM_MPI_EXECUTABLE }}' | sbatch
 
   run_qmc_random:
     desc: Run QMC on random potentials
@@ -169,10 +172,10 @@ tasks:
     vars:
       JOB_NAME: create_split
 
-      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/create_split.py experiment={{ .EXPERIMENT }} file_path={{ .FILE_PATH }} split.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
+      _COMMAND: "python {{ .REPO_ROOT }}/src/dmb/scripts/train/create_split.py experiment={{ .EXPERIMENT }} file_path={{ .FILE_PATH }} split.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
 
     cmds:
-      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
+      - jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
 
   create_split_random:
     desc: Create a split for the random dataset
@@ -203,11 +206,13 @@ tasks:
 
       SPLIT_FILE: '{{ .SPLIT_FILE | default "v2.json" }}'
       SPLIT_FILE_PATH: "{{ .DATASET_DIR_PATH }}/splits/{{ .SPLIT_FILE }}"
+      CKPT_PATH: '{{ .CKPT_PATH | default "" }}'
 
-      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}"
 
+      _COMMAND: python {{ .REPO_ROOT }}/src/dmb/scripts/train/train.py experiment={{ .EXPERIMENT }} datamodule.split.file_path={{ .SPLIT_FILE_PATH }} datamodule.dataset.dataset_dir_path={{ .DATASET_DIR_PATH }}{{ if .CKPT_PATH }} '"ckpt_path={{ .CKPT_PATH }}"'{{ end }}
+      
     cmds:
-      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+      - jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
 
   invert:
 
@@ -217,10 +222,10 @@ tasks:
     vars:
       JOB_NAME: invert
 
-      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/invert/invert.py experiment=minerva_half_checkerboard"
+      _COMMAND: "python {{ .REPO_ROOT }}/src/dmb/scripts/invert/invert.py experiment=minerva_half_checkerboard"
 
     cmds:
-      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+      - jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
 
   generate_model_plots:
     desc: Generate plots
@@ -229,12 +234,13 @@ tasks:
     vars:
       JOB_NAME: generate_plots
 
-      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/generate_plots.py plot-all"
+      LOG_DIR: '{{ .LOG_DIR | default "{{ .LOGS_DIR_ROOT }}/train/bose_hubbard_2d/worm/all_obs/se_resnet/mse/softplus/runs/2025-01-03_13-18-23" }}'
+      CHECKPOINT: '{{ .CHECKPOINT | default "" }}'
 
-      LOG_DIR: "{{ .LOGS_DIR_ROOT }}/train/bose_hubbard_2d/worm/se_resnet/mse/softplus/runs/2025-01-03_13-19-37"
+      _COMMAND: "python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/generate_plots.py plot-all --log-dir={{ .LOG_DIR }}{{ if .CHECKPOINT }} --checkpoint={{ .CHECKPOINT }}{{ end }}" 
 
     cmds:
-      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
+      - jinja2 {{.TEMPLATES_DIR}}/{{ .GPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition=gpu -D num_gpus=1 | sbatch
 
   generate_run_time_plot:
     desc: Generate a run time plot
@@ -243,7 +249,7 @@ tasks:
     vars:
       JOB_NAME: generate_run_time_plot
 
-      _COMMAND: "uv run python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/analyze_qmc_runtimes.py --max-num-simulations=10000"
+      _COMMAND: "python {{ .REPO_ROOT }}/src/dmb/scripts/evaluate/analyze_qmc_runtimes.py --max-num-simulations=10000"
 
     cmds:
-      - uv run jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
+      - jinja2 {{.TEMPLATES_DIR}}/{{ .STANDARD_CPU_JOB_TEMPLATE }} -D job_name={{ .JOB_NAME }} -D command='{{ ._COMMAND }}' -D venv_path='{{ .VIRTUAL_ENV }}' -D pipe_out_root='{{ .PIPE_OUT_ROOT }}' -D working_dir='{{ .REPO_ROOT }}' -D slurm_partition={{ .SLURM_DISPATCHER_PARTITION }} | sbatch
