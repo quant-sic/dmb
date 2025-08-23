@@ -175,3 +175,92 @@ class MSE(torchmetrics.Metric):
             self.num_outputs, device=self.sum_squared_error.device
         )
         self.total = torch.tensor(0, device=self.total.device)
+
+
+class MSLE(torchmetrics.Metric):
+    """Mean Squared Logarithmic Error (MSLE) metric."""
+
+    is_differentiable = True
+    higher_is_better = False
+    full_state_update = False
+    plot_lower_bound: float = 0.0
+
+    sum_squared_log_error: torch.Tensor
+    total: torch.Tensor
+
+    def __init__(
+        self,
+        *args: Any,  # pylint: disable=unused-argument
+        squared: bool = True,
+        num_outputs: int = 1,
+        **kwargs: Any,
+    ) -> None:  # pylint: disable=unused-argument
+        """Initialize the Mean Squared Logarithmic Error (MSLE) metric."""
+
+        super().__init__(**kwargs)
+
+        if not isinstance(squared, bool):
+            raise ValueError(
+                f"Expected argument `squared` to be a boolean but got {squared}"
+            )
+        self.squared = squared
+
+        if not (isinstance(num_outputs, int) and num_outputs > 0):
+            raise ValueError(
+                f"Expected num_outputs to be a positive integer but got {num_outputs}"
+            )
+        self.num_outputs = num_outputs
+
+        self.add_state(
+            "sum_squared_log_error",
+            default=torch.zeros(self.num_outputs),
+            dist_reduce_fx="sum",
+        )
+        self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")
+
+    def compute(self) -> torch.Tensor:
+        """Compute the Mean Squared Logarithmic Error (MSLE) metric."""
+        return _mean_squared_error_compute(
+            self.sum_squared_log_error, self.total, squared=self.squared
+        )
+
+    def update_single_size(self, preds: torch.Tensor, target: torch.Tensor) -> None:
+        """Update the Mean Squared Logarithmic Error (MSLE) metric."""
+        preds_clamped = torch.clamp(preds.reshape(-1), min=0)
+        log_preds = torch.log1p(preds_clamped)
+        log_target = torch.log1p(target.reshape(-1))
+
+        sum_squared_log_error, num_obs = _mean_squared_error_update(
+            log_preds, log_target, num_outputs=self.num_outputs
+        )
+
+        self.sum_squared_log_error = (
+            self.sum_squared_log_error.clone() + sum_squared_log_error
+        )
+        self.total = self.total.clone() + num_obs
+
+    def update(
+        self,
+        preds: torch.Tensor | list[torch.Tensor],
+        target: torch.Tensor | list[torch.Tensor],
+    ) -> None:
+        """
+        Update the Mean Squared Logarithmic Error (MSLE) metric.
+
+        Args:
+            preds (torch.Tensor | list[torch.Tensor]): Predicted values.
+            target (torch.Tensor | list[torch.Tensor]): True values.
+        """
+
+        if isinstance(preds, (list, tuple)):
+            for _preds, _target in zip(preds, target):
+                self.update_single_size(_preds, _target)
+        else:
+            self.update_single_size(preds, cast(torch.Tensor, target))
+
+    def reset(self) -> None:
+        """Reset the Mean Squared Logarithmic Error (MSLE) metric."""
+        self.sum_squared_log_error = torch.zeros(
+            self.num_outputs, device=self.sum_squared_log_error.device
+        )
+        self.total = torch.tensor(0, device=self.total.device)

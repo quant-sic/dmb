@@ -16,6 +16,7 @@
 /logs
 
 !data/test/*
+!docs/*
 
 .venv
 .trunk

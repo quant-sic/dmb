@@ -14,7 +14,7 @@ from dmb.model.dmb_model import DMBModel
 from dmb.model.lit_dmb_model import LitDMBModel
 from dmb.model.loss import Loss, MSELoss
 from dmb.model.metrics import MSE
-from dmb.model.modules import EsSeResNet2d, ResNet2d, SeResNet2d
+from dmb.model.modules import ResNet2d, SeResNet2d
 
 
 class DMBModelCases:
@@ -46,22 +46,6 @@ class DMBModelCases:
                     kernel_sizes=[5, 3, 3, 3],
                     n_channels=[3, 3, 3, 3],
                     dropout=0.1,
-                )
-            ],
-        )
-
-    def case_es_resnet2d(self) -> DMBModel:
-        """Return a DMB model with EsSeResNet2d module."""
-        return DMBModel(
-            observables=["density"],
-            module_list=[
-                EsSeResNet2d(
-                    in_channels=4,
-                    out_channels=7,
-                    kernel_sizes=[5, 3, 3, 3],
-                    n_channels=[16, 16, 16, 16],
-                    dropout=0.1,
-                    se_squeeze_factor=2,
                 )
             ],
         )

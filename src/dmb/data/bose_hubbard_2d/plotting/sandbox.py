@@ -34,8 +34,7 @@ def colorbar(mappable: ScalarMappable) -> Colorbar:
     return colorbar
 
 
-def create_wedding_cake_plot(
-    mapping: PredictionMapping | None = None,
+def create_wedding_cake_inputs_and_targets(
     bose_hubbard_2d_dataset: BoseHubbard2dDataset | None = None,
     ztU: float = 0.1,
     zVU: float = 1.0,
@@ -44,8 +43,8 @@ def create_wedding_cake_plot(
     L: int = 40,
     muU_num_steps: int = 10,
     coefficient: float = -2.0,
-) -> dict[str, dict[str, plt.Figure]]:
-    """Create wedding cake plot for a given model and parameters."""
+) -> tuple[list[torch.Tensor], list[torch.Tensor], list[float]]:
+    """Create inputs and targets for the wedding cake plot."""
 
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
@@ -85,6 +84,32 @@ def create_wedding_cake_plot(
         )
         for _muU, target_density in zip(muU, target_densities)
     ]
+
+    return inputs, target_densities, muU
+
+
+def create_wedding_cake_plot(
+    mapping: PredictionMapping | None = None,
+    bose_hubbard_2d_dataset: BoseHubbard2dDataset | None = None,
+    ztU: float = 0.1,
+    zVU: float = 1.0,
+    muU_min: float = 0.0,
+    muU_max: float = 3.0,
+    L: int = 40,
+    muU_num_steps: int = 10,
+    coefficient: float = -2.0,
+) -> dict[str, dict[str, plt.Figure]]:
+    """Create wedding cake plot for a given model and parameters."""
+    inputs, target_densities, muU = create_wedding_cake_inputs_and_targets(
+        bose_hubbard_2d_dataset,
+        ztU=ztU,
+        zVU=zVU,
+        muU_min=muU_min,
+        muU_max=muU_max,
+        L=L,
+        muU_num_steps=muU_num_steps,
+        coefficient=coefficient,
+    )
 
     outputs = (
         mapping(inputs)
@@ -138,8 +163,7 @@ def create_wedding_cake_plot(
     return figures
 
 
-def create_box_plot(
-    mapping: PredictionMapping,
+def create_box_plot_inputs_and_targets(
     bose_hubbard_2d_dataset: BoseHubbard2dDataset | None = None,
     ztU: float = 0.1,
     zVU: float = 1.0,
@@ -148,8 +172,8 @@ def create_box_plot(
     L: int = 41,
     muU_num_steps: int = 50,
     square_size: int = 22,
-) -> dict[str, dict[str, plt.Figure]]:
-    """Create box plot for a given model and parameters."""
+) -> tuple[list[torch.Tensor], list[torch.Tensor], list[float]] | None:
+    """Create inputs and targets for the box plot."""
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
             dataset_dir_path=REPO_DATA_ROOT
@@ -160,7 +184,7 @@ def create_box_plot(
         )
 
     if len(bose_hubbard_2d_dataset) == 0:
-        return {}
+        return None
 
     muU = np.linspace(muU_min, muU_max, muU_num_steps)
     target_densities = [
@@ -191,6 +215,37 @@ def create_box_plot(
         )
         for _muU, target_density in zip(muU, target_densities)
     ]
+
+    return inputs, target_densities, muU
+
+
+def create_box_plot(
+    mapping: PredictionMapping,
+    bose_hubbard_2d_dataset: BoseHubbard2dDataset | None = None,
+    ztU: float = 0.1,
+    zVU: float = 1.0,
+    muU_min: float = 0.0,
+    muU_max: float = 3.0,
+    L: int = 41,
+    muU_num_steps: int = 50,
+    square_size: int = 22,
+) -> dict[str, dict[str, plt.Figure]]:
+    """Create box plot for a given model and parameters."""
+    inputs_targets = create_box_plot_inputs_and_targets(
+        bose_hubbard_2d_dataset,
+        ztU=ztU,
+        zVU=zVU,
+        muU_min=muU_min,
+        muU_max=muU_max,
+        L=L,
+        muU_num_steps=muU_num_steps,
+        square_size=square_size,
+    )
+    if inputs_targets is None:
+        log.warning("No data available for box plot.")
+        return {}
+
+    inputs, target_densities, muU = inputs_targets
 
     outputs = mapping(inputs)
 
@@ -251,8 +306,7 @@ def create_box_plot(
     return figures
 
 
-def create_box_cuts_plot(
-    mapping: PredictionMapping,
+def create_box_cuts_inputs_and_targets(
     bose_hubbard_2d_dataset: BoseHubbard2dDataset | None = None,
     ztU: float = 0.1,
     zVU: float = 1.0,
@@ -261,8 +315,7 @@ def create_box_cuts_plot(
     L: int = 41,
     muU_num_steps: int = 50,
     square_size: int = 22,
-) -> dict[str, plt.Figure]:
-    """Create box cuts plot for a given model and parameters."""
+) -> tuple[list[torch.Tensor], list[torch.Tensor], list[float], int]:
     if not bose_hubbard_2d_dataset:
         bose_hubbard_2d_dataset = BoseHubbard2dDataset(
             dataset_dir_path=REPO_DATA_ROOT
@@ -308,8 +361,6 @@ def create_box_cuts_plot(
         else:
             target_densities.append(target_density.roll(1, dims=0))
 
-    _target_densities = torch.stack(target_densities, dim=0)
-
     inputs = [
         get_nn_input_dimless_const_parameters(
             muU=get_square_mu_potential(
@@ -323,8 +374,35 @@ def create_box_cuts_plot(
             cb_projection=True,
             target_density=target_density,
         )
-        for _muU, target_density in zip(muU, _target_densities)
+        for _muU, target_density in zip(muU, target_densities)
     ]
+
+    return inputs, target_densities, muU, cut_position
+
+
+def create_box_cuts_plot(
+    mapping: PredictionMapping,
+    bose_hubbard_2d_dataset: BoseHubbard2dDataset | None = None,
+    ztU: float = 0.1,
+    zVU: float = 1.0,
+    muU_min: float = 0.0,
+    muU_max: float = 3.0,
+    L: int = 41,
+    muU_num_steps: int = 50,
+    square_size: int = 22,
+) -> dict[str, plt.Figure]:
+    """Create box cuts plot for a given model and parameters."""
+    inputs, target_densities, muU, cut_position = create_box_cuts_inputs_and_targets(
+        bose_hubbard_2d_dataset,
+        ztU=ztU,
+        zVU=zVU,
+        muU_min=muU_min,
+        muU_max=muU_max,
+        L=L,
+        muU_num_steps=muU_num_steps,
+        square_size=square_size,
+    )
+    _target_densities = torch.stack(target_densities, dim=0)
     outputs = mapping(inputs)
 
     nn_cuts: np.ndarray = outputs["density"][:, cut_position]

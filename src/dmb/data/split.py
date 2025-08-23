@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import random
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
@@ -33,10 +32,8 @@ class AllIdsEqualSplitStrategy(IdDatasetSplitStrategy):
     ) -> dict[str, list[str]]:
         """Split a dataset into multiple subsets."""
 
-        dataset_indices = np.arange(len(dataset))  # type: ignore
-
-        random.seed(seed)
-        random.shuffle(dataset_indices)  # type: ignore
+        generator = np.random.default_rng(seed)
+        dataset_indices = generator.permutation(len(dataset))  # type: ignore
 
         split_lengths = [
             int(split_fraction * len(dataset))  # type: ignore

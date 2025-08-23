@@ -8,7 +8,7 @@ dataset:
   sample_filter_strategy:
     _target_: dmb.data.bose_hubbard_2d.worm.dataset.BoseHubbard2dSampleFilterStrategy
     ztU_range: [0.05, 1.0]
-    muU_range: [-0.05, 3.0]
+    muU_range: [-0.5, 3.0]
     zVU_range: [0.75, 1.75]
     L_range: [2, 20]
     max_density_error: 0.015
@@ -38,4 +38,12 @@ batch_sampler:
     _partial_: true
     n_duplicates: 1
 
-
+evaluation_data:
+  _target_: dmb.data.dataset.EvaluationData.from_data_generation_functions
+  data_generation_functions:
+    - _target_: dmb.data.bose_hubbard_2d.plotting.sandbox.create_box_cuts_inputs_and_targets
+      _partial_: true
+    - _target_: dmb.data.bose_hubbard_2d.plotting.sandbox.create_wedding_cake_inputs_and_targets
+      _partial_: true
+    - _target_: dmb.data.bose_hubbard_2d.plotting.sandbox.create_box_plot_inputs_and_targets
+      _partial_: true

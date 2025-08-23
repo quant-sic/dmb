@@ -16,6 +16,7 @@ class MDuplicatesPerBatchSampler(Sampler):
         batch_size: int = 1,
         shuffle: bool = False,
         drop_last: bool = False,
+        generator: np.random.Generator | None = None,
     ):
         """Initialize the sampler.
 
@@ -36,25 +37,45 @@ class MDuplicatesPerBatchSampler(Sampler):
         self.shuffle = shuffle
         self.drop_last = drop_last
 
+        self.generator = generator or np.random.default_rng(seed=42)
+
+        self.current_index = 0
+
     def __iter__(self) -> Iterator[list[int]]:
         dataset_indices = list(range(len(self.dataset)))
 
         if self.shuffle:
-            np.random.shuffle(dataset_indices)
+            self.generator.shuffle(dataset_indices)
 
         batch_indices = []
-        for dataset_idx in dataset_indices:
+        while self.current_index < len(dataset_indices):
+            dataset_idx = dataset_indices[self.current_index]
             for _ in range(self.n_duplicates):
                 batch_indices.append(dataset_idx)
                 if len(batch_indices) == self.batch_size:
                     yield batch_indices
                     batch_indices = []
+            self.current_index += 1
 
         if len(batch_indices) > 0 and not self.drop_last:
             yield batch_indices
+
+        self.current_index = 0
 
     def __len__(self) -> int:
         if self.drop_last:
             return len(self.dataset) // self.batch_size
 
         return int(np.ceil((len(self.dataset) * self.n_duplicates) / self.batch_size))
+
+    def state_dict(self) -> dict:
+        """Return the state of the sampler."""
+        return {
+            "generator_state": self.generator.bit_generator.state,
+            "current_index": self.current_index,
+        }
+
+    def load_state_dict(self, state_dict: dict) -> None:
+        """Load the state of the sampler."""
+        self.generator.bit_generator.state = state_dict["generator_state"]
+        self.current_index = state_dict["current_index"]

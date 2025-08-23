@@ -22,7 +22,7 @@ tasks:
     desc: "Install dependencies"
     vars:
       EXTRAS: '{{ .EXTRAS | default "--extra cu124" }}'
-      GROUPS: '{{ .GROUPS | default "--group ci --group dev" }}'
+      GROUPS: '{{ .GROUPS | default "--all-groups" }}'
     cmds:
       - uv sync {{ .GROUPS }} {{ .EXTRAS }}
 
@@ -42,9 +42,13 @@ tasks:
   test:
     desc: Run tests
     vars:
-      MARK: '{{ .MARK | default "" }}'
+      MARK: '{{ .MARK | default "not requires_worm" }}'
     cmds:
       - pytest -m "{{ .MARK }}" --basetemp={{ .REPO_ROOT }}/.cache/pytest_tmp
+      - |
+        if [ -z "$CI" ]; then
+          find {{ .REPO_ROOT }} -maxdepth 1 -type f -name '.coverage*' -delete
+        fi
 
   licenses:
     desc: List licenses of dependencies

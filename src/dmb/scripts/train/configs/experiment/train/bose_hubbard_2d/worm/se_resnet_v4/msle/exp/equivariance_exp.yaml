@@ -1,0 +1,106 @@
+# @package _global_
+
+defaults:
+  - override /datamodule: bose_hubbard_2d
+  - override /lit_model: lit_dmb_model
+  - override /lit_model/model: dmb_model
+  - override /callbacks: default
+  - override /trainer: default
+  - _self_
+
+exp_name: "bose_hubbard_2d/worm/all_obs/se_resnet_v4/msle/exp"
+
+seed: 12345
+
+trainer:
+  max_epochs: 2000
+  # accumulate_grad_batches: 16
+  check_val_every_n_epoch: 3
+  log_every_n_steps: 5
+
+callbacks:
+  plotting:
+    plot_interval: 20
+
+  gradient_accumulation_scheduler:
+    scheduling:
+      100: 16
+      250: 16
+      500: 16
+      1000: 16
+
+datamodule:
+
+  batch_size: 256
+
+  dataset:
+    transforms: 
+      train_augmentations:           
+        - _target_: dmb.data.bose_hubbard_2d.transforms.D4GroupTransforms
+
+    sample_filter_strategy:
+      max_density_error: 0.015
+
+  batch_sampler:
+    train:
+      _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+      _partial_: true
+      n_duplicates: 8
+
+    val:
+      _target_: dmb.data.sampler.MDuplicatesPerBatchSampler
+      _partial_: true
+      n_duplicates: 8
+
+
+lit_model:
+  model:
+
+    module_list: [
+      {
+        _target_: dmb.model.modules.se_resnet2d_v4.DMBNet2dv4,
+        in_channels: 4,
+        out_channels: 9,
+        kernel_sizes: [3,3,3,3,3,3, 3,3, 3, 3,3,3,3,3,3,3],
+        n_channels: [32, 64, 64, 64, 128, 128, 128, 128, 128, 256, 256, 256, 256, 256, 256, 256],
+        reduction_factor: 16,
+        dropout: 0.1
+      },
+    ]
+
+    modifications:
+      _target_: dmb.model.dmb_model.OutputModifications
+      loss_input: 
+        _target_: torch.nn.Softplus
+      inference_output: 
+        _target_: dmb.model.constraints.Exponential
+
+  optimizer:
+    lr: 0.00001
+
+  lr_scheduler:
+    scheduler:
+      _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+      mode: min
+      factor: 0.5
+      patience: 10
+      min_lr: 5e-6
+      cooldown: 500
+      threshold: 0.1
+      
+    monitor: train/mse
+    interval: epoch
+    frequency: 1
+
+  loss:
+    _target_: dmb.model.loss.WeightedLoss
+    constituent_losses:
+      mse:
+        _target_: dmb.model.loss.MSELoss
+        label_modification: 
+          _target_: dmb.model.constraints.Log1p
+      equivariance:
+        _target_: dmb.model.loss.EquivarianceErrorLoss
+    weights:
+      mse: 1.0
+      equivariance: 25.0
